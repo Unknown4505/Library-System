@@ -1,0 +1,80 @@
+# =============================================================================
+# CODEOWNERS — BookKiosk
+# =============================================================================
+# Cú pháp: <pattern>  @github-username [thêm owner nếu cần]
+#
+# ⚠️  VIỆC CẦN LÀM TRƯỚC KHI PUSH LÊN GITHUB:
+#     Thay tất cả @leader, @member1, @member2
+#     bằng GitHub username thật của từng người.
+#     Ví dụ: @leader → @nguyenvana
+#
+# Cách hoạt động:
+#   - Khi ai đó mở Pull Request chạm vào file thuộc pattern này,
+#     GitHub tự động tag người được chỉ định vào PR để review.
+#   - PR chỉ được merge vào main sau khi người đó approve.
+#   - Không ảnh hưởng đến việc chạy code local.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# 1. DEFAULT — Leader review tất cả PR vào main
+# -----------------------------------------------------------------------------
+*                               @leader
+
+
+# -----------------------------------------------------------------------------
+# 2. GitHub & CI config — chỉ Leader được approve
+# -----------------------------------------------------------------------------
+/.github/                       @leader
+/.github/CODEOWNERS             @leader
+
+
+# -----------------------------------------------------------------------------
+# 3. Docs — Leader approve (là người maintain toàn bộ docs)
+# -----------------------------------------------------------------------------
+/docs/                          @leader
+
+
+# -----------------------------------------------------------------------------
+# 4. Domain & Shared contracts — Leader approve
+#    (Entity, Interface, DTO ảnh hưởng toàn bộ hệ thống)
+# -----------------------------------------------------------------------------
+/BookKiosk.Domain/              @leader
+/BookKiosk.Application/Interfaces/  @leader
+/BookKiosk.Application/DTOs/    @leader
+
+
+# -----------------------------------------------------------------------------
+# 5. Infrastructure / Database — Leader approve
+#    (DbContext, Migrations, Payment client)
+# -----------------------------------------------------------------------------
+/BookKiosk.Infrastructure/      @leader
+
+
+# -----------------------------------------------------------------------------
+# 6. Backend API — Member phụ trách Backend
+#    ⚠️  Thay @member1 bằng username thật sau khi phân công
+# -----------------------------------------------------------------------------
+/BookKiosk.API/                 @member1 @leader
+/BookKiosk.Application/Services/  @member1 @leader
+
+
+# -----------------------------------------------------------------------------
+# 7. Kiosk WPF App — Member phụ trách Kiosk
+#    ⚠️  Thay @member? bằng username thật sau khi phân công
+# -----------------------------------------------------------------------------
+/BookKiosk.Kiosk/               @member1 @leader
+
+
+# -----------------------------------------------------------------------------
+# 8. CMS Web Admin — Member phụ trách CMS
+#    ⚠️  Thay @member? bằng username thật sau khi phân công
+# -----------------------------------------------------------------------------
+/BookKiosk.CMS/                 @member2 @leader
+
+
+# -----------------------------------------------------------------------------
+# 9. Cấu hình & môi trường — Leader approve
+# -----------------------------------------------------------------------------
+/BookKiosk.API/appsettings*.json  @leader
+*.env.example                   @leader

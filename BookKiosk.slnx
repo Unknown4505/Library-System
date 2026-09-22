@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="BookKiosk.API/BookKiosk.API.csproj" />
+  <Project Path="BookKiosk.Application/BookKiosk.Application.csproj" />
+  <Project Path="BookKiosk.CMS/BookKiosk.CMS.csproj" />
+  <Project Path="BookKiosk.Domain/BookKiosk.Domain.csproj" />
+  <Project Path="BookKiosk.Infrastructure/BookKiosk.Infrastructure.csproj" />
+  <Project Path="BookKiosk.Kiosk/BookKiosk.Kiosk.csproj" />
+</Solution>
