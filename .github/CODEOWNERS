@@ -4,9 +4,9 @@
 # Cú pháp: <pattern>  @github-username [thêm owner nếu cần]
 #
 # ⚠️  VIỆC CẦN LÀM TRƯỚC KHI PUSH LÊN GITHUB:
-#     Thay tất cả @leader, @member1, @member2
+#     Thay tất cả @Unknown4505, @thien33, @lehuukhang
 #     bằng GitHub username thật của từng người.
-#     Ví dụ: @leader → @nguyenvana
+#     Ví dụ: @Unknown4505 → @nguyenvana
 #
 # Cách hoạt động:
 #   - Khi ai đó mở Pull Request chạm vào file thuộc pattern này,
@@ -19,62 +19,62 @@
 # -----------------------------------------------------------------------------
 # 1. DEFAULT — Leader review tất cả PR vào main
 # -----------------------------------------------------------------------------
-*                               @leader
+*                               @Unknown4505
 
 
 # -----------------------------------------------------------------------------
 # 2. GitHub & CI config — chỉ Leader được approve
 # -----------------------------------------------------------------------------
-/.github/                       @leader
-/.github/CODEOWNERS             @leader
+/.github/                       @Unknown4505
+/.github/CODEOWNERS             @Unknown4505
 
 
 # -----------------------------------------------------------------------------
 # 3. Docs — Leader approve (là người maintain toàn bộ docs)
 # -----------------------------------------------------------------------------
-/docs/                          @leader
+/docs/                          @Unknown4505
 
 
 # -----------------------------------------------------------------------------
 # 4. Domain & Shared contracts — Leader approve
 #    (Entity, Interface, DTO ảnh hưởng toàn bộ hệ thống)
 # -----------------------------------------------------------------------------
-/BookKiosk.Domain/              @leader
-/BookKiosk.Application/Interfaces/  @leader
-/BookKiosk.Application/DTOs/    @leader
+/BookKiosk.Domain/              @Unknown4505
+/BookKiosk.Application/Interfaces/  @Unknown4505
+/BookKiosk.Application/DTOs/    @Unknown4505
 
 
 # -----------------------------------------------------------------------------
 # 5. Infrastructure / Database — Leader approve
 #    (DbContext, Migrations, Payment client)
 # -----------------------------------------------------------------------------
-/BookKiosk.Infrastructure/      @leader
+/BookKiosk.Infrastructure/      @Unknown4505
 
 
 # -----------------------------------------------------------------------------
 # 6. Backend API — Member phụ trách Backend
-#    ⚠️  Thay @member1 bằng username thật sau khi phân công
+#    ⚠️  Thay @thien33 bằng username thật sau khi phân công
 # -----------------------------------------------------------------------------
-/BookKiosk.API/                 @member1 @leader
-/BookKiosk.Application/Services/  @member1 @leader
+/BookKiosk.API/                 @thien33 @Unknown4505
+/BookKiosk.Application/Services/  @thien33 @Unknown4505
 
 
 # -----------------------------------------------------------------------------
 # 7. Kiosk WPF App — Member phụ trách Kiosk
 #    ⚠️  Thay @member? bằng username thật sau khi phân công
 # -----------------------------------------------------------------------------
-/BookKiosk.Kiosk/               @member1 @leader
+/BookKiosk.Kiosk/               @thien33 @Unknown4505
 
 
 # -----------------------------------------------------------------------------
 # 8. CMS Web Admin — Member phụ trách CMS
 #    ⚠️  Thay @member? bằng username thật sau khi phân công
 # -----------------------------------------------------------------------------
-/BookKiosk.CMS/                 @member2 @leader
+/BookKiosk.CMS/                 @lehuukhang @Unknown4505
 
 
 # -----------------------------------------------------------------------------
 # 9. Cấu hình & môi trường — Leader approve
 # -----------------------------------------------------------------------------
-/BookKiosk.API/appsettings*.json  @leader
-*.env.example                   @leader
+/BookKiosk.API/appsettings*.json  @Unknown4505
+*.env.example                   @Unknown4505
