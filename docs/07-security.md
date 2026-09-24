@@ -38,12 +38,12 @@ Máy Kiosk là thiết bị cố định đặt tại cửa hàng, luôn đượ
 Web Admin / CMS dành cho Thủ thư và Admin quản lý được dùng thông qua trình duyệt web. Trình duyệt bắt buộc phải đăng nhập.
 
 1. **Đăng nhập:** Gọi API `POST /api/auth/login` truyền `username` và `password`.
-2. **Cấp phát:** Backend mã hóa và trả về:
-   - `AccessToken` (Tuổi thọ ngắn: 15 - 30 phút).
-   - `RefreshToken` (Tuổi thọ dài: 7 ngày, lưu trong bảng `RefreshTokens`).
-3. **Sử dụng:** Trình duyệt lưu AccessToken vào LocalStorage/SessionStorage. Khi gọi các API lấy báo cáo, quản lý sách, thủ thư phải chèn Header:
+2. **Cấp phát:** Backend xác thực BCrypt, trả về `AccessToken` (JWT, tuổi thọ **15–30 phút**). Không lưu gì vào DB.
+3. **Sử dụng:** Trình duyệt lưu AccessToken vào `sessionStorage`. Khi gọi API, chèn Header:
    `Authorization: Bearer <AccessToken>`
-4. **Hết hạn (Expired):** Khi AccessToken hết hạn (API trả về `401`), Frontend CMS ngầm gọi API `POST /api/auth/refresh-token` kèm theo RefreshToken để lấy AccessToken mới mà không bắt user đăng nhập lại.
+4. **Hết hạn:** Khi AccessToken hết hạn (API trả `401`), Frontend redirect về trang Login. Nhân viên đăng nhập lại.
+
+> **Lý do không dùng Refresh Token:** Hệ thống chạy môi trường nội bộ cửa hàng, phiên làm việc ngắn, không có nhu cầu "nhớ đăng nhập". Stateless đơn giản hơn và không cần thêm bảng DB.
 
 ### Phân quyền (Role-based Authorization)
 Hệ thống CMS Web Admin phân chia rạch ròi 2 cấp độ quyền hạn (Role) được lưu trong chuỗi Claim của JWT AccessToken. Backend sử dụng Attribute `[Authorize(Roles = "...")]` để chặn hoặc cho phép thực thi API.
@@ -51,7 +51,7 @@ Hệ thống CMS Web Admin phân chia rạch ròi 2 cấp độ quyền hạn (R
 **1. Role `Staff` (Thủ thư / Nhân viên thu ngân):**
 Nhân viên là người vận hành hàng ngày, được cấp quyền thao tác trên các luồng nghiệp vụ cơ bản, không có quyền can thiệp vào tài chính cốt lõi hay cấu hình hệ thống.
 - **Quản lý sách:** Được xem, thêm, sửa thông tin sách, cập nhật tồn kho (Nhập hàng).
-- **Xử lý sự cố Kiosk:** Xem danh sách đơn hàng, xử lý các đơn bị lỗi thanh toán (`NeedsReview`), xác nhận thu tiền mặt.
+- **Xử lý sự cố Kiosk:** Xem danh sách đơn hàng, xử lý các đơn bị lỗi thanh toán (khách chuyển sai tiền), xác nhận thu tiền mặt.
 - **Khách hàng:** Thêm mới và tra cứu thông tin điểm tích lũy của thẻ thành viên (`Members`).
 - **Giới hạn (Bị cấm):** Không được xóa/ẩn sách, không được tạo mới Khuyến mãi (`Promotions`), không được tạo/xóa tài khoản nhân sự, không được xem Dashboard báo cáo doanh thu tổng.
 

@@ -141,22 +141,49 @@ Mọi API trả về (kể cả lỗi) đều phải được wrap trong object 
 }
 ```
 
-#### Tạo đơn hàng tại quầy (POS)
+#### Khách tự hủy đơn trên Kiosk (Bấm nút X)
+- **Endpoint:** `POST /api/orders/kiosk/{orderId}/cancel`
+- **Auth:** `X-Api-Key`
+- **Xử lý Backend:** 
+  - Kiểm tra `OrderStatus == Pending`, nếu không → 409.
+  - Đổi `OrderStatus = Cancelled`.
+  - Nhả kho: `ReservedQuantity -= quantity`.
+- **Lý do:** Giúp nhả tồn kho ngay lập tức thay vì bắt hệ thống/khách hàng khác chờ 4 phút timeout (dù thực tế khách vẫn cầm cuốn sách trên tay, nhưng về mặt số liệu kho phần mềm sẽ được mở khóa ngay để cho phép thanh toán ở quầy hoặc kiosk khác).
+
+#### Tạo đơn hàng tại quầy (POS) — Đơn nháp
 - **Endpoint:** `POST /api/orders/counter/checkout`
 - **Auth:** `Bearer <token>` (Role Staff)
-- **Request Body:** Giống hệt Kiosk, nhưng thêm `promotionId` (vì thủ thư bấm áp mã thủ công thay vì tự động), và `paymentMethod` (Cash / QR).
-- **Xử lý Backend:** 
-  - KHÔNG cần `ReservedQuantity`. Trừ thẳng `StockQuantity` vì giao dịch thành công ngay tại quầy.
-  - Lưu trạng thái `Paid`.
+- **Request Body:** Giống Kiốsk, thêm `promotionId` (nhân viên bấm áp KM thủ công) và `paymentMethod` (Cash / QR).
+- **Xử lý Backend:**
+  - Giữ chỗ kho: `ReservedQuantity += quantity` (giống Kiosk).
+  - Lưu Order trạng thái **`Pending`**.
+- **Response:** Trả về `orderId`, thông tin giỏ hàng, tổng tiền để nhân viên xác nhận với khách.
+
+#### Xác nhận thanh toán tại quầy (Thu tiền mặt hoặc QR khách đã trả)
+- **Endpoint:** `POST /api/orders/counter/{orderId}/confirm-payment`
+- **Auth:** `Bearer <token>` (Role Staff)
+- **Xử lý Backend:**
+  - Kiểm tra `OrderStatus == Pending`, nếu không → 409.
+  - Đổi `OrderStatus = Paid`, cập nhật `CompletedAt`.
+  - Trừ kho: `StockQuantity -= quantity`, `ReservedQuantity -= quantity`.
+  - Tích điểm cho Member (nếu có).
 - **Response:** Trả về thông tin Order hoàn chỉnh để in bill.
+
+#### Hủy đơn nháp tại quầy (Khách từ chối)
+- **Endpoint:** `POST /api/orders/counter/{orderId}/cancel`
+- **Auth:** `Bearer <token>` (Role Staff)
+- **Xử lý Backend:**
+  - Kiểm tra `OrderStatus == Pending`, nếu không → 409.
+  - Đổi `OrderStatus = Cancelled`.
+  - Nhả kho: `ReservedQuantity -= quantity`.
 
 #### Kiểm tra trạng thái đơn (Kiosk polling sau khi hiện QR)
 - **Endpoint:** `GET /api/orders/{orderCode}/status`
 - **Response:**
 ```json
 "data": {
-  "orderStatus": 1, // Enum: 0=Pending, 1=Paid, 2=Cancelled, 3=NeedsReview
-  "pointsEarned": 2 // Báo cho Kiosk hiển thị chúc mừng tích điểm
+  "orderStatus": 2, // Enum: Pending(1), Paid(2), Cancelled(3)
+  "pointsEarned": 2 // Chỉ có giá trị khi orderStatus = Paid; Kiosk dùng để hiển thị chúc mừng tích điểm
 }
 ```
 
@@ -186,7 +213,7 @@ Mọi API trả về (kể cả lỗi) đều phải được wrap trong object 
   - Check Idempotent: Nếu `referenceCode` đã lưu trong `PaymentTransactions` -> Bỏ qua.
   - So khớp `amountIn` với `Order.TotalAmount`:
     - **Nếu ĐÚNG:** Cập nhật Order -> `Paid`. Trừ kho thật sự (`StockQuantity -= qty`, `ReservedQuantity -= qty`). Cộng điểm cho Member.
-    - **Nếu LỆCH (Khách tự sửa số tiền):** Cập nhật Order -> `NeedsReview`. Lập tức gửi Notification cho Staff ra kiểm tra, Kiosk hiện màn hình chờ nhân viên hỗ trợ. Không nhả sách.
+    - **Nếu LỆCH (Khách tự sửa số tiền):** Vẫn giữ Order -> `Pending`. Insert `PaymentTransactions` để lưu vết giao dịch lệch. Gửi Notification cho Staff kiểm tra và xử lý thủ công. Kiosk hiển thị màn hình "Chờ nhân viên hỗ trợ". Không nhả sách.
 
 ---
 
@@ -234,7 +261,7 @@ Nếu `success = false`, Backend nên trả về HTTP Status Code chuẩn:
 - `"Số điểm của bạn không đủ để thực hiện quy đổi."`
 - `"Khuyến mãi không tồn tại, chưa đến ngày hoặc đã hết hạn."`
 - `"Đơn hàng chưa đạt giá trị tối thiểu để áp dụng khuyến mãi này."`
-- `"Thanh toán lỗi: Số tiền chuyển khoản không khớp. Vui lòng đợi nhân viên hỗ trợ!"` (Trường hợp NeedsReview do chuyển sai tiền)
+- `"Thanh toán lỗi: Số tiền chuyển khoản không khớp. Vui lòng đợi nhân viên hỗ trợ!"` (Trường hợp khách chuyển sai số tiền, đơn vẫn Pending)
 
 ### 5.3 Lỗi Tìm kiếm / Tồn tại (Not Found - 404)
 - `"Không tìm thấy sách với mã vạch này."`
