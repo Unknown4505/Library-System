@@ -69,26 +69,25 @@ BookKiosk.Domain/
 │   ├── Order.cs
 │   ├── OrderDetail.cs
 │   ├── PaymentTransaction.cs
-│   ├── StockReceipt.cs
-│   ├── StockReceiptDetail.cs
-│   ├── StockHistory.cs                 ← sổ cái kho, mọi biến động đều ghi
+│   ├── Supplier.cs
+│   ├── ImportReceipt.cs
+│   ├── ImportReceiptDetail.cs
 │   ├── User.cs
-│   ├── RefreshToken.cs
 │   ├── Kiosk.cs
 │   ├── KioskIncident.cs
 │   ├── Member.cs                       ← thẻ thành viên
 │   ├── PointTransaction.cs             ← lịch sử tích/dùng điểm
 │   ├── Promotion.cs                    ← chương trình khuyến mãi
-│   └── PromotionUsage.cs               ← lịch sử apply KM theo đơn
+│   ├── PromotionOrderDiscount.cs       ← KM hóa đơn
+│   └── PromotionProductDiscount.cs     ← KM sản phẩm
 │
 └── Enums/
-    ├── OrderStatus.cs                  ← Pending | Paid | Cancelled | NeedsReview
+    ├── OrderStatus.cs                  ← Pending | Paid | Cancelled
     ├── SaleChannel.cs                  ← Kiosk | Counter
     ├── PaymentMethod.cs                ← QR | Cash
-    ├── StockChangeType.cs              ← Import | Sale | Adjustment | Cancellation
     ├── UserRole.cs                     ← Admin | Staff
     ├── KioskStatus.cs                  ← Online | Offline | Error
-    ├── PromotionType.cs                ← Percent | FixedAmount
+    ├── PromotionType.cs                ← OrderDiscount | ProductDiscount
     └── PointTransactionType.cs         ← Earned | Redeemed
 ```
 
@@ -151,7 +150,7 @@ BookKiosk.Application/
 │   │   ├── IBookRepository.cs
 │   │   ├── IOrderRepository.cs
 │   │   ├── IMemberRepository.cs
-│   │   └── IStockHistoryRepository.cs
+│   │   └── IImportReceiptRepository.cs
 │   └── Services/
 │       ├── ICheckoutService.cs
 │       ├── IPaymentService.cs
@@ -183,7 +182,7 @@ BookKiosk.Infrastructure/
 │   ├── BookRepository.cs
 │   ├── OrderRepository.cs
 │   ├── MemberRepository.cs
-│   └── StockHistoryRepository.cs
+│   └── ImportReceiptRepository.cs
 │
 ├── Payment/
 │   ├── SePayClient.cs                  ← gọi SePay API sinh QR
@@ -439,14 +438,13 @@ public enum OrderStatus
 {
     Pending,       // PascalCase value
     Paid,
-    Cancelled,
-    NeedsReview    // ghép từ không cần gạch nối
+    Cancelled
 }
 
 public enum PromotionType
 {
-    Percent,       // giảm theo %
-    FixedAmount    // giảm số tiền cố định
+    OrderDiscount,
+    ProductDiscount
 }
 
 // ❌ Sai
@@ -624,7 +622,7 @@ SePay Server ──► POST /api/payments/webhook (public, không cần JWT)
                     ├── đổi trạng thái → Paid
                     ├── trừ ReservedQuantity khỏi kho (transaction)
                     ├── tích điểm Member (nếu có)
-                    └── ghi StockHistory + PointTransaction
+                    └── trừ StockQuantity + ghi PointTransaction
 ```
 
 ---
@@ -772,7 +770,7 @@ switch (result.Code)
 {
     case "ORDER_CREATED":   NavigateTo<PaymentPage>(); break;
     case "OUT_OF_STOCK":    ShowOutOfStockDialog(); break;
-    case "UNAUTHORIZED":    RefreshTokenAndRetry(); break;
+    case "UNAUTHORIZED":    RedirectToLogin(); break;
     default:                ShowGenericError(result.Message); break;
 }
 

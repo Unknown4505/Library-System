@@ -136,7 +136,7 @@ Nếu bạn là AI agent đọc file này:
 **5. Chịu lỗi có kịch bản**
 - Mất mạng → Kiosk hiển thị “Tạm thời không thể thanh toán”, vẫn cho tra cứu từ cache.
 - Mất camera → báo bảo trì, gửi incident lên Backend, tự thử kết nối lại.
-- Webhook trễ → đơn vào trạng thái `NeedsReview`, xử lý thủ công.
+- Webhook trễ → đơn bị hủy do timeout, khách báo nhân viên xử lý đối soát.
 
 ---
 
@@ -147,7 +147,7 @@ Nếu bạn là AI agent đọc file này:
 | **Backend API** | ASP.NET Core Web API (.NET 8) | Cùng stack C# với toàn nhóm |
 | **ORM / DB access** | Entity Framework Core (Code-First) | Migrations tự động, không viết SQL thủ công |
 | **CSDL** | SQL Server Express (LocalDB khi dev) | Hỗ trợ transaction, RowVersion, index tốt |
-| **Xác thực** | JWT (access 30 phút + refresh token) | Chuẩn ngành, stateless |
+| **Xác thực** | JWT stateless (access token 15-30 phút) | Chuẩn ngành, stateless, dễ triển khai |
 | **Web Admin** | ASP.NET Core MVC + Razor Pages | Cùng stack .NET, không cần học JS framework |
 | **Kiosk App** | WPF (.NET 8) + MVVM | Hỗ trợ cảm ứng, DPI scale, XAML quen thuộc |
 | **Quét mã vạch** | ZXing.Net.Bindings.Windows.Compatibility | Chạy được trên webcam laptop, không cần USB scanner |
@@ -184,13 +184,15 @@ BookKiosk.sln
 │
 ├── BookKiosk.Domain/               ← [MVP] Entities & Enums (không phụ thuộc gì)
 │   ├── Entities/                      Book, Category, Area, Order, OrderDetail,
-│   │                                  PaymentTransaction, StockReceipt, StockHistory,
-│   │                                  User, RefreshToken, Kiosk, KioskIncident,
+│   │                                  PaymentTransaction,
+│   │                                  Supplier, ImportReceipt, ImportReceiptDetail, ← Nhập kho
+│   │                                  User, Kiosk, KioskIncident,
 │   │                                  Member, PointTransaction,          ← Thẻ thành viên
-│   │                                  Discount, DiscountUsage             ← Giảm giá
+│   │                                  Promotion, PromotionOrderDiscount,  ← KM hóa đơn
+│   │                                  PromotionProductDiscount            ← KM sản phẩm
 │   └── Enums/                         OrderStatus, SaleChannel, PaymentMethod,
-│                                      StockChangeType, UserRole, KioskStatus,
-│                                      DiscountType                        ← Percent | FixedAmount
+│                                      PromotionType, UserRole, KioskStatus,
+│                                      PointTransactionType
 │
 ├── BookKiosk.Infrastructure/       ← [MVP] Data access & external services
 │   ├── Data/                          BookKioskDbContext, EF Configurations
@@ -261,18 +263,24 @@ Thủ thư đăng nhập Web Admin → POS
   → Hỏi SĐT thành viên (tùy chọn)
         Nếu có: hiển điểm, chọn dùng điểm (giống Kiosk)
   → KM đang active → nút "Áp KM" (bấm thủ công, không tự apply)
-  → Tổng kết → Thu tiền mặt hoặc QR
-  → POST /api/orders/counter → Backend trừ kho ngay trong transaction
-  → Tích điểm cho member (nếu có) → hiển hóa đơn
+  → Tổng kết đơn → POST /api/orders/counter/checkout → Đơn Pending (giữ chỗ kho)
+  → Nhân viên xác nhận khách đã trả tiền mặt / quét QR:
+        Xác nhận → POST /api/orders/counter/{orderId}/confirm-payment
+              → Backend: Paid + trừ kho + tích điểm → hiển hóa đơn
+        Hủy (khách từ chối) → POST /api/orders/counter/{orderId}/cancel
+              → Backend: Cancelled + nhả kho
 ```
 
 ### 7.3 Timeout & nhả kho
 ```
-Kiosk không thanh toán trong 3 phút (HanThanhToan)
-  → Background Service quét mỗi 30 giây
+Kiosk không thanh toán trong 4 phút (config: OrderTimeoutMinutes)
+  → Background Service quét mỗi 1 phút
   → Đổi đơn sang Cancelled
   → Nhả SoLuongGiuCho về kho
   → Kiosk nhận trạng thái Cancelled → hiển thị "Hết hạn" → về Idle
+
+Quầy (phòng ngừa quên hủy): Background Service cũng quét Pending quầy > 4 phút
+  → Tự động Cancelled + nhả kho (phòng trường hợp nhân viên tạo đơn rồi bỏ quên)
 ```
 
 ---

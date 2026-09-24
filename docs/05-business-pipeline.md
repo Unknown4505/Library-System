@@ -13,6 +13,15 @@ Nếu bạn là AI agent đọc file này:
 
 > **Mục tiêu:** Mô tả chi tiết logic xử lý phía Backend cho các chức năng cốt lõi. Đây là cẩm nang để Backend Dev code luồng xử lý giỏ hàng và thanh toán mà không bị hổng (loophole).
 
+## 0. Nguyên tắc lõi về Tồn Kho (Inventory Rule)
+
+Để Kiosk luôn hiển thị đúng số lượng sách thực tế đang có trên kệ tủ (khớp với vật lý), hệ thống tuân thủ nguyên tắc **Tồn kho khả dụng (AvailableStock)**:
+
+`AvailableStock = StockQuantity (Tồn vật lý) - ReservedQuantity (Tồn đang bị tạm giữ bởi các đơn Pending)`
+
+- **Khi khách Search sách (`GET /api/books`):** Backend **bắt buộc** phải trả về `AvailableStock`. Nếu Khách A đang cầm 1 cuốn ra màn hình quét QR (`Reserved` + 1), Khách B search sẽ thấy hụt đi 1 cuốn — điều này khớp 100% với thực tế vì cuốn đó không còn nằm trên kệ nữa!
+- **Khi khách Hủy đơn (Cancelled):** Backend nhả `Reserved` - 1. `AvailableStock` tự động tăng lại, khớp với việc khách A sẽ bỏ lại sách ra quầy.
+
 ---
 
 ## 1. Luồng Mua Hàng & Giữ Chỗ Kho (Kiosk Checkout Pipeline)
@@ -63,9 +72,9 @@ Khi khách dùng app ngân hàng quét mã QR và chuyển khoản thành công,
 - Nếu `OrderStatus != Pending` -> Bỏ qua.
 - **Kiểm tra số tiền (`amountIn` vs `Order.TotalAmount`):**
   - **Trường hợp LỆCH (Khách tự sửa số tiền chuyển sai):** 
-    - Đổi `OrderStatus` = `NeedsReview` (3).
-    - Insert vào `PaymentTransactions` để lưu vết.
-    - Cảnh báo ra màn hình Kiosk (để khách gọi nhân viên) và bắn Notification cho Staff Admin. KHÔNG nhả sách.
+    - Giữ `OrderStatus` = `Pending` (không đổi trạng thái).
+    - Insert vào `PaymentTransactions` để lưu vết giao dịch lệch.
+    - Cảnh báo ra màn hình Kiosk ("Chờ nhân viên hỗ trợ") và bắn Notification cho Staff Admin. KHÔNG nhả sách.
   - **Trường hợp ĐÚNG:** Sang Bước 3.
 
 > **💡 LƯU Ý QUAN TRỌNG VỀ VIỆC KHÓA CỨNG SỐ TIỀN QR (CHỐNG GIAN LẬN)**
@@ -78,14 +87,13 @@ Khi khách dùng app ngân hàng quét mã QR và chuyển khoản thành công,
 ### Bước 3: Hoàn tất Đơn hàng (Thành công)
 Mở Transaction:
 1. Insert vào bảng `PaymentTransactions`.
-2. Đổi `OrderStatus` = `Paid` (1), Cập nhật `CompletedAt`.
+2. Đổi `OrderStatus` = `Paid` (2), Cập nhật `CompletedAt`.
 3. **Cập nhật Kho thực sự:** 
    - `StockQuantity = StockQuantity - quantity`
    - `ReservedQuantity = ReservedQuantity - quantity`
-   - Insert vào `StockHistories` (ChangeType: `Sale`).
 4. **Tích điểm (Nếu có Member):**
    - Trừ điểm khách đã dùng: Insert `PointTransactions` (Type: `Redeemed`).
-   - Cộng thêm điểm thưởng mới (Ví dụ mua 10.000đ = 1 điểm).
+   - Cộng thêm điểm thưởng mới: mọi 10.000đ TotalAmount = 1 điểm (làm tròn xuống).
    - Cập nhật `Members.Points` mới nhất.
 5. Gửi tín hiệu (SignalR/WebSocket hoặc Kiosk Polling) báo Kiosk hiển thị màn hình thành công và ra lệnh máy in in hóa đơn.
 6. Commit Transaction.
@@ -100,7 +108,8 @@ Khách ra Kiosk tạo đơn hàng (đã giữ chỗ kho) nhưng đứng ngó r�
 - Chạy mỗi 1 phút / lần.
 - Quét bảng `Orders` tìm các đơn:
   - `OrderStatus == Pending`
-  - `CreatedAt` < Thời điểm hiện tại trừ đi **3 phút**.
+  - `CreatedAt` < Thời điểm hiện tại trừ đi **`OrderTimeoutMinutes`** phút (config trong `appsettings.json`, mặc định **4 phút**).
+  - Áp dụng cho **cả Kiosk lẫn Quầy** (phòng nhân viên tạo đơn nháp quầy rồi bỏ quên).
 - Mở Transaction lặp qua từng đơn:
   - Cập nhật `OrderStatus = Cancelled`.
   - Nhả tồn kho: `ReservedQuantity = ReservedQuantity - quantity`.
