@@ -66,7 +66,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 3.3 | Layout `IdlePage`: Màn hình chờ + Video QC | | | [ ] | `[ ]` |
 | 3.4 | Cấu hình `IdleTimerService` (Quay về màn hình chờ) | | | [ ] | `[ ]` |
 | 3.5 | Layout `HomePage`: Slider Sách bán chạy / Mới | | | [ ] | `[ ]` |
-| 3.6 | **[Leader]** Setup HttpClient / API Service Layer (Refit) để FE dễ dàng gọi BE | [x] | | | `[ ]` |
+| 3.6 | **[Leader]** Setup HttpClientFactory / ApiClient thuần túy để FE kiểm soát hoàn toàn API | [x] | | | `[ ]` |
 
 ### MODULE 4: KIOSK WPF - TÌM KIẾM & CHI TIẾT
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
