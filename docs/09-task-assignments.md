@@ -121,7 +121,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 9.2 | **[Leader]** Layout Dashboard (SB Admin / Bootstrap) | @Unknown4505 | | | `[x]` |
 | 9.3 | **[Leader]** Trang Quản lý Sách (DataTables / Grid) | @Unknown4505 | | | `[x]` |
 | 9.4 | **[Leader]** Form Thêm/Sửa sách (Upload ảnh) | @Unknown4505 | | | `[x]` |
-| 9.5 | **[Leader]** Cấu hình CORS Policy để Web Admin có thể gọi được Backend API | @Unknown4505 | | | `[ ]` |
+| 9.5 | **[Leader]** Cấu hình CORS Policy để Web Admin có thể gọi được Backend API | @Unknown4505 | | | `[x]` |
 
 ### MODULE 10: CMS WEB - TỒN KHO, KM & POS
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
