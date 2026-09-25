@@ -77,4 +77,34 @@ public class BooksController : ControllerBase
 
         return Ok(response);
     }
+
+    [HttpPost("upload-image")]
+    public async Task<IActionResult> UploadImage(Microsoft.AspNetCore.Http.IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { Success = false, Message = "File không hợp lệ." });
+
+        var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "books");
+        if (!Directory.Exists(uploadsFolder))
+            Directory.CreateDirectory(uploadsFolder);
+
+        var uniqueFileName = Guid.NewGuid().ToString() + "_" + file.FileName;
+        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var fileUrl = $"/uploads/books/{uniqueFileName}";
+        return Ok(new { Success = true, Url = fileUrl });
+    }
+
+    // [TEST LỖI] - Chỉ dùng để test Global Exception Handler
+    [HttpGet("test-error")]
+    public IActionResult TestError()
+    {
+        // Cố tình quăng lỗi để xem khiên bảo vệ có bắt được không
+        throw new DivideByZeroException("Cố tình chia cho 0 để test khiên bảo vệ Server!");
+    }
 }

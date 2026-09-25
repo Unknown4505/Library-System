@@ -91,5 +91,56 @@ public static class DbInitializer
         };
         context.Books.AddRange(books);
         context.SaveChanges();
+        // 4. Seed Users (Admin)
+        if (!context.Users.Any())
+        {
+            context.Users.Add(new User
+            {
+                Username = "admin",
+                PasswordHash = "$2a$11$0.mYpM.2n9FzR/VfU.5y5eF2FwFk3ZfR5eT5vC5hQ/kS9wP9nU8Uq", // Hash for 'admin123'
+                FullName = "Administrator",
+                Role = BookKiosk.Domain.Enums.UserRole.Admin,
+                IsActive = true
+            });
+            context.SaveChanges();
+        }
+
+        // 5. Seed Kiosks
+        if (!context.Kiosks.Any())
+        {
+            context.Kiosks.Add(new Kiosk
+            {
+                KioskName = "Kiosk Tầng 1 - Sảnh chính",
+                MacAddress = "00-14-22-01-23-45",
+                Status = BookKiosk.Domain.Enums.KioskStatus.Online,
+                LastPingAt = DateTime.UtcNow,
+                AreaId = areas[0].AreaId
+            });
+            context.SaveChanges();
+        }
+
+        // 6. Seed Promotions
+        if (!context.Promotions.Any())
+        {
+            var promo = new Promotion
+            {
+                Name = "Khai trương Kiosk",
+                Description = "Giảm 20K cho hóa đơn từ 100K",
+                PromotionType = BookKiosk.Domain.Enums.PromotionType.OrderDiscount,
+                StartDate = DateTime.UtcNow.AddDays(-1),
+                EndDate = DateTime.UtcNow.AddMonths(1),
+                IsActive = true
+            };
+            context.Promotions.Add(promo);
+            context.SaveChanges();
+
+            context.PromotionOrderDiscounts.Add(new PromotionOrderDiscount
+            {
+                PromotionId = promo.PromotionId,
+                MinOrderValue = 100000,
+                DiscountAmount = 20000
+            });
+            context.SaveChanges();
+        }
     }
 }

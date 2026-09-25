@@ -36,19 +36,19 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 |---|---|:---:|:---:|:---:|:---:|
 | 0.1 | Khởi tạo Solution, 6 Projects theo kiến trúc 3 lớp | [x] | | | `[x]` |
 | 0.2 | Tạo file Markdown Docs, CODEOWNERS, `.gitignore` | [x] | | | `[x]` |
-| 0.3 | **[Leader]** Code toàn bộ Domain Entities & Enums | [ ] | | | `[ ]` |
-| 0.4 | **[Leader]** Setup DbContext & Fluent API Configurations | [ ] | | | `[ ]` |
-| 0.5 | **[Leader]** Viết DbInitializer (Seed Data) & Chạy Migration | [ ] | | | `[ ]` |
+| 0.3 | **[Leader]** Code toàn bộ Domain Entities & Enums | [x] | | | `[x]` |
+| 0.4 | **[Leader]** Setup DbContext & Fluent API Configurations | [x] | | | `[x]` |
+| 0.5 | **[Leader]** Viết DbInitializer (Seed Data) & Chạy Migration | [x] | | | `[x]` |
 | 0.6 | **[Leader]** Setup Dependency Injection (DI) & Serilog (Log lỗi) chung cho hệ thống | [x] | | | `[ ]` |
 
 ### MODULE 1: BACKEND API - SÁCH & DANH MỤC
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 1.1 | **[Leader]** Thiết lập `GlobalExceptionHandlerMiddleware` | [ ] | | | `[ ]` |
+| 1.1 | **[Leader]** Thiết lập `GlobalExceptionHandlerMiddleware` | [x] | | | `[x]` |
 | 1.2 | API: `GET /api/books` (Có phân trang, tìm kiếm) | | [ ] | | `[ ]` |
 | 1.3 | API: `GET /api/books/barcode/{barcode}` | | [ ] | | `[ ]` |
 | 1.4 | API: `GET /api/categories` và `GET /api/areas` | | [ ] | | `[ ]` |
-| 1.5 | **[Leader]** Cấu hình Swagger JWT & API Key (Bảo mật) | [ ] | | | `[ ]` |
+| 1.5 | **[Leader]** Cấu hình Swagger JWT & API Key (Bảo mật) | [x] | | | `[x]` |
 | 1.6 | **[Leader]** Khai báo các Shared DTOs và Constants dùng chung cho BE và FE | [x] | | | `[ ]` |
 
 ### MODULE 2: BACKEND API - THÀNH VIÊN & ĐIỂM
@@ -117,10 +117,10 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 ### MODULE 9: CMS WEB - QUẢN LÝ SẢN PHẨM
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 9.1 | **[Leader]** Admin API: CRUD Sách, Danh mục, Khu vực | [ ] | | | `[ ]` |
-| 9.2 | **[Leader]** Layout Dashboard (SB Admin / Bootstrap) | [ ] | | | `[ ]` |
-| 9.3 | **[Leader]** Trang Quản lý Sách (DataTables / Grid) | [ ] | | | `[ ]` |
-| 9.4 | **[Leader]** Form Thêm/Sửa sách (Upload ảnh) | [ ] | | | `[ ]` |
+| 9.1 | **[Leader]** Admin API: CRUD Sách, Danh mục, Khu vực | [x] | | | `[x]` |
+| 9.2 | **[Leader]** Layout Dashboard (SB Admin / Bootstrap) | [x] | | | `[x]` |
+| 9.3 | **[Leader]** Trang Quản lý Sách (DataTables / Grid) | [x] | | | `[x]` |
+| 9.4 | **[Leader]** Form Thêm/Sửa sách (Upload ảnh) | [x] | | | `[x]` |
 | 9.5 | **[Leader]** Cấu hình CORS Policy để Web Admin có thể gọi được Backend API | [x] | | | `[ ]` |
 
 ### MODULE 10: CMS WEB - TỒN KHO, KM & POS

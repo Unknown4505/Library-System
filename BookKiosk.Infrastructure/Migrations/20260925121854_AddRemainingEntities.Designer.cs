@@ -4,6 +4,7 @@ using BookKiosk.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BookKiosk.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260925121854_AddRemainingEntities")]
+    partial class AddRemainingEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -213,9 +216,6 @@ namespace BookKiosk.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("KioskId"));
 
-                    b.Property<int?>("AreaId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -237,8 +237,6 @@ namespace BookKiosk.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("KioskId");
-
-                    b.HasIndex("AreaId");
 
                     b.HasIndex("MacAddress")
                         .IsUnique();
@@ -680,16 +678,6 @@ namespace BookKiosk.Infrastructure.Migrations
                     b.Navigation("Book");
 
                     b.Navigation("ImportReceipt");
-                });
-
-            modelBuilder.Entity("BookKiosk.Domain.Entities.Kiosk", b =>
-                {
-                    b.HasOne("BookKiosk.Domain.Entities.Area", "Area")
-                        .WithMany()
-                        .HasForeignKey("AreaId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Area");
                 });
 
             modelBuilder.Entity("BookKiosk.Domain.Entities.KioskIncident", b =>
