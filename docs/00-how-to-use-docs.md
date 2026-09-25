@@ -74,7 +74,7 @@ docs/
 > Điền GitHub username thật vào đây và vào file `.github/CODEOWNERS`.
 
 ### 👑 Leader (bạn) — PM, Architect, System Integrator, Code Reviewer
-**GitHub username:** `@<dien-username-vao-day>`
+**GitHub username:** `@Unknown4505`
 
 **Phụ trách:**
 ```
@@ -89,27 +89,31 @@ BookKiosk.Infrastructure/Data/  ← DbContext, EF Configurations, Migrations
 
 ---
 
-### 👤 Member 1 — [Chưa phân công]
-**GitHub username:** `@<dien-username-vao-day>`
+### 👤 Member 1 — Backend Developer (BE)
+**GitHub username:** `@thien33`
 
-**Phụ trách:** *(Leader điền sau)*
+**Phụ trách:**
 ```
-[Để trống — chờ Leader phân công]
+BookKiosk.API/                   ← Controller, Middleware
+BookKiosk.Application/Services/  ← Business Logic, DTOs
+BookKiosk.Infrastructure/Repos/  ← Tương tác Database
+BookKiosk.Infrastructure/Payment/← Logic SePay Webhook
 ```
 
-**Đọc trước khi code:** *(Leader điền sau)*
+**Đọc trước khi code:** `03` → `04` → `05` → `07`
 
 ---
 
-### 👤 Member 2 — [Chưa phân công]
-**GitHub username:** `@<dien-username-vao-day>`
+### 👤 Member 2 — Frontend Developer (FE)
+**GitHub username:** `@lehuukhang`
 
-**Phụ trách:** *(Leader điền sau)*
+**Phụ trách:**
 ```
-[Để trống — chờ Leader phân công]
+BookKiosk.Kiosk/                 ← Toàn bộ WPF App, MVVM
+BookKiosk.CMS/                   ← MVC Giao diện Admin, Views, AJAX
 ```
 
-**Đọc trước khi code:** *(Leader điền sau)*
+**Đọc trước khi code:** `08` → `04` → `05` (Kiosk) hoặc `04` → `03` → `07` (CMS)
 
 ---
 
