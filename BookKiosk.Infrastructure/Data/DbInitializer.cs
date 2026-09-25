@@ -11,8 +11,15 @@ public static class DbInitializer
         using var context = new ApplicationDbContext(
             serviceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>());
 
-        // Chạy migration tự động hoặc tạo database nếu chưa có
-        context.Database.Migrate();
+        // Chạy migration tự động hoặc tạo database nếu chưa có (Chỉ chạy nếu là DB thật, không chạy nếu là InMemory test)
+        if (context.Database.IsRelational())
+        {
+            context.Database.Migrate();
+        }
+        else
+        {
+            context.Database.EnsureCreated();
+        }
 
         // Kiểm tra xem đã có dữ liệu mẫu chưa (Nếu có Category thì return)
         if (context.Categories.Any())

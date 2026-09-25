@@ -24,6 +24,10 @@ try
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+    // Đăng ký Repository và Service (Module 9)
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IBookRepository, BookKiosk.Infrastructure.Repositories.BookRepository>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Services.IBookService, BookKiosk.Application.Services.BookService>();
+
     // Swagger/OpenAPI
     builder.Services.AddOpenApi();
     builder.Services.AddEndpointsApiExplorer();
