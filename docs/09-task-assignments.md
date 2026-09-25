@@ -39,7 +39,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 0.3 | **[Leader]** Code toàn bộ Domain Entities & Enums | @Unknown4505 | | | `[x]` |
 | 0.4 | **[Leader]** Setup DbContext & Fluent API Configurations | @Unknown4505 | | | `[x]` |
 | 0.5 | **[Leader]** Viết DbInitializer (Seed Data) & Chạy Migration | @Unknown4505 | | | `[x]` |
-| 0.6 | **[Leader]** Setup Dependency Injection (DI) & Serilog (Log lỗi) chung cho hệ thống | @Unknown4505 | | | `[ ]` |
+| 0.6 | **[Leader]** Setup Dependency Injection (DI) & Serilog (Log lỗi) chung cho hệ thống | @Unknown4505 | | | `[x]` |
 
 ### MODULE 1: BACKEND API - SÁCH & DANH MỤC
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
@@ -49,7 +49,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 1.3 | API: `GET /api/books/barcode/{barcode}` | | @thien33 | | `[ ]` |
 | 1.4 | API: `GET /api/categories` và `GET /api/areas` | | @thien33 | | `[ ]` |
 | 1.5 | **[Leader]** Cấu hình Swagger JWT & API Key (Bảo mật) | @Unknown4505 | | | `[x]` |
-| 1.6 | **[Leader]** Khai báo các Shared DTOs và Constants dùng chung cho BE và FE | @Unknown4505 | | | `[ ]` |
+| 1.6 | **[Leader]** Khai báo các Shared DTOs và Constants dùng chung cho BE và FE | @Unknown4505 | | | `[x]` |
 
 ### MODULE 2: BACKEND API - THÀNH VIÊN & ĐIỂM
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
