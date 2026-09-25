@@ -61,14 +61,14 @@
 
 # -----------------------------------------------------------------------------
 # 7. Kiosk WPF App — Member phụ trách Kiosk
-#    ⚠️  Thay @member? bằng username thật sau khi phân công
+#    ⚠️  Thay @lehuukhang bằng username thật sau khi phân công
 # -----------------------------------------------------------------------------
-/BookKiosk.Kiosk/               @thien33 @Unknown4505
+/BookKiosk.Kiosk/               @lehuukhang @Unknown4505
 
 
 # -----------------------------------------------------------------------------
 # 8. CMS Web Admin — Member phụ trách CMS
-#    ⚠️  Thay @member? bằng username thật sau khi phân công
+#    ⚠️  Thay @lehuukhang bằng username thật sau khi phân công
 # -----------------------------------------------------------------------------
 /BookKiosk.CMS/                 @lehuukhang @Unknown4505
 
