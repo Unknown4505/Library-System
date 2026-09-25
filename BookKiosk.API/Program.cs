@@ -33,6 +33,35 @@ try
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
 
+    // Cấu hình CORS cho phép CMS Web gọi API
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("AllowAll", policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+    });
+
+    // Cấu hình Authentication (JWT Bearer)
+    builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "BookKiosk",
+                ValidAudience = builder.Configuration["Jwt:Audience"] ?? "BookKioskUser",
+                IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
+                    System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "Day_La_Mot_Khoa_Bi_Mat_Dai_Nhat_Co_The_123456789"))
+            };
+        });
+    builder.Services.AddAuthorization();
+
     var app = builder.Build();
 
     // 3. Tự động chạy Seed Data khi khởi động
@@ -51,6 +80,10 @@ try
     }
 
     // Configure the HTTP request pipeline.
+    
+    // Đăng ký Middleware bắt lỗi Global
+    app.UseMiddleware<BookKiosk.API.Middleware.GlobalExceptionHandlerMiddleware>();
+    
     if (app.Environment.IsDevelopment())
     {
         app.MapOpenApi();
@@ -63,9 +96,14 @@ try
 
     app.UseHttpsRedirection();
     
-    // Ghi log mọi request HTTP qua Serilog
+    app.UseCors("AllowAll");
+    
     app.UseSerilogRequestLogging();
 
+    // Xác thực bằng API Key (Dành cho máy Kiosk tự phục vụ)
+    app.UseMiddleware<BookKiosk.API.Middleware.ApiKeyMiddleware>();
+
+    app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();
 

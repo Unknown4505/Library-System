@@ -34,119 +34,119 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 ### MODULE 0: SETUP & DATABASE
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 0.1 | Khởi tạo Solution, 6 Projects theo kiến trúc 3 lớp | [x] | | | `[x]` |
-| 0.2 | Tạo file Markdown Docs, CODEOWNERS, `.gitignore` | [x] | | | `[x]` |
-| 0.3 | **[Leader]** Code toàn bộ Domain Entities & Enums | [ ] | | | `[ ]` |
-| 0.4 | **[Leader]** Setup DbContext & Fluent API Configurations | [ ] | | | `[ ]` |
-| 0.5 | **[Leader]** Viết DbInitializer (Seed Data) & Chạy Migration | [ ] | | | `[ ]` |
-| 0.6 | **[Leader]** Setup Dependency Injection (DI) & Serilog (Log lỗi) chung cho hệ thống | [x] | | | `[ ]` |
+| 0.1 | Khởi tạo Solution, 6 Projects theo kiến trúc 3 lớp | @Unknown4505 | | | `[x]` |
+| 0.2 | Tạo file Markdown Docs, CODEOWNERS, `.gitignore` | @Unknown4505 | | | `[x]` |
+| 0.3 | **[Leader]** Code toàn bộ Domain Entities & Enums | @Unknown4505 | | | `[x]` |
+| 0.4 | **[Leader]** Setup DbContext & Fluent API Configurations | @Unknown4505 | | | `[x]` |
+| 0.5 | **[Leader]** Viết DbInitializer (Seed Data) & Chạy Migration | @Unknown4505 | | | `[x]` |
+| 0.6 | **[Leader]** Setup Dependency Injection (DI) & Serilog (Log lỗi) chung cho hệ thống | @Unknown4505 | | | `[x]` |
 
 ### MODULE 1: BACKEND API - SÁCH & DANH MỤC
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 1.1 | **[Leader]** Thiết lập `GlobalExceptionHandlerMiddleware` | [ ] | | | `[ ]` |
-| 1.2 | API: `GET /api/books` (Có phân trang, tìm kiếm) | | [ ] | | `[ ]` |
-| 1.3 | API: `GET /api/books/barcode/{barcode}` | | [ ] | | `[ ]` |
-| 1.4 | API: `GET /api/categories` và `GET /api/areas` | | [ ] | | `[ ]` |
-| 1.5 | **[Leader]** Cấu hình Swagger JWT & API Key (Bảo mật) | [ ] | | | `[ ]` |
-| 1.6 | **[Leader]** Khai báo các Shared DTOs và Constants dùng chung cho BE và FE | [x] | | | `[ ]` |
+| 1.1 | **[Leader]** Thiết lập `GlobalExceptionHandlerMiddleware` | @Unknown4505 | | | `[x]` |
+| 1.2 | API: `GET /api/books` (Có phân trang, tìm kiếm) | | @thien33 | | `[ ]` |
+| 1.3 | API: `GET /api/books/barcode/{barcode}` | | @thien33 | | `[ ]` |
+| 1.4 | API: `GET /api/categories` và `GET /api/areas` | | @thien33 | | `[ ]` |
+| 1.5 | **[Leader]** Cấu hình Swagger JWT & API Key (Bảo mật) | @Unknown4505 | | | `[x]` |
+| 1.6 | **[Leader]** Khai báo các Shared DTOs và Constants dùng chung cho BE và FE | @Unknown4505 | | | `[x]` |
 
 ### MODULE 2: BACKEND API - THÀNH VIÊN & ĐIỂM
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 2.1 | API: `GET /api/members/{phoneNumber}` (Tra SĐT) | | [ ] | | `[ ]` |
-| 2.2 | API: Cập nhật, tạo mới Thành viên | | [ ] | | `[ ]` |
-| 2.3 | API: `GET /api/members/{id}/point-history` | | [ ] | | `[ ]` |
+| 2.1 | API: `GET /api/members/{phoneNumber}` (Tra SĐT) | | @thien33 | | `[ ]` |
+| 2.2 | API: Cập nhật, tạo mới Thành viên | | @thien33 | | `[ ]` |
+| 2.3 | API: `GET /api/members/{id}/point-history` | | @thien33 | | `[ ]` |
 
 ### MODULE 3: KIOSK WPF - ĐIỀU HƯỚNG & TRANG CHỦ
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 3.1 | Thiết lập MVVM (BaseViewModel, RelayCommand) | | | [ ] | `[ ]` |
-| 3.2 | Thiết lập `NavigationService` (Quản lý Frame) | | | [ ] | `[ ]` |
-| 3.3 | Layout `IdlePage`: Màn hình chờ + Video QC | | | [ ] | `[ ]` |
-| 3.4 | Cấu hình `IdleTimerService` (Quay về màn hình chờ) | | | [ ] | `[ ]` |
-| 3.5 | Layout `HomePage`: Slider Sách bán chạy / Mới | | | [ ] | `[ ]` |
-| 3.6 | **[Leader]** Setup HttpClientFactory / ApiClient thuần túy để FE kiểm soát hoàn toàn API | [x] | | | `[ ]` |
+| 3.1 | Thiết lập MVVM (BaseViewModel, RelayCommand) | | | @lehuukhang | `[ ]` |
+| 3.2 | Thiết lập `NavigationService` (Quản lý Frame) | | | @lehuukhang | `[ ]` |
+| 3.3 | Layout `IdlePage`: Màn hình chờ + Video QC | | | @lehuukhang | `[ ]` |
+| 3.4 | Cấu hình `IdleTimerService` (Quay về màn hình chờ) | | | @lehuukhang | `[ ]` |
+| 3.5 | Layout `HomePage`: Slider Sách bán chạy / Mới | | | @lehuukhang | `[ ]` |
+| 3.6 | **[Leader]** Setup HttpClientFactory / ApiClient thuần túy để FE kiểm soát hoàn toàn API | @Unknown4505 | | | `[ ]` |
 
 ### MODULE 4: KIOSK WPF - TÌM KIẾM & CHI TIẾT
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 4.1 | Layout `SearchPage`: Lưới sách + Load More | | | [ ] | `[ ]` |
-| 4.2 | Logic Filter theo Danh mục, Tác giả | | | [ ] | `[ ]` |
-| 4.3 | Layout `BookDetailPage`: Chi tiết + Vị trí kệ | | | [ ] | `[ ]` |
-| 4.4 | Kiểm tra Tồn kho trước khi cho thêm vào giỏ | | | [ ] | `[ ]` |
-| 4.5 | **[Leader]** Ghép nối: Đổi từ Mock Data Data giả sang gọi API thật (Phần Search & Detail) | [x] | | | `[ ]` |
+| 4.1 | Layout `SearchPage`: Lưới sách + Load More | | | @lehuukhang | `[ ]` |
+| 4.2 | Logic Filter theo Danh mục, Tác giả | | | @lehuukhang | `[ ]` |
+| 4.3 | Layout `BookDetailPage`: Chi tiết + Vị trí kệ | | | @lehuukhang | `[ ]` |
+| 4.4 | Kiểm tra Tồn kho trước khi cho thêm vào giỏ | | | @lehuukhang | `[ ]` |
+| 4.5 | **[Leader]** Ghép nối: Đổi từ Mock Data Data giả sang gọi API thật (Phần Search & Detail) | @Unknown4505 | | | `[ ]` |
 
 ### MODULE 5: BACKEND API - CHECKOUT & GIỮ KHO
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 5.1 | API: `POST /api/orders/kiosk/checkout` | | [ ] | | `[ ]` |
-| 5.2 | Logic: Tự động quét và áp dụng Promotion (KM) | | [ ] | | `[ ]` |
-| 5.3 | Logic: Trừ tiền điểm (Points), tính TotalAmount | | [ ] | | `[ ]` |
-| 5.4 | Logic: Cập nhật `ReservedQuantity` & Lưu Order | | [ ] | | `[ ]` |
-| 5.5 | **[Leader]** Viết test kịch bản tính điểm và áp KM, fix bug Concurrency | [x] | | | `[ ]` |
+| 5.1 | API: `POST /api/orders/kiosk/checkout` | | @thien33 | | `[ ]` |
+| 5.2 | Logic: Tự động quét và áp dụng Promotion (KM) | | @thien33 | | `[ ]` |
+| 5.3 | Logic: Trừ tiền điểm (Points), tính TotalAmount | | @thien33 | | `[ ]` |
+| 5.4 | Logic: Cập nhật `ReservedQuantity` & Lưu Order | | @thien33 | | `[ ]` |
+| 5.5 | **[Leader]** Viết test kịch bản tính điểm và áp KM, fix bug Concurrency | @Unknown4505 | | | `[ ]` |
 
 ### MODULE 6: KIOSK WPF - GIỎ HÀNG & THANH TOÁN
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 6.1 | Layout `CartPage`: Hiển thị sách, Tăng giảm SL | | | [ ] | `[ ]` |
-| 6.2 | Bàn phím ảo (Numpad) nhập SĐT quy đổi điểm | | | [ ] | `[ ]` |
-| 6.3 | Khang gọi API Checkout, nhận OrderCode sang Payment | | | [ ] | `[ ]` |
-| 6.4 | `PaymentPage`: Hiện bảng tóm tắt tiền + Đếm ngược | | | [ ] | `[ ]` |
+| 6.1 | Layout `CartPage`: Hiển thị sách, Tăng giảm SL | | | @lehuukhang | `[ ]` |
+| 6.2 | Bàn phím ảo (Numpad) nhập SĐT quy đổi điểm | | | @lehuukhang | `[ ]` |
+| 6.3 | Khang gọi API Checkout, nhận OrderCode sang Payment | | | @lehuukhang | `[ ]` |
+| 6.4 | `PaymentPage`: Hiện bảng tóm tắt tiền + Đếm ngược | | | @lehuukhang | `[ ]` |
 
 ### MODULE 7: PAYMENT - SEPAY & WEBHOOK
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 7.1 | API: Sinh link/ảnh QR VietQR theo chuẩn SePay | | [ ] | | `[ ]` |
-| 7.2 | API: `POST /api/payments/sepay-webhook` | | [ ] | | `[ ]` |
-| 7.3 | Logic: Xác thực HMAC Signature bảo mật | | [ ] | | `[ ]` |
-| 7.4 | Logic: Cập nhật Paid, trừ kho vật lý (StockQuantity)| | [ ] | | `[ ]` |
-| 7.5 | Kiosk `PaymentPage`: Polling API Status mỗi 3s | | | [ ] | `[ ]` |
-| 7.6 | **[Leader]** Ghép nối: Viết logic Polling cho FE để tự động chuyển trang khi BE nhận được tiền (SignalR hoặc Timer) | [x] | | | `[ ]` |
+| 7.1 | API: Sinh link/ảnh QR VietQR theo chuẩn SePay | | @thien33 | | `[ ]` |
+| 7.2 | API: `POST /api/payments/sepay-webhook` | | @thien33 | | `[ ]` |
+| 7.3 | Logic: Xác thực HMAC Signature bảo mật | | @thien33 | | `[ ]` |
+| 7.4 | Logic: Cập nhật Paid, trừ kho vật lý (StockQuantity)| | @thien33 | | `[ ]` |
+| 7.5 | Kiosk `PaymentPage`: Polling API Status mỗi 3s | | | @lehuukhang | `[ ]` |
+| 7.6 | **[Leader]** Ghép nối: Viết logic Polling cho FE để tự động chuyển trang khi BE nhận được tiền (SignalR hoặc Timer) | @Unknown4505 | | | `[ ]` |
 
 ### MODULE 8: KIOSK WPF - THIẾT BỊ PHẦN CỨNG
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 8.1 | Kiosk: Gắn UI xử lý dữ liệu từ Camera/Máy quét | | | [ ] | `[ ]` |
-| 8.2 | Kiosk: Sinh file PDF Hóa đơn với QuestPDF | | | [ ] | `[ ]` |
-| 8.3 | Kiosk: `MaintenancePage` Báo lỗi thiết bị, khóa Kiosk | | | [ ] | `[ ]` |
-| 8.4 | **[Leader]** Khởi tạo Interface phần cứng (`IBarcodeScanner`, `IPrinter`) và Class Mock để Khang test UI lúc dev | [x] | | | `[ ]` |
-| 8.5 | **[Leader]** Triển khai gọi Driver ESC/POS in nhiệt thật | [x] | | | `[ ]` |
-| 8.6 | HeartbeatService: `POST /api/kiosk/heartbeat` | | | [ ] | `[ ]` |
+| 8.1 | Kiosk: Gắn UI xử lý dữ liệu từ Camera/Máy quét | | | @lehuukhang | `[ ]` |
+| 8.2 | Kiosk: Sinh file PDF Hóa đơn với QuestPDF | | | @lehuukhang | `[ ]` |
+| 8.3 | Kiosk: `MaintenancePage` Báo lỗi thiết bị, khóa Kiosk | | | @lehuukhang | `[ ]` |
+| 8.4 | **[Leader]** Khởi tạo Interface phần cứng (`IBarcodeScanner`, `IPrinter`) và Class Mock để Khang test UI lúc dev | @Unknown4505 | | | `[ ]` |
+| 8.5 | **[Leader]** Triển khai gọi Driver ESC/POS in nhiệt thật | @Unknown4505 | | | `[ ]` |
+| 8.6 | HeartbeatService: `POST /api/kiosk/heartbeat` | | | @lehuukhang | `[ ]` |
 
 ### MODULE 9: CMS WEB - QUẢN LÝ SẢN PHẨM
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 9.1 | **[Leader]** Admin API: CRUD Sách, Danh mục, Khu vực | [ ] | | | `[ ]` |
-| 9.2 | **[Leader]** Layout Dashboard (SB Admin / Bootstrap) | [ ] | | | `[ ]` |
-| 9.3 | **[Leader]** Trang Quản lý Sách (DataTables / Grid) | [ ] | | | `[ ]` |
-| 9.4 | **[Leader]** Form Thêm/Sửa sách (Upload ảnh) | [ ] | | | `[ ]` |
-| 9.5 | **[Leader]** Cấu hình CORS Policy để Web Admin có thể gọi được Backend API | [x] | | | `[ ]` |
+| 9.1 | **[Leader]** Admin API: CRUD Sách, Danh mục, Khu vực | @Unknown4505 | | | `[x]` |
+| 9.2 | **[Leader]** Layout Dashboard (SB Admin / Bootstrap) | @Unknown4505 | | | `[x]` |
+| 9.3 | **[Leader]** Trang Quản lý Sách (DataTables / Grid) | @Unknown4505 | | | `[x]` |
+| 9.4 | **[Leader]** Form Thêm/Sửa sách (Upload ảnh) | @Unknown4505 | | | `[x]` |
+| 9.5 | **[Leader]** Cấu hình CORS Policy để Web Admin có thể gọi được Backend API | @Unknown4505 | | | `[x]` |
 
 ### MODULE 10: CMS WEB - TỒN KHO, KM & POS
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 10.1 | Admin API: CRUD Khuyến mãi, Nhập kho | | [ ] | | `[ ]` |
-| 10.2 | Trang Nhập kho (Inventory) | | | [ ] | `[ ]` |
-| 10.3 | Trang Quản lý Khuyến mãi | | | [ ] | `[ ]` |
-| 10.4 | Trang POS Bán tại quầy (Áp mã thủ công) | | | [ ] | `[ ]` |
+| 10.1 | Admin API: CRUD Khuyến mãi, Nhập kho | | @thien33 | | `[ ]` |
+| 10.2 | Trang Nhập kho (Inventory) | | | @lehuukhang | `[ ]` |
+| 10.3 | Trang Quản lý Khuyến mãi | | | @lehuukhang | `[ ]` |
+| 10.4 | Trang POS Bán tại quầy (Áp mã thủ công) | | | @lehuukhang | `[ ]` |
 
 ### MODULE 11: THỐNG KÊ DOANH THU
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 11.1 | API: `GET /api/reports/revenue` (Group by Tháng) | | [ ] | | `[ ]` |
-| 11.2 | API: `GET /api/reports/top-books` | | [ ] | | `[ ]` |
-| 11.3 | CMS: Vẽ Biểu đồ Bar Chart Doanh thu | | | [ ] | `[ ]` |
-| 11.4 | CMS: Biểu đồ Pie Chart Trạng thái Kiosk | | | [ ] | `[ ]` |
-| 11.5 | **[Leader]** Ghép nối data thống kê giữa BE & FE | [x] | | | `[ ]` |
+| 11.1 | API: `GET /api/reports/revenue` (Group by Tháng) | | @thien33 | | `[ ]` |
+| 11.2 | API: `GET /api/reports/top-books` | | @thien33 | | `[ ]` |
+| 11.3 | CMS: Vẽ Biểu đồ Bar Chart Doanh thu | | | @lehuukhang | `[ ]` |
+| 11.4 | CMS: Biểu đồ Pie Chart Trạng thái Kiosk | | | @lehuukhang | `[ ]` |
+| 11.5 | **[Leader]** Ghép nối data thống kê giữa BE & FE | @Unknown4505 | | | `[ ]` |
 
 ### MODULE 12: KIỂM THỬ, BÁO CÁO & ĐÓNG GÓI
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 12.1 | **[Leader]** Kịch bản Test End-to-End toàn luồng | [x] | | | `[ ]` |
-| 12.2 | **[Leader]** Vẽ Sơ đồ Context Diagram, BFD, DFD | [x] | | | `[ ]` |
-| 12.3 | **[Leader]** Vẽ ERD Database | [x] | | | `[ ]` |
-| 12.4 | Viết Báo cáo Word Đồ án cuối kỳ | [x] | [ ] | [ ] | `[ ]` |
+| 12.1 | **[Leader]** Kịch bản Test End-to-End toàn luồng | @Unknown4505 | | | `[ ]` |
+| 12.2 | **[Leader]** Vẽ Sơ đồ Context Diagram, BFD, DFD | @Unknown4505 | | | `[ ]` |
+| 12.3 | **[Leader]** Vẽ ERD Database | @Unknown4505 | | | `[ ]` |
+| 12.4 | Viết Báo cáo Word Đồ án cuối kỳ | @Unknown4505 | @thien33 | @lehuukhang | `[ ]` |
 
 ---
 
@@ -205,3 +205,4 @@ Luồng nghiệp vụ lõi phải được xây dựng theo đúng thứ tự (M
 3. **Khi FE hiển thị ảnh:**
    - Kiosk UI hoặc CMS chỉ cần ghép Base URL của API với đường dẫn trong DB. 
    - VD: `<img src="https://localhost:5001" + book.ImageUrl />`
+
