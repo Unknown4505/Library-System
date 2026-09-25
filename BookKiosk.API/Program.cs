@@ -1,4 +1,6 @@
 using Serilog;
+using Microsoft.EntityFrameworkCore;
+using BookKiosk.Infrastructure.Data;
 
 // 1. Cấu hình Serilog
 Log.Logger = new LoggerConfiguration()
@@ -18,12 +20,35 @@ try
     // 2. Add services to the container (Dependency Injection)
     builder.Services.AddControllers();
     
+    // Đăng ký DbContext với SQL Server
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+    // Đăng ký Repository và Service (Module 9)
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IBookRepository, BookKiosk.Infrastructure.Repositories.BookRepository>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Services.IBookService, BookKiosk.Application.Services.BookService>();
+
     // Swagger/OpenAPI
     builder.Services.AddOpenApi();
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
 
     var app = builder.Build();
+
+    // 3. Tự động chạy Seed Data khi khởi động
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+        try
+        {
+            DbInitializer.Initialize(services);
+            Log.Information("Database initialization completed successfully.");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "An error occurred while seeding the database.");
+        }
+    }
 
     // Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())
@@ -32,6 +57,9 @@ try
         app.UseSwagger();
         app.UseSwaggerUI();
     }
+
+    // Bật khả năng phục vụ file tĩnh (ảnh, tài liệu) từ thư mục wwwroot
+    app.UseStaticFiles();
 
     app.UseHttpsRedirection();
     

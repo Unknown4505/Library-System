@@ -36,19 +36,19 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 |---|---|:---:|:---:|:---:|:---:|
 | 0.1 | Khởi tạo Solution, 6 Projects theo kiến trúc 3 lớp | [x] | | | `[x]` |
 | 0.2 | Tạo file Markdown Docs, CODEOWNERS, `.gitignore` | [x] | | | `[x]` |
-| 0.3 | Code toàn bộ Domain Entities & Enums | | [ ] | | `[ ]` |
-| 0.4 | Code Fluent API Configurations cho từng Entity | | [ ] | | `[ ]` |
-| 0.5 | Chạy `Add-Migration` & Cập nhật Database | | [ ] | | `[ ]` |
+| 0.3 | **[Leader]** Code toàn bộ Domain Entities & Enums | [ ] | | | `[ ]` |
+| 0.4 | **[Leader]** Setup DbContext & Fluent API Configurations | [ ] | | | `[ ]` |
+| 0.5 | **[Leader]** Viết DbInitializer (Seed Data) & Chạy Migration | [ ] | | | `[ ]` |
 | 0.6 | **[Leader]** Setup Dependency Injection (DI) & Serilog (Log lỗi) chung cho hệ thống | [x] | | | `[ ]` |
 
 ### MODULE 1: BACKEND API - SÁCH & DANH MỤC
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 1.1 | Thiết lập `GlobalExceptionHandlerMiddleware` | | [ ] | | `[ ]` |
+| 1.1 | **[Leader]** Thiết lập `GlobalExceptionHandlerMiddleware` | [ ] | | | `[ ]` |
 | 1.2 | API: `GET /api/books` (Có phân trang, tìm kiếm) | | [ ] | | `[ ]` |
 | 1.3 | API: `GET /api/books/barcode/{barcode}` | | [ ] | | `[ ]` |
 | 1.4 | API: `GET /api/categories` và `GET /api/areas` | | [ ] | | `[ ]` |
-| 1.5 | Cấu hình Swagger JWT & API Key | | [ ] | | `[ ]` |
+| 1.5 | **[Leader]** Cấu hình Swagger JWT & API Key (Bảo mật) | [ ] | | | `[ ]` |
 | 1.6 | **[Leader]** Khai báo các Shared DTOs và Constants dùng chung cho BE và FE | [x] | | | `[ ]` |
 
 ### MODULE 2: BACKEND API - THÀNH VIÊN & ĐIỂM
@@ -117,10 +117,10 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 ### MODULE 9: CMS WEB - QUẢN LÝ SẢN PHẨM
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 9.1 | Admin API: CRUD Sách, Danh mục, Khu vực | | [ ] | | `[ ]` |
-| 9.2 | Layout Dashboard (SB Admin / Bootstrap) | | | [ ] | `[ ]` |
-| 9.3 | Trang Quản lý Sách (DataTables / Grid) | | | [ ] | `[ ]` |
-| 9.4 | Form Thêm/Sửa sách (Upload ảnh) | | | [ ] | `[ ]` |
+| 9.1 | **[Leader]** Admin API: CRUD Sách, Danh mục, Khu vực | [ ] | | | `[ ]` |
+| 9.2 | **[Leader]** Layout Dashboard (SB Admin / Bootstrap) | [ ] | | | `[ ]` |
+| 9.3 | **[Leader]** Trang Quản lý Sách (DataTables / Grid) | [ ] | | | `[ ]` |
+| 9.4 | **[Leader]** Form Thêm/Sửa sách (Upload ảnh) | [ ] | | | `[ ]` |
 | 9.5 | **[Leader]** Cấu hình CORS Policy để Web Admin có thể gọi được Backend API | [x] | | | `[ ]` |
 
 ### MODULE 10: CMS WEB - TỒN KHO, KM & POS
@@ -154,9 +154,9 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 
 | Thành viên | Số đầu việc chính | Chức năng (Modules) phụ trách |
 |---|---|---|
-| **@Unknown4505** | ~18 | Kiến trúc, **Ghép nối FE-BE**, Cấu hình hệ thống, Support phần cứng ảo, Báo cáo đồ án |
-| **@thien33** | ~28 | Code toàn bộ API, Database, Nghiệp vụ thanh toán, Webhook |
-| **@lehuukhang** | ~32 | Thiết kế 100% UI, Binding dữ liệu Kiosk và CMS Web |
+| **@Unknown4505** | ~27 | Base Config (Entities, DbContext, Migrations, Middleware, Swagger), CMS Sách |
+| **@thien33** | ~22 | Code Controller/Service (Logic), Điểm thưởng, Thanh toán SePay, Webhook |
+| **@lehuukhang** | ~29 | Thiết kế UI Kiosk, Xử lý giao diện CMS Quản lý tồn kho & Doanh thu |
 
 ---
 
@@ -191,3 +191,17 @@ Luồng nghiệp vụ lõi phải được xây dựng theo đúng thứ tự (M
 - Ngay khi `M0` chốt xong Database và API Contract (ở file `04-api-reference.md`), FE phải lập tức thiết kế WPF và CMS MVC bằng **Dữ liệu giả (Mock Data/Fake JSON)**. 
 - BE (@thien33) cứ code API và tự test độc lập bằng Postman.
 - **[QUAN TRỌNG] Tích hợp:** Sau khi BE xong API và FE xong UI, **Leader (@Unknown4505)** sẽ là người hỗ trợ "Ráp" hai mảnh này lại với nhau (gọi HttpClient, map DTO, test URL, fix CORS).
+
+---
+
+### 5. QUY TẮC LƯU TRỮ VÀ XỬ LÝ ĐƯỜNG DẪN ẢNH (Image URL)
+Để tránh tình trạng lỗi đường dẫn (Conflict 404) khi các thành viên (nhất là FE Khang và BE Thiện) pull code của nhau về máy tính cá nhân:
+1. **Lưu database (Entity `Book.ImageUrl`):**
+   - **Tối kỵ:** KHÔNG ĐƯỢC lưu đường dẫn tuyệt đối (VD: `C:/images/demen.jpg` hay `https://localhost:5001/uploads/...`).
+   - **Bắt buộc:** Chỉ lưu đường dẫn tương đối, luôn bắt đầu bằng `/uploads/`. VD: `/uploads/books/demen.jpg`.
+2. **Thư mục chứa ảnh vật lý (wwwroot):**
+   - Đã cấu hình `app.UseStaticFiles()` trong API.
+   - Thư mục vật lý nằm tại: `BookKiosk.API/wwwroot/uploads/books/`. (Đã tạo sẵn file `.gitkeep` để ae clone về tự có folder này).
+3. **Khi FE hiển thị ảnh:**
+   - Kiosk UI hoặc CMS chỉ cần ghép Base URL của API với đường dẫn trong DB. 
+   - VD: `<img src="https://localhost:5001" + book.ImageUrl />`
