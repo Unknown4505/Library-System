@@ -1,5 +1,6 @@
 using BookKiosk.Domain.Entities;
 using BookKiosk.Infrastructure.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,6 +8,7 @@ namespace BookKiosk.API.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class InventoryController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

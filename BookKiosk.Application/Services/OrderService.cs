@@ -134,7 +134,7 @@ public class OrderService : IOrderService
             await transaction.CommitAsync();
 
             // Giả lập sinh link QR SePay (Thực tế sẽ gọi API SePay hoặc ghép chuỗi VietQR)
-            var sepayQrCodeUrl = $"https://qr.sepay.vn/img?acc=123456789&bank=MB&amount={(int)totalAmount}&des={orderCode}";
+            var sepayQrCodeUrl = $"https://qr.sepay.vn/img?acc=0366994409&bank=MB&amount={(int)totalAmount}&des={orderCode}";
 
             return new CheckoutResponseDto
             {

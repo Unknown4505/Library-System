@@ -1,6 +1,7 @@
 using BookKiosk.Domain.Entities;
 using BookKiosk.Domain.Enums;
 using BookKiosk.Infrastructure.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,7 @@ namespace BookKiosk.API.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class PromotionsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
