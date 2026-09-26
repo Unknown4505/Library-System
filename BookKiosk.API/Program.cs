@@ -27,6 +27,11 @@ try
     // Đăng ký Repository và Service (Module 9)
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IBookRepository, BookKiosk.Infrastructure.Repositories.BookRepository>();
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Services.IBookService, BookKiosk.Application.Services.BookService>();
+    
+    // Đăng ký Services mới thêm (Thien33)
+    builder.Services.AddScoped<BookKiosk.Application.Services.IOrderService, BookKiosk.Application.Services.OrderService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IPaymentService, BookKiosk.Application.Services.PaymentService>();
+    builder.Services.AddHostedService<BookKiosk.API.HostedServices.ExpiredOrderCleanupService>();
 
     // Swagger/OpenAPI
     builder.Services.AddOpenApi();
