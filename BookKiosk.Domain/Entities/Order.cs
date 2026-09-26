@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
 using BookKiosk.Domain.Enums;
 
 namespace BookKiosk.Domain.Entities;
 
+[Index(nameof(OrderCode), IsUnique = true)]
 public class Order : BaseEntity
 {
     public int OrderId { get; set; }
