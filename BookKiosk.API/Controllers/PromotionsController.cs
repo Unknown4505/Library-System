@@ -1,9 +1,7 @@
-using BookKiosk.Domain.Entities;
-using BookKiosk.Domain.Enums;
-using BookKiosk.Infrastructure.Data;
+using BookKiosk.Application.DTOs.Promotions;
+using BookKiosk.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace BookKiosk.API.Controllers;
 
@@ -12,57 +10,34 @@ namespace BookKiosk.API.Controllers;
 [Authorize]
 public class PromotionsController : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IPromotionService _promotionService;
 
-    public PromotionsController(ApplicationDbContext context)
+    public PromotionsController(IPromotionService promotionService)
     {
-        _context = context;
+        _promotionService = promotionService;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetPromotions()
     {
-        var promotions = await _context.Promotions
-            .Include(p => p.OrderDiscount)
-            .OrderByDescending(p => p.PromotionId)
-            .ToListAsync();
-        return Ok(promotions);
+        return Ok(await _promotionService.GetPromotionsAsync());
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreatePromotion([FromBody] Promotion promotion)
+    public async Task<IActionResult> CreatePromotion([FromBody] CreatePromotionDto request)
     {
-        _context.Promotions.Add(promotion);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetPromotions), new { id = promotion.PromotionId }, promotion);
+        return Ok(await _promotionService.CreatePromotionAsync(request));
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> UpdatePromotion(int id, [FromBody] Promotion updated)
+    public async Task<IActionResult> UpdatePromotion(int id, [FromBody] PromotionDto request)
     {
-        var promotion = await _context.Promotions.FindAsync(id);
-        if (promotion == null) return NotFound();
-
-        promotion.Name = updated.Name;
-        promotion.Description = updated.Description;
-        promotion.StartDate = updated.StartDate;
-        promotion.EndDate = updated.EndDate;
-        promotion.IsActive = updated.IsActive;
-
-        await _context.SaveChangesAsync();
-        return Ok(promotion);
+        return Ok(await _promotionService.UpdatePromotionAsync(id, request));
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeletePromotion(int id)
     {
-        var promotion = await _context.Promotions.FindAsync(id);
-        if (promotion == null) return NotFound();
-
-        // Không nên xóa cứng nếu đã có Order áp dụng KM này, thay vào đó là Soft Delete (set IsActive = false)
-        promotion.IsActive = false;
-        
-        await _context.SaveChangesAsync();
-        return NoContent();
+        return Ok(await _promotionService.DeletePromotionAsync(id));
     }
 }

@@ -31,6 +31,14 @@ try
     // Đăng ký Services mới thêm (Thien33)
     builder.Services.AddScoped<BookKiosk.Application.Services.IOrderService, BookKiosk.Application.Services.OrderService>();
     builder.Services.AddScoped<BookKiosk.Application.Services.IPaymentService, BookKiosk.Application.Services.PaymentService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IMemberService, BookKiosk.Application.Services.MemberService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IPromotionService, BookKiosk.Application.Services.PromotionService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IReportService, BookKiosk.Application.Services.ReportService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IInventoryService, BookKiosk.Application.Services.InventoryService>();
+    
+    // Đăng ký AutoMapper
+    builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+
     builder.Services.AddHostedService<BookKiosk.API.HostedServices.ExpiredOrderCleanupService>();
 
     // Swagger/OpenAPI

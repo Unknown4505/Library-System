@@ -1,7 +1,6 @@
-using BookKiosk.Domain.Entities;
-using BookKiosk.Infrastructure.Data;
+using BookKiosk.Application.DTOs.Members;
+using BookKiosk.Application.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace BookKiosk.API.Controllers;
 
@@ -9,74 +8,34 @@ namespace BookKiosk.API.Controllers;
 [ApiController]
 public class MembersController : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IMemberService _memberService;
 
-    public MembersController(ApplicationDbContext context)
+    public MembersController(IMemberService memberService)
     {
-        _context = context;
+        _memberService = memberService;
     }
 
-    /// <summary>
-    /// Tra cứu thông tin thành viên theo số điện thoại
-    /// </summary>
     [HttpGet("{phoneNumber}")]
     public async Task<IActionResult> GetMemberByPhone(string phoneNumber)
     {
-        var member = await _context.Members.FirstOrDefaultAsync(m => m.PhoneNumber == phoneNumber);
-        if (member == null) return NotFound("Không tìm thấy thành viên.");
-        return Ok(member);
+        return Ok(await _memberService.GetMemberByPhoneAsync(phoneNumber));
     }
 
-    /// <summary>
-    /// Lấy lịch sử điểm của thành viên
-    /// </summary>
     [HttpGet("{id:int}/point-history")]
     public async Task<IActionResult> GetPointHistory(int id)
     {
-        var history = await _context.PointTransactions
-            .Where(p => p.MemberId == id)
-            .OrderByDescending(p => p.CreatedAt)
-            .ToListAsync();
-        return Ok(history);
+        return Ok(await _memberService.GetPointHistoryAsync(id));
     }
 
-    /// <summary>
-    /// Tạo mới thành viên
-    /// </summary>
     [HttpPost]
-    public async Task<IActionResult> CreateMember([FromBody] Member member)
+    public async Task<IActionResult> CreateMember([FromBody] CreateMemberDto request)
     {
-        if (await _context.Members.AnyAsync(m => m.PhoneNumber == member.PhoneNumber))
-        {
-            return BadRequest("Số điện thoại đã tồn tại.");
-        }
-
-        member.Points = 0; // Luôn khởi tạo 0 điểm
-        _context.Members.Add(member);
-        await _context.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetMemberByPhone), new { phoneNumber = member.PhoneNumber }, member);
+        return Ok(await _memberService.CreateMemberAsync(request));
     }
 
-    /// <summary>
-    /// Cập nhật thông tin thành viên (không cho phép sửa điểm trực tiếp ở đây)
-    /// </summary>
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> UpdateMember(int id, [FromBody] Member updated)
+    public async Task<IActionResult> UpdateMember(int id, [FromBody] UpdateMemberDto request)
     {
-        var member = await _context.Members.FindAsync(id);
-        if (member == null) return NotFound("Không tìm thấy thành viên.");
-
-        // Nếu đổi số điện thoại, phải check trùng
-        if (member.PhoneNumber != updated.PhoneNumber && await _context.Members.AnyAsync(m => m.PhoneNumber == updated.PhoneNumber))
-        {
-            return BadRequest("Số điện thoại mới đã được sử dụng.");
-        }
-
-        member.FullName = updated.FullName;
-        member.PhoneNumber = updated.PhoneNumber;
-
-        await _context.SaveChangesAsync();
-        return Ok(member);
+        return Ok(await _memberService.UpdateMemberAsync(id, request));
     }
 }
