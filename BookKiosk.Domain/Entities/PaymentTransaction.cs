@@ -1,8 +1,5 @@
-using Microsoft.EntityFrameworkCore;
-
 namespace BookKiosk.Domain.Entities;
 
-[Index(nameof(ReferenceCode), IsUnique = true)]
 public class PaymentTransaction : BaseEntity
 {
     public int TransactionId { get; set; }

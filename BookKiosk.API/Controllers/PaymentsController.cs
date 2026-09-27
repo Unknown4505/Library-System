@@ -10,28 +10,53 @@ public class PaymentsController : ControllerBase
 {
     private readonly IPaymentService _paymentService;
     private readonly ILogger<PaymentsController> _logger;
+    private readonly IConfiguration _configuration;
 
-    public PaymentsController(IPaymentService paymentService, ILogger<PaymentsController> logger)
+    public PaymentsController(IPaymentService paymentService, ILogger<PaymentsController> logger, IConfiguration configuration)
     {
         _paymentService = paymentService;
         _logger = logger;
+        _configuration = configuration;
     }
 
     /// <summary>
     /// Nhận Webhook từ SePay khi có giao dịch chuyển khoản thành công
     /// </summary>
     [HttpPost("sepay-webhook")]
-    public async Task<IActionResult> SePayWebhook([FromBody] PaymentWebhookPayload payload)
+    public async Task<IActionResult> SePayWebhook()
     {
         try
         {
-            // Validate HMAC Signature (Mô phỏng ở đây, thực tế cần check Header SePay-Signature)
+            // Đọc raw body
+            using var reader = new StreamReader(Request.Body);
+            var rawBody = await reader.ReadToEndAsync();
+
+            // Validate HMAC Signature
             var signature = Request.Headers["SePay-Signature"].FirstOrDefault();
             if (string.IsNullOrEmpty(signature))
             {
                 _logger.LogWarning("Missing SePay signature.");
-                // Return 200 để tránh SePay gọi lại n lần cho 1 request lỗi signature (hoặc 400 tùy cấu hình)
                 return Ok(new { success = false, message = "Missing signature" }); 
+            }
+
+            var webhookSecret = _configuration["SePay:WebhookSecret"];
+            if (!string.IsNullOrEmpty(webhookSecret))
+            {
+                using var hmac = new System.Security.Cryptography.HMACSHA256(System.Text.Encoding.UTF8.GetBytes(webhookSecret));
+                var hashBytes = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(rawBody));
+                var computedSignature = Convert.ToHexString(hashBytes).ToLower();
+
+                if (computedSignature != signature.ToLower())
+                {
+                    _logger.LogWarning("Invalid SePay signature.");
+                    return StatusCode(403, new { success = false, message = "Invalid signature" });
+                }
+            }
+
+            var payload = JsonSerializer.Deserialize<PaymentWebhookPayload>(rawBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (payload == null)
+            {
+                return BadRequest(new { success = false, message = "Invalid payload" });
             }
 
             var result = await _paymentService.HandleSePayWebhookAsync(payload);
