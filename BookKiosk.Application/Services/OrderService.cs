@@ -1,9 +1,11 @@
 using BookKiosk.Application.DTOs.Order;
+using BookKiosk.Application.Interfaces.Repositories;
 using BookKiosk.Application.Interfaces.Services;
 using BookKiosk.Domain.Entities;
 using BookKiosk.Domain.Enums;
-using BookKiosk.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace BookKiosk.Application.Services;
 
@@ -14,37 +16,31 @@ public interface IOrderService
 
 public class OrderService : IOrderService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IOrderRepository _orderRepository;
+    private readonly IPromotionRepository _promotionRepository;
+    private readonly IMemberRepository _memberRepository;
 
-    public OrderService(ApplicationDbContext context)
+    public OrderService(IUnitOfWork unitOfWork, IOrderRepository orderRepository, IPromotionRepository promotionRepository, IMemberRepository memberRepository)
     {
-        _context = context;
+        _unitOfWork = unitOfWork;
+        _orderRepository = orderRepository;
+        _promotionRepository = promotionRepository;
+        _memberRepository = memberRepository;
     }
 
-    /// <summary>
-    /// Xử lý thanh toán giỏ hàng từ Kiosk.
-    /// Bao gồm: Validate tồn kho khả dụng, tính toán khuyến mãi, trừ điểm, lưu Database (Status: Pending)
-    /// và giữ chỗ kho (cộng vào ReservedQuantity) bằng ExecuteUpdate để tránh deadlock.
-    /// </summary>
-    /// <param name="request">Thông tin giỏ hàng</param>
-    /// <returns>Order Code, Total Amount và QRCode url</returns>
     public async Task<CheckoutResponseDto> CheckoutKioskAsync(CheckoutRequestDto request)
     {
-        // 1. Lock / Sort mảng items theo BookId tăng dần để chống Deadlock DB
         var sortedItems = request.Items.OrderBy(i => i.BookId).ToList();
         var bookIds = sortedItems.Select(i => i.BookId).ToList();
 
-        // Mở transaction
-        using var transaction = await _context.Database.BeginTransactionAsync();
+        await _unitOfWork.BeginTransactionAsync();
         try
         {
-            var books = await _context.Books
-                .Where(b => bookIds.Contains(b.BookId))
-                .ToDictionaryAsync(b => b.BookId);
+            var books = await _orderRepository.GetBooksByIdsAsync(bookIds);
 
             decimal subTotal = 0;
 
-            // 2. Validate Giỏ hàng (Check AvailableStock)
             foreach (var item in sortedItems)
             {
                 if (!books.TryGetValue(item.BookId, out var book))
@@ -56,17 +52,10 @@ public class OrderService : IOrderService
 
                 subTotal += book.SellingPrice * item.Quantity;
                 
-                // Update giữ kho bằng ExecuteUpdate (Atomic) thay vì SaveChanges thông thường để chống Race Condition
-                await _context.Books
-                    .Where(b => b.BookId == item.BookId)
-                    .ExecuteUpdateAsync(s => s.SetProperty(b => b.ReservedQuantity, b => b.ReservedQuantity + item.Quantity));
+                await _orderRepository.IncreaseReservedQuantityAsync(item.BookId, item.Quantity);
             }
 
-            // 3. Áp dụng Khuyến mãi (Chọn CTKM có lợi nhất)
-            var activePromotions = await _context.Promotions
-                .Include(p => p.OrderDiscount)
-                .Where(p => p.IsActive && p.StartDate <= DateTime.Now && p.EndDate >= DateTime.Now)
-                .ToListAsync();
+            var activePromotions = await _promotionRepository.GetAllActiveAsync();
 
             decimal maxDiscountAmount = 0;
             int? appliedPromotionId = null;
@@ -83,25 +72,23 @@ public class OrderService : IOrderService
                 }
             }
 
-            // 4. Tính toán Điểm & Tổng tiền
             int pointsUsedAmount = 0;
             if (request.MemberId.HasValue && request.PointsToUse > 0)
             {
-                var member = await _context.Members.FindAsync(request.MemberId.Value);
+                var member = await _memberRepository.GetByIdAsync(request.MemberId.Value);
                 if (member != null && member.Points >= request.PointsToUse)
                 {
-                    pointsUsedAmount = request.PointsToUse * 1000; // 1 điểm = 1000 VNĐ
+                    pointsUsedAmount = request.PointsToUse * 1000;
                 }
                 else
                 {
-                    request.PointsToUse = 0; // Reset nếu không đủ điểm
+                    request.PointsToUse = 0;
                 }
             }
 
             decimal totalAmount = subTotal - maxDiscountAmount - pointsUsedAmount;
             if (totalAmount < 0) totalAmount = 0;
 
-            // 5. Lưu Order (Pending)
             var orderCode = "ORD" + DateTime.Now.ToString("yyyyMMddHHmmss");
             var order = new Order
             {
@@ -115,7 +102,6 @@ public class OrderService : IOrderService
                 DiscountAmount = maxDiscountAmount,
                 PointsUsed = request.PointsToUse,
                 TotalAmount = totalAmount,
-                // Không set CompletedAt lúc này
             };
 
             foreach (var item in sortedItems)
@@ -129,11 +115,10 @@ public class OrderService : IOrderService
                 });
             }
 
-            _context.Orders.Add(order);
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
+            await _orderRepository.AddOrderAsync(order);
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
 
-            // Giả lập sinh link QR SePay (Thực tế sẽ gọi API SePay hoặc ghép chuỗi VietQR)
             var sepayQrCodeUrl = $"https://qr.sepay.vn/img?acc=0366994409&bank=MB&amount={(int)totalAmount}&des={orderCode}";
 
             return new CheckoutResponseDto
@@ -149,7 +134,7 @@ public class OrderService : IOrderService
         }
         catch (Exception)
         {
-            await transaction.RollbackAsync();
+            await _unitOfWork.RollbackAsync();
             throw;
         }
     }

@@ -35,6 +35,15 @@ try
     builder.Services.AddScoped<BookKiosk.Application.Services.IPromotionService, BookKiosk.Application.Services.PromotionService>();
     builder.Services.AddScoped<BookKiosk.Application.Services.IReportService, BookKiosk.Application.Services.ReportService>();
     builder.Services.AddScoped<BookKiosk.Application.Services.IInventoryService, BookKiosk.Application.Services.InventoryService>();
+
+    // Đăng ký Unit Of Work & Repositories (Thien33)
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IUnitOfWork, BookKiosk.Infrastructure.Repositories.UnitOfWork>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IMemberRepository, BookKiosk.Infrastructure.Repositories.MemberRepository>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IPromotionRepository, BookKiosk.Infrastructure.Repositories.PromotionRepository>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IReportRepository, BookKiosk.Infrastructure.Repositories.ReportRepository>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IInventoryRepository, BookKiosk.Infrastructure.Repositories.InventoryRepository>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IOrderRepository, BookKiosk.Infrastructure.Repositories.OrderRepository>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IPaymentRepository, BookKiosk.Infrastructure.Repositories.PaymentRepository>();
     
     // Đăng ký AutoMapper
     builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());

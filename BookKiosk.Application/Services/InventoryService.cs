@@ -1,6 +1,6 @@
 using BookKiosk.Application.DTOs.Common;
+using BookKiosk.Application.Interfaces.Repositories;
 using BookKiosk.Domain.Entities;
-using BookKiosk.Infrastructure.Data;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -14,11 +14,13 @@ public interface IInventoryService
 
 public class InventoryService : IInventoryService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IInventoryRepository _inventoryRepository;
 
-    public InventoryService(ApplicationDbContext context)
+    public InventoryService(IUnitOfWork unitOfWork, IInventoryRepository inventoryRepository)
     {
-        _context = context;
+        _unitOfWork = unitOfWork;
+        _inventoryRepository = inventoryRepository;
     }
 
     public async Task<ApiResponseDto<object>> ImportStockAsync(ImportReceipt receipt)
@@ -26,18 +28,18 @@ public class InventoryService : IInventoryService
         if (receipt.ImportReceiptDetails == null || !receipt.ImportReceiptDetails.Any())
             return ApiResponseDto<object>.Error("BAD_REQUEST", "Phiếu nhập kho không có chi tiết sách.");
 
-        using var transaction = await _context.Database.BeginTransactionAsync();
+        await _unitOfWork.BeginTransactionAsync();
         try
         {
             receipt.ImportDate = DateTime.Now;
             if (receipt.UserId == 0) receipt.UserId = 1;
 
-            _context.ImportReceipts.Add(receipt);
-            await _context.SaveChangesAsync();
+            await _inventoryRepository.AddImportReceiptAsync(receipt);
+            await _unitOfWork.SaveChangesAsync(); 
 
             foreach (var detail in receipt.ImportReceiptDetails)
             {
-                var book = await _context.Books.FindAsync(detail.BookId);
+                var book = await _inventoryRepository.GetBookByIdAsync(detail.BookId);
                 if (book != null)
                 {
                     book.StockQuantity += detail.Quantity;
@@ -52,14 +54,14 @@ public class InventoryService : IInventoryService
                 }
             }
 
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
 
             return ApiResponseDto<object>.Ok(new { Message = "Nhập kho thành công", ReceiptId = receipt.ReceiptId });
         }
         catch (Exception ex)
         {
-            await transaction.RollbackAsync();
+            await _unitOfWork.RollbackAsync();
             return ApiResponseDto<object>.Error("INTERNAL_ERROR", $"Lỗi khi nhập kho: {ex.Message}");
         }
     }
