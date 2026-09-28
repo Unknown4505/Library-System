@@ -14,7 +14,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | **6** | Tuần 6 | Kiosk WPF: M6 (Cart UI - tiếp tục) | [ ] | [ ] | [ ] | Kiosk tạo đơn, binding data |
 | **7** | Tuần 7 | Payment: M7 (SePay Webhook) | [x] | [ ] | [ ] | Leader làm cầu nối Polling giữa FE và BE |
 | **8** | Tuần 8 | Hardware: M8 (Máy in, Quét mã, Camera) | [x] | [ ] | [ ] | Leader code Mock Hardware, Khang ráp UI |
-| **9** | Tuần 9 | CMS Web: M9 (Quản lý Sách, Danh mục) | [ ] | [ ] | [ ] | CMS CRUD được sản phẩm |
+| **9** | Tuần 9 | CMS Web: M9 (Quản lý Sách, Danh mục) | [x] | [ ] | [ ] | CMS CRUD được sản phẩm |
 | **10** | Tuần 10 | CMS Web: M10 (Kho bãi, POS) & M11 (Thống kê) | [x] | [ ] | [ ] | Leader setup CORS & Tích hợp CMS với BE |
 | **11** | Tuần 11 | **Kiểm thử tích hợp & Sửa lỗi (Freeze Code)** | [x] | [ ] | [ ] | Leader ghép nối toàn bộ luồng Kiosk và CMS |
 | **12** | Tuần 12 | M12 (Kiểm thử, Cải thiện UX báo lỗi Kiosk) | [x] | [ ] | [ ] | Kiosk không bao giờ bị Crash |
