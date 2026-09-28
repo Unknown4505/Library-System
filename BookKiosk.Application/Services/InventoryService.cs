@@ -31,7 +31,7 @@ public class InventoryService : IInventoryService
         await _unitOfWork.BeginTransactionAsync();
         try
         {
-            receipt.ImportDate = DateTime.Now;
+            receipt.CreatedAt = DateTime.Now;
             if (receipt.UserId == 0) receipt.UserId = 1;
 
             await _inventoryRepository.AddImportReceiptAsync(receipt);
@@ -43,9 +43,9 @@ public class InventoryService : IInventoryService
                 if (book != null)
                 {
                     book.StockQuantity += detail.Quantity;
-                    if (detail.ImportPrice > 0)
+                    if (detail.CostPrice > 0)
                     {
-                        book.CostPrice = detail.ImportPrice;
+                        book.CostPrice = detail.CostPrice;
                     }
                 }
                 else
@@ -57,7 +57,7 @@ public class InventoryService : IInventoryService
             await _unitOfWork.SaveChangesAsync();
             await _unitOfWork.CommitAsync();
 
-            return ApiResponseDto<object>.Ok(new { Message = "Nhập kho thành công", ReceiptId = receipt.ReceiptId });
+            return ApiResponseDto<object>.Ok(new { Message = "Nhập kho thành công", ReceiptId = receipt.ImportReceiptId });
         }
         catch (Exception ex)
         {

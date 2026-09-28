@@ -95,7 +95,7 @@ public class OrderService : IOrderService
                 OrderCode = orderCode,
                 SaleChannel = SaleChannel.Kiosk,
                 OrderStatus = OrderStatus.Pending,
-                PaymentMethod = PaymentMethod.BankTransfer,
+                PaymentMethod = PaymentMethod.QR,
                 MemberId = request.MemberId,
                 PromotionId = appliedPromotionId,
                 SubTotal = subTotal,
@@ -110,8 +110,8 @@ public class OrderService : IOrderService
                 {
                     BookId = item.BookId,
                     Quantity = item.Quantity,
-                    UnitPrice = books[item.BookId].SellingPrice,
-                    TotalPrice = books[item.BookId].SellingPrice * item.Quantity
+                    UnitPriceAtTime = books[item.BookId].SellingPrice,
+                    LineTotal = books[item.BookId].SellingPrice * item.Quantity
                 });
             }
 
