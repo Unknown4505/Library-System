@@ -57,7 +57,7 @@ public class ReportRepository : IReportRepository
     }
     public async Task<object> GetTopSellingBooksAsync(int top)
     {
-        return await _context.OrderDetails.Include(od => od.Order).Include(od => od.Book).Where(od => od.Order != null && od.Order.OrderStatus == OrderStatus.Paid).GroupBy(od => new { od.BookId, od.Book!.Title, od.Book.ImageUrl }).Select(g => new { BookId = g.Key.BookId, Title = g.Key.Title, ImageUrl = g.Key.ImageUrl, TotalSold = g.Sum(od => od.Quantity), TotalRevenue = g.Sum(od => od.TotalPrice) }).OrderByDescending(x => x.TotalSold).Take(top).ToListAsync();
+        return await _context.OrderDetails.Include(od => od.Order).Include(od => od.Book).Where(od => od.Order != null && od.Order.OrderStatus == OrderStatus.Paid).GroupBy(od => new { od.BookId, od.Book!.Title, od.Book.ImageUrl }).Select(g => new { BookId = g.Key.BookId, Title = g.Key.Title, ImageUrl = g.Key.ImageUrl, TotalSold = g.Sum(od => od.Quantity), TotalRevenue = g.Sum(od => od.LineTotal) }).OrderByDescending(x => x.TotalSold).Take(top).ToListAsync();
     }
 }
 
