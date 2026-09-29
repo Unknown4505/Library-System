@@ -8,14 +8,6 @@ public class PaymentTransactionConfiguration : IEntityTypeConfiguration<PaymentT
 {
     public void Configure(EntityTypeBuilder<PaymentTransaction> builder)
     {
-        builder.HasKey(x => x.TransactionId);
-
-        builder.HasIndex(x => x.ReferenceCode).IsUnique();
-        builder.Property(x => x.ReferenceCode).HasColumnType("varchar(50)").IsRequired();
-
-        builder.HasOne(x => x.Order)
-            .WithMany(o => o.PaymentTransactions)
-            .HasForeignKey(x => x.OrderId)
-            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(p => p.ReferenceCode).IsUnique();
     }
 }

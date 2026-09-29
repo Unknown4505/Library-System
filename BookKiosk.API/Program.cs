@@ -27,6 +27,28 @@ try
     // Đăng ký Repository và Service (Module 9)
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IBookRepository, BookKiosk.Infrastructure.Repositories.BookRepository>();
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Services.IBookService, BookKiosk.Application.Services.BookService>();
+    
+    // Đăng ký Services mới thêm (Thien33)
+    builder.Services.AddScoped<BookKiosk.Application.Services.IOrderService, BookKiosk.Application.Services.OrderService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IPaymentService, BookKiosk.Application.Services.PaymentService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IMemberService, BookKiosk.Application.Services.MemberService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IPromotionService, BookKiosk.Application.Services.PromotionService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IReportService, BookKiosk.Application.Services.ReportService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IInventoryService, BookKiosk.Application.Services.InventoryService>();
+
+    // Đăng ký Unit Of Work & Repositories (Thien33)
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IUnitOfWork, BookKiosk.Infrastructure.Repositories.UnitOfWork>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IMemberRepository, BookKiosk.Infrastructure.Repositories.MemberRepository>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IPromotionRepository, BookKiosk.Infrastructure.Repositories.PromotionRepository>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IReportRepository, BookKiosk.Infrastructure.Repositories.ReportRepository>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IInventoryRepository, BookKiosk.Infrastructure.Repositories.InventoryRepository>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IOrderRepository, BookKiosk.Infrastructure.Repositories.OrderRepository>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IPaymentRepository, BookKiosk.Infrastructure.Repositories.PaymentRepository>();
+    
+    // Đăng ký AutoMapper
+    builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+
+    builder.Services.AddHostedService<BookKiosk.API.HostedServices.ExpiredOrderCleanupService>();
 
     // Swagger/OpenAPI
     builder.Services.AddOpenApi();
