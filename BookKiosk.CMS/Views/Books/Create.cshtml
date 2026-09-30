@@ -1,0 +1,185 @@
+@{
+    ViewData["Title"] = "Thêm sách mới";
+}
+
+<div class="d-sm-flex align-items-center justify-content-between mb-4 mt-3">
+    <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-plus-circle text-primary me-2"></i> Thêm sách mới</h1>
+    <a href="/Books" class="d-none d-sm-inline-block btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Quay lại
+    </a>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <form id="createBookForm">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Tên sách (*)</label>
+                            <input type="text" class="form-control" id="Title" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Mã vạch (*)</label>
+                            <input type="text" class="form-control" id="Barcode" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Tác giả (*)</label>
+                            <input type="text" class="form-control" id="Author" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nhà xuất bản</label>
+                            <input type="text" class="form-control" id="Publisher">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Giá nhập (*)</label>
+                            <input type="number" class="form-control" id="CostPrice" min="0" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Giá bán (*)</label>
+                            <input type="number" class="form-control" id="SellingPrice" min="0" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Số lượng tồn (*)</label>
+                            <input type="number" class="form-control" id="StockQuantity" min="0" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Danh mục (*)</label>
+                            <select class="form-select" id="CategoryId" required>
+                                <option value="">-- Chọn danh mục --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Khu vực / Kệ sách</label>
+                            <select class="form-select" id="AreaId">
+                                <option value="">-- Chọn khu vực --</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="IsActive" checked>
+                        <label class="form-check-label" for="IsActive">Kích hoạt bán</label>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Ảnh bìa</label>
+                    <div class="card p-2 text-center mb-2">
+                        <img id="imagePreview" src="https://via.placeholder.com/300x400?text=No+Image" class="img-fluid rounded" style="max-height: 300px; object-fit: contain;">
+                    </div>
+                    <input class="form-control" type="file" id="imageFile" accept="image/*">
+                    <input type="hidden" id="ImageUrl">
+                </div>
+            </div>
+
+            <hr>
+            <div class="text-end">
+                <button type="submit" class="btn btn-primary" id="btnSubmit"><i class="fas fa-save"></i> Lưu dữ liệu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const API_BASE = 'https://localhost:7111/api';
+
+        $(document).ready(function () {
+            // Load Dropdown Categories và Areas
+            loadDropdowns();
+
+            // Xử lý Upload Ảnh bìa (Hiển thị preview & gọi API upload-image)
+            $('#imageFile').change(function () {
+                var file = this.files[0];
+                if (file) {
+                    // Preview
+                    var reader = new FileReader();
+                    reader.onload = function(e) { $('#imagePreview').attr('src', e.target.result); }
+                    reader.readAsDataURL(file);
+
+                    // Upload
+                    var formData = new FormData();
+                    formData.append('file', file);
+                    $.ajax({
+                        url: API_BASE + '/books/upload-image',
+                        type: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        success: function(res) {
+                            if (res.success) {
+                                $('#ImageUrl').val(res.url); // Lưu đường dẫn tương đối vào hidden input
+                                $('#imagePreview').attr('src', 'https://localhost:7111' + res.url); // Cập nhật lại ảnh thật từ Server
+                            }
+                        },
+                        error: function() {
+                            alert('Lỗi khi upload ảnh!');
+                        }
+                    });
+                }
+            });
+
+            // Submit Form
+            $('#createBookForm').submit(function (e) {
+                e.preventDefault();
+                $('#btnSubmit').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Đang lưu...');
+
+                var data = {
+                    barcode: $('#Barcode').val(),
+                    title: $('#Title').val(),
+                    author: $('#Author').val(),
+                    publisher: $('#Publisher').val(),
+                    costPrice: parseFloat($('#CostPrice').val() || 0),
+                    sellingPrice: parseFloat($('#SellingPrice').val() || 0),
+                    stockQuantity: parseInt($('#StockQuantity').val() || 0),
+                    categoryId: parseInt($('#CategoryId').val()),
+                    areaId: $('#AreaId').val() ? parseInt($('#AreaId').val()) : null,
+                    imageUrl: $('#ImageUrl').val(),
+                    isActive: $('#IsActive').is(':checked')
+                };
+
+                $.ajax({
+                    url: API_BASE + '/books',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function () {
+                        alert('Thêm sách mới thành công!');
+                        window.location.href = '/Books';
+                    },
+                    error: function (xhr) {
+                        alert('Có lỗi xảy ra: ' + (xhr.responseJSON?.message || 'Vui lòng kiểm tra lại dữ liệu'));
+                        $('#btnSubmit').prop('disabled', false).html('<i class="fas fa-save"></i> Lưu dữ liệu');
+                    }
+                });
+            });
+        });
+
+        function loadDropdowns() {
+            $.get(API_BASE + '/categories', function (res) {
+                if(res.success) {
+                    res.data.forEach(c => {
+                        $('#CategoryId').append(new Option(c.name, c.id));
+                    });
+                }
+            });
+            $.get(API_BASE + '/areas', function (res) {
+                if(res.success) {
+                    res.data.forEach(a => {
+                        $('#AreaId').append(new Option(a.name, a.id));
+                    });
+                }
+            });
+        }
+    </script>
+}
