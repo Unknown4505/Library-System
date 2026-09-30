@@ -45,18 +45,18 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
 | 1.1 | **[Leader]** Thiết lập `GlobalExceptionHandlerMiddleware` | @Unknown4505 | | | `[x]` |
-| 1.2 | API: `GET /api/books` (Có phân trang, tìm kiếm) | | @thien33 | | `[ ]` |
-| 1.3 | API: `GET /api/books/barcode/{barcode}` | | @thien33 | | `[ ]` |
-| 1.4 | API: `GET /api/categories` và `GET /api/areas` | | @thien33 | | `[ ]` |
+| 1.2 | API: `GET /api/books` (Có phân trang, tìm kiếm) | | @thien33 | | `[x]` |
+| 1.3 | API: `GET /api/books/barcode/{barcode}` | | @thien33 | | `[x]` |
+| 1.4 | API: `GET /api/categories` và `GET /api/areas` | | @thien33 | | `[x]` |
 | 1.5 | **[Leader]** Cấu hình Swagger JWT & API Key (Bảo mật) | @Unknown4505 | | | `[x]` |
 | 1.6 | **[Leader]** Khai báo các Shared DTOs và Constants dùng chung cho BE và FE | @Unknown4505 | | | `[x]` |
 
 ### MODULE 2: BACKEND API - THÀNH VIÊN & ĐIỂM
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 2.1 | API: `GET /api/members/{phoneNumber}` (Tra SĐT) | | @thien33 | | `[ ]` |
-| 2.2 | API: Cập nhật, tạo mới Thành viên | | @thien33 | | `[ ]` |
-| 2.3 | API: `GET /api/members/{id}/point-history` | | @thien33 | | `[ ]` |
+| 2.1 | API: `GET /api/members/{phoneNumber}` (Tra SĐT) | | @thien33 | | `[x]` |
+| 2.2 | API: Cập nhật, tạo mới Thành viên | | @thien33 | | `[x]` |
+| 2.3 | API: `GET /api/members/{id}/point-history` | | @thien33 | | `[x]` |
 
 ### MODULE 3: KIOSK WPF - ĐIỀU HƯỚNG & TRANG CHỦ
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
@@ -80,10 +80,10 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 ### MODULE 5: BACKEND API - CHECKOUT & GIỮ KHO
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 5.1 | API: `POST /api/orders/kiosk/checkout` | | @thien33 | | `[ ]` |
-| 5.2 | Logic: Tự động quét và áp dụng Promotion (KM) | | @thien33 | | `[ ]` |
-| 5.3 | Logic: Trừ tiền điểm (Points), tính TotalAmount | | @thien33 | | `[ ]` |
-| 5.4 | Logic: Cập nhật `ReservedQuantity` & Lưu Order | | @thien33 | | `[ ]` |
+| 5.1 | API: `POST /api/orders/kiosk/checkout` | | @thien33 | | `[x]` |
+| 5.2 | Logic: Tự động quét và áp dụng Promotion (KM) | | @thien33 | | `[x]` |
+| 5.3 | Logic: Trừ tiền điểm (Points), tính TotalAmount | | @thien33 | | `[x]` |
+| 5.4 | Logic: Cập nhật `ReservedQuantity` & Lưu Order | | @thien33 | | `[x]` |
 | 5.5 | **[Leader]** Viết test kịch bản tính điểm và áp KM, fix bug Concurrency | @Unknown4505 | | | `[ ]` |
 
 ### MODULE 6: KIOSK WPF - GIỎ HÀNG & THANH TOÁN
@@ -97,10 +97,10 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 ### MODULE 7: PAYMENT - SEPAY & WEBHOOK
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 7.1 | API: Sinh link/ảnh QR VietQR theo chuẩn SePay | | @thien33 | | `[ ]` |
-| 7.2 | API: `POST /api/payments/sepay-webhook` | | @thien33 | | `[ ]` |
-| 7.3 | Logic: Xác thực HMAC Signature bảo mật | | @thien33 | | `[ ]` |
-| 7.4 | Logic: Cập nhật Paid, trừ kho vật lý (StockQuantity)| | @thien33 | | `[ ]` |
+| 7.1 | API: Sinh link/ảnh QR VietQR theo chuẩn SePay | | @thien33 | | `[x]` |
+| 7.2 | API: `POST /api/payments/sepay-webhook` | | @thien33 | | `[x]` |
+| 7.3 | Logic: Xác thực HMAC Signature bảo mật | | @thien33 | | `[x]` |
+| 7.4 | Logic: Cập nhật Paid, trừ kho vật lý (StockQuantity)| | @thien33 | | `[x]` |
 | 7.5 | Kiosk `PaymentPage`: Polling API Status mỗi 3s | | | @lehuukhang | `[ ]` |
 | 7.6 | **[Leader]** Ghép nối: Viết logic Polling cho FE để tự động chuyển trang khi BE nhận được tiền (SignalR hoặc Timer) | @Unknown4505 | | | `[ ]` |
 
@@ -127,7 +127,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 ### MODULE 10: CMS WEB - TỒN KHO, KM & POS
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 10.1 | Admin API: CRUD Khuyến mãi, Nhập kho | | @thien33 | | `[ ]` |
+| 10.1 | Admin API: CRUD Khuyến mãi, Nhập kho | | @thien33 | | `[x]` |
 | 10.2 | Trang Nhập kho (Inventory) | | | @lehuukhang | `[ ]` |
 | 10.3 | Trang Quản lý Khuyến mãi | | | @lehuukhang | `[ ]` |
 | 10.4 | Trang POS Bán tại quầy (Áp mã thủ công) | | | @lehuukhang | `[ ]` |
@@ -135,8 +135,8 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 ### MODULE 11: THỐNG KÊ DOANH THU
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 11.1 | API: `GET /api/reports/revenue` (Group by Tháng) | | @thien33 | | `[ ]` |
-| 11.2 | API: `GET /api/reports/top-books` | | @thien33 | | `[ ]` |
+| 11.1 | API: `GET /api/reports/revenue` (Group by Tháng) | | @thien33 | | `[x]` |
+| 11.2 | API: `GET /api/reports/top-books` | | @thien33 | | `[x]` |
 | 11.3 | CMS: Vẽ Biểu đồ Bar Chart Doanh thu | | | @lehuukhang | `[ ]` |
 | 11.4 | CMS: Biểu đồ Pie Chart Trạng thái Kiosk | | | @lehuukhang | `[ ]` |
 | 11.5 | **[Leader]** Ghép nối data thống kê giữa BE & FE | @Unknown4505 | | | `[ ]` |
