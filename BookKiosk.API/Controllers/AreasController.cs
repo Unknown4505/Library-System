@@ -28,7 +28,7 @@ public class AreasController : ControllerBase
             {
                 a.AreaId,
                 a.Name,
-                a.Description
+                a.MapCoordinates
             })
             .ToListAsync();
             
