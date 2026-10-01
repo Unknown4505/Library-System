@@ -7,9 +7,15 @@ public interface IBookService
 {
     // Sử dụng ApiResponseDto chung đã được khai báo từ trước để response chuẩn format
     Task<ApiResponseDto<IEnumerable<BookDto>>> GetAllBooksAsync();
+
+    /// <summary>Phân trang, tìm kiếm và lọc theo danh mục — dùng cho Kiosk SearchPage</summary>
+    Task<ApiResponseDto<PaginatedResultDto<BookDto>>> GetBooksAsync(
+        int page, int pageSize, string? keyword, int? categoryId);
+
     Task<ApiResponseDto<BookDto>> GetBookByIdAsync(int id);
     Task<ApiResponseDto<BookDto>> GetBookByBarcodeAsync(string barcode);
     Task<ApiResponseDto<int>> CreateBookAsync(CreateBookDto dto);
     Task<ApiResponseDto<bool>> UpdateBookAsync(int id, UpdateBookDto dto);
     Task<ApiResponseDto<bool>> DeleteBookAsync(int id);
 }
+

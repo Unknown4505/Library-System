@@ -90,6 +90,14 @@ Mọi API trả về (kể cả lỗi) đều phải được wrap trong object 
 - **Endpoint:** `GET /api/books/barcode/{barcode}`
 - **Response:** Trả về Object giống 1 item trong mảng `items` ở trên. Lỗi `404 Not Found` nếu mã không tồn tại.
 
+#### Lấy danh sách Danh mục
+- **Endpoint:** `GET /api/categories`
+- **Response (Success - 200 OK):** Mảng các object chứa `categoryId`, `name`, `description`.
+
+#### Lấy danh sách Khu vực kệ
+- **Endpoint:** `GET /api/areas`
+- **Response (Success - 200 OK):** Mảng các object chứa `areaId`, `name`, `mapCoordinates` (Tọa độ trên UI map).
+
 ---
 
 ### 3.2 Khách hàng & Thành viên (Members)
@@ -178,12 +186,13 @@ Mọi API trả về (kể cả lỗi) đều phải được wrap trong object 
   - Nhả kho: `ReservedQuantity -= quantity`.
 
 #### Kiểm tra trạng thái đơn (Kiosk polling sau khi hiện QR)
-- **Endpoint:** `GET /api/orders/{orderCode}/status`
+- **Endpoint:** `GET /api/orders/kiosk/{orderId}/payment-status`
 - **Response:**
 ```json
 "data": {
-  "orderStatus": 2, // Enum: Pending(1), Paid(2), Cancelled(3)
-  "pointsEarned": 2 // Chỉ có giá trị khi orderStatus = Paid; Kiosk dùng để hiển thị chúc mừng tích điểm
+  "orderId": 105,
+  "orderCode": "ORD-20261101-0105",
+  "status": "Paid" // Enum: Pending, Paid, Cancelled
 }
 ```
 
@@ -224,6 +233,7 @@ Mọi API trả về (kể cả lỗi) đều phải được wrap trong object 
 - **Request Body:**
 ```json
 {
+  "kioskId": "K-01",
   "status": 1,             // Enum: 1=Online, 2=Offline, 3=Error
   "errorCode": null,       // "CAM_DISCONNECTED", "PRINTER_OUT_OF_PAPER"
   "errorMessage": null

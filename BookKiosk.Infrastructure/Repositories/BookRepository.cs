@@ -25,6 +25,38 @@ public class BookRepository : IBookRepository
             .ToListAsync();
     }
 
+    public async Task<(IEnumerable<Book> Items, int TotalCount)> GetPagedAsync(
+        int page, int pageSize, string? keyword, int? categoryId)
+    {
+        var query = _context.Books
+            .Include(b => b.Category)
+            .Include(b => b.Area)
+            .Where(b => b.IsActive) // Kiosk chỉ thấy sách đang kinh doanh
+            .AsNoTracking();
+
+        // Lọc theo từ khoá (tiêu đề hoặc tác giả)
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim().ToLower();
+            query = query.Where(b =>
+                b.Title.ToLower().Contains(kw) ||
+                b.Author.ToLower().Contains(kw));
+        }
+
+        // Lọc theo danh mục
+        if (categoryId.HasValue)
+            query = query.Where(b => b.CategoryId == categoryId.Value);
+
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .OrderBy(b => b.Title) // Sắp xếp nhất quán — tránh random order mỗi lần load
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (items, totalCount);
+    }
+
     public async Task<Book?> GetByIdAsync(int id)
     {
         return await _context.Books
