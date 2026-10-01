@@ -24,6 +24,26 @@ public class BookService : IBookService
         return ApiResponseDto<IEnumerable<BookDto>>.Ok(dtos);
     }
 
+    public async Task<ApiResponseDto<PaginatedResultDto<BookDto>>> GetBooksAsync(
+        int page, int pageSize, string? keyword, int? categoryId)
+    {
+        // Guard: tránh page/pageSize không hợp lệ
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 12;
+
+        var (items, totalCount) = await _bookRepository.GetPagedAsync(page, pageSize, keyword, categoryId);
+
+        var result = new PaginatedResultDto<BookDto>
+        {
+            Items = items.Select(MapToDto).ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+
+        return ApiResponseDto<PaginatedResultDto<BookDto>>.Ok(result);
+    }
+
     public async Task<ApiResponseDto<BookDto>> GetBookByIdAsync(int id)
     {
         var book = await _bookRepository.GetByIdAsync(id);

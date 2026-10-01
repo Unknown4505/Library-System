@@ -16,9 +16,13 @@ public class BooksController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAllBooks()
+    public async Task<IActionResult> GetAllBooks(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 12,
+        [FromQuery] string? keyword = null,
+        [FromQuery] int? categoryId = null)
     {
-        var response = await _bookService.GetAllBooksAsync();
+        var response = await _bookService.GetBooksAsync(page, pageSize, keyword, categoryId);
         return Ok(response);
     }
 
