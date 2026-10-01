@@ -84,7 +84,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 5.2 | Logic: Tự động quét và áp dụng Promotion (KM) | | @thien33 | | `[x]` |
 | 5.3 | Logic: Trừ tiền điểm (Points), tính TotalAmount | | @thien33 | | `[x]` |
 | 5.4 | Logic: Cập nhật `ReservedQuantity` & Lưu Order | | @thien33 | | `[x]` |
-| 5.5 | **[Leader]** Viết test kịch bản tính điểm và áp KM, fix bug Concurrency | @Unknown4505 | | | `[ ]` |
+| 5.5 | **[Leader]** Viết test kịch bản tính điểm và áp KM, fix bug Concurrency | @Unknown4505 | | | `[x]` |
 
 ### MODULE 6: KIOSK WPF - GIỎ HÀNG & THANH TOÁN
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
