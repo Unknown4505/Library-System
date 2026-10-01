@@ -8,6 +8,7 @@ public class PaymentTransactionConfiguration : IEntityTypeConfiguration<PaymentT
 {
     public void Configure(EntityTypeBuilder<PaymentTransaction> builder)
     {
+        builder.HasKey(p => p.TransactionId);
         builder.HasIndex(p => p.ReferenceCode).IsUnique();
     }
 }
