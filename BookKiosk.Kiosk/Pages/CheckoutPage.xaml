@@ -1,0 +1,84 @@
+<Page x:Class="BookKiosk.Kiosk.Pages.CheckoutPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      mc:Ignorable="d" 
+      d:DesignHeight="1080" d:DesignWidth="1920"
+      Title="CheckoutPage" Background="#f0f2f5"
+      Unloaded="Page_Unloaded">
+
+    <Page.InputBindings>
+        <!-- F3 để giả lập thanh toán thành công (Bắn tới SimulatePaymentSuccessCommand) -->
+        <KeyBinding Key="F3" Command="{Binding SimulatePaymentSuccessCommand}"/>
+    </Page.InputBindings>
+
+    <Grid Margin="100">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1*"/>
+            <ColumnDefinition Width="1*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Trái: Thông tin đơn hàng & Đếm ngược -->
+        <Border Grid.Column="0" Background="White" CornerRadius="20" Padding="50" Margin="0,0,40,0">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="20" ShadowDepth="5" Opacity="0.1"/>
+            </Border.Effect>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="ĐƠN HÀNG CỦA BẠN" FontSize="48" FontWeight="Bold" Foreground="#2c3e50" Margin="0,0,0,50"/>
+                
+                <TextBlock Text="Tổng thanh toán:" FontSize="32" Foreground="#7f8c8d" Margin="0,0,0,10"/>
+                <TextBlock Text="{Binding TotalAmount, StringFormat={}{0:N0} đ}" FontSize="64" FontWeight="Bold" Foreground="#e74c3c" Margin="0,0,0,50"/>
+
+                <!-- Đồng hồ đếm ngược -->
+                <Border Background="#ecf0f1" CornerRadius="15" Padding="40" HorizontalAlignment="Left">
+                    <StackPanel>
+                        <TextBlock Text="⏳ THỜI GIAN CHỜ THANH TOÁN:" FontSize="28" FontWeight="Bold" Foreground="#34495e" Margin="0,0,0,15"/>
+                        <TextBlock Text="{Binding TimeRemainingText}" FontSize="72" FontWeight="Bold" Foreground="#e67e22" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Vui lòng hoàn tất thanh toán trước khi hết giờ." FontSize="20" Foreground="#7f8c8d" Margin="0,20,0,0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Nút test F3 (Cho DEV, phòng khi hỏng bàn phím cứng) -->
+                <Button Content="[DEV TEST] Bấm F3 (hoặc vào đây) để giả lập Đã Nhận Tiền" Command="{Binding SimulatePaymentSuccessCommand}" FontSize="20" Background="#95a5a6" Foreground="White" Padding="20" Margin="0,50,0,0" HorizontalAlignment="Left" Focusable="False">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="10"/></Style>
+                    </Button.Resources>
+                </Button>
+
+                <!-- Nút Hủy giao dịch -->
+                <Button Content="✖ HỦY GIAO DỊCH" Command="{Binding CancelCommand}" FontSize="32" FontWeight="Bold" Background="#7f8c8d" Foreground="White" Padding="30,20" Margin="0,30,0,0" HorizontalAlignment="Left" Focusable="False">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="15"/></Style>
+                    </Button.Resources>
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- Phải: Mã QR Code giả lập lớn -->
+        <Border Grid.Column="1" Background="White" CornerRadius="20" Padding="50">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="20" ShadowDepth="5" Opacity="0.1"/>
+            </Border.Effect>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="QUÉT MÃ ĐỂ THANH TOÁN" FontSize="40" FontWeight="Bold" Foreground="#2980b9" Margin="0,0,0,20" HorizontalAlignment="Center"/>
+                <TextBlock Text="Hỗ trợ tất cả ứng dụng Ngân hàng và Ví điện tử" FontSize="24" Foreground="#7f8c8d" Margin="0,0,0,40" HorizontalAlignment="Center"/>
+                
+                <!-- Hình vuông mô phỏng QR Code thật to -->
+                <Border Width="500" Height="500" BorderBrush="#3498db" BorderThickness="4" CornerRadius="20" Background="#f8f9fa">
+                    <Grid>
+                        <!-- Ảnh QR Placeholder -->
+                        <TextBlock Text="[QR CODE SEPAY GIẢ LẬP]" FontSize="32" FontWeight="Bold" Foreground="#bdc3c7" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
+                        <!-- Biểu tượng góc QR -->
+                        <Border Width="60" Height="60" BorderBrush="#2c3e50" BorderThickness="8,8,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"/>
+                        <Border Width="60" Height="60" BorderBrush="#2c3e50" BorderThickness="0,8,8,0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="20"/>
+                        <Border Width="60" Height="60" BorderBrush="#2c3e50" BorderThickness="8,0,0,8" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="20"/>
+                        <Border Width="60" Height="60" BorderBrush="#2c3e50" BorderThickness="0,0,8,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="20"/>
+                    </Grid>
+                </Border>
+                
+                <TextBlock Text="Hệ thống sẽ tự động xác nhận sau khi nhận được tiền." FontSize="24" FontWeight="Bold" Foreground="#27ae60" Margin="0,40,0,0" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Page>

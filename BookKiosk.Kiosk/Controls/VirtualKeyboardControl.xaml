@@ -1,0 +1,119 @@
+<UserControl x:Class="BookKiosk.Kiosk.Controls.VirtualKeyboardControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="500" d:DesignWidth="400">
+    <!-- Numpad Grid -->
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Grid.Resources>
+            <Style TargetType="Button">
+                <Setter Property="FontSize" Value="36"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="Margin" Value="10"/>
+                <Setter Property="Background" Value="#ffffff"/>
+                <Setter Property="Foreground" Value="#2c3e50"/>
+                <Setter Property="Focusable" Value="False"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="20" BorderBrush="#bdc3c7" BorderThickness="1">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#cccccc" BlurRadius="5" ShadowDepth="3" Opacity="0.5"/>
+                                </Border.Effect>
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Background" Value="#ecf0f1"/>
+                                    <Setter Property="Foreground" Value="#2980b9"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </Grid.Resources>
+
+        <Button Grid.Row="0" Grid.Column="0" Content="1" Click="Number_Click"/>
+        <Button Grid.Row="0" Grid.Column="1" Content="2" Click="Number_Click"/>
+        <Button Grid.Row="0" Grid.Column="2" Content="3" Click="Number_Click"/>
+        
+        <Button Grid.Row="1" Grid.Column="0" Content="4" Click="Number_Click"/>
+        <Button Grid.Row="1" Grid.Column="1" Content="5" Click="Number_Click"/>
+        <Button Grid.Row="1" Grid.Column="2" Content="6" Click="Number_Click"/>
+        
+        <Button Grid.Row="2" Grid.Column="0" Content="7" Click="Number_Click"/>
+        <Button Grid.Row="2" Grid.Column="1" Content="8" Click="Number_Click"/>
+        <Button Grid.Row="2" Grid.Column="2" Content="9" Click="Number_Click"/>
+        
+        <Button Grid.Row="3" Grid.Column="0" Content="XÓA" Click="Backspace_Click">
+            <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                    <Setter Property="Background" Value="#e74c3c"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="FontSize" Value="24"/>
+                    <Style.Triggers>
+                        <!-- Note: Since the base ControlTemplate has an IsPressed trigger that sets Background to #ecf0f1, 
+                             we must use a ControlTemplate override or just let the base template handle the color change. 
+                             Actually, overriding the Template is the only way to avoid the base template's hardcoded #ecf0f1. -->
+                    </Style.Triggers>
+                </Style>
+            </Button.Style>
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}" CornerRadius="20" BorderBrush="#bdc3c7" BorderThickness="1">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#cccccc" BlurRadius="5" ShadowDepth="3" Opacity="0.5"/>
+                        </Border.Effect>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="Background" Value="#c0392b"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+        <Button Grid.Row="3" Grid.Column="1" Content="0" Click="Number_Click"/>
+        <Button Grid.Row="3" Grid.Column="2" Content="XONG" Click="Enter_Click">
+             <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                    <Setter Property="Background" Value="#2ecc71"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="FontSize" Value="24"/>
+                </Style>
+            </Button.Style>
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}" CornerRadius="20" BorderBrush="#bdc3c7" BorderThickness="1">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#cccccc" BlurRadius="5" ShadowDepth="3" Opacity="0.5"/>
+                        </Border.Effect>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="Background" Value="#27ae60"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+    </Grid>
+</UserControl>
