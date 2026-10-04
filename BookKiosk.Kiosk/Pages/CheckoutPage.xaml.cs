@@ -11,6 +11,12 @@ namespace BookKiosk.Kiosk.Pages
             InitializeComponent();
         }
 
+        public CheckoutPage(CheckoutViewModel viewModel)
+        {
+            InitializeComponent();
+            this.DataContext = viewModel;
+        }
+
         private void Page_Unloaded(object sender, RoutedEventArgs e)
         {
             // Dọn dẹp Timers khi bị văng khỏi trang để giải phóng bộ nhớ

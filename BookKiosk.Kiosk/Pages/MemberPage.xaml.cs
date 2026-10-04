@@ -9,6 +9,12 @@ namespace BookKiosk.Kiosk.Pages
             InitializeComponent();
         }
 
+        public MemberPage(ViewModels.MemberViewModel viewModel)
+        {
+            InitializeComponent();
+            this.DataContext = viewModel;
+        }
+
         private void Numpad_EnterClicked(object sender, System.Windows.RoutedEventArgs e)
         {
             if (DataContext is ViewModels.MemberViewModel vm && vm.ConfirmCommand.CanExecute(null))

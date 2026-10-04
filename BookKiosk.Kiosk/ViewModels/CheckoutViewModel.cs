@@ -22,6 +22,17 @@ namespace BookKiosk.Kiosk.ViewModels
             set { _totalAmount = value; OnPropertyChanged(); }
         }
 
+        public System.Collections.ObjectModel.ObservableCollection<Models.CartItemModel> CartItems => _cartService.Items;
+        
+        public decimal SubTotal => _cartService.GetTotalAmount();
+        
+        private decimal _discount;
+        public decimal Discount
+        {
+            get => _discount;
+            set { _discount = value; OnPropertyChanged(); }
+        }
+
         private string _timeRemainingText = "03:00";
         public string TimeRemainingText
         {
@@ -55,6 +66,7 @@ namespace BookKiosk.Kiosk.ViewModels
             if (parameter is CheckoutParameter p)
             {
                 TotalAmount = p.TotalAmount;
+                Discount = p.PointsUsed * 1000m;
             }
 
             _timeRemainingSeconds = 180;

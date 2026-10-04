@@ -11,6 +11,12 @@ namespace BookKiosk.Kiosk.Pages
             InitializeComponent();
         }
 
+        public ReceiptPage(ReceiptViewModel viewModel)
+        {
+            InitializeComponent();
+            this.DataContext = viewModel;
+        }
+
         private void Page_Unloaded(object sender, RoutedEventArgs e)
         {
             if (DataContext is ReceiptViewModel vm)

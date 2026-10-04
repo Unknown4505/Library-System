@@ -24,35 +24,90 @@
             <Border.Effect>
                 <DropShadowEffect BlurRadius="20" ShadowDepth="5" Opacity="0.1"/>
             </Border.Effect>
-            <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="ĐƠN HÀNG CỦA BẠN" FontSize="48" FontWeight="Bold" Foreground="#2c3e50" Margin="0,0,0,50"/>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
                 
-                <TextBlock Text="Tổng thanh toán:" FontSize="32" Foreground="#7f8c8d" Margin="0,0,0,10"/>
-                <TextBlock Text="{Binding TotalAmount, StringFormat={}{0:N0} đ}" FontSize="64" FontWeight="Bold" Foreground="#e74c3c" Margin="0,0,0,50"/>
+                <TextBlock Grid.Row="0" Text="ĐƠN HÀNG CỦA BẠN" FontSize="36" FontWeight="Bold" Foreground="#2c3e50" Margin="0,0,0,20"/>
+                
+                <!-- Danh sách sản phẩm -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,20">
+                    <ItemsControl ItemsSource="{Binding CartItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,15">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                                        <TextBlock Text="{Binding Book.Title}" FontSize="24" FontWeight="Bold" Foreground="#2c3e50" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding Quantity, StringFormat={}Số lượng: {0}}" FontSize="20" Foreground="#7f8c8d"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding TotalPrice, StringFormat={}{0:N0} đ}" FontSize="24" FontWeight="Bold" Foreground="#e74c3c" VerticalAlignment="Center"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
 
-                <!-- Đồng hồ đếm ngược -->
-                <Border Background="#ecf0f1" CornerRadius="15" Padding="40" HorizontalAlignment="Left">
-                    <StackPanel>
-                        <TextBlock Text="⏳ THỜI GIAN CHỜ THANH TOÁN:" FontSize="28" FontWeight="Bold" Foreground="#34495e" Margin="0,0,0,15"/>
-                        <TextBlock Text="{Binding TimeRemainingText}" FontSize="72" FontWeight="Bold" Foreground="#e67e22" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Vui lòng hoàn tất thanh toán trước khi hết giờ." FontSize="20" Foreground="#7f8c8d" Margin="0,20,0,0" HorizontalAlignment="Center"/>
-                    </StackPanel>
+                <!-- Tổng kết -->
+                <Border Grid.Row="2" BorderBrush="#ecf0f1" BorderThickness="0,2,0,0" Padding="0,20,0,0" Margin="0,0,0,20">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Tổng phụ:" FontSize="24" Foreground="#7f8c8d" Margin="0,0,0,10"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SubTotal, StringFormat={}{0:N0} đ}" FontSize="24" FontWeight="Bold" Foreground="#34495e" Margin="0,0,0,10"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Giảm giá (Điểm):" FontSize="24" Foreground="#7f8c8d" Margin="0,0,0,10"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Discount, StringFormat={}-{0:N0} đ}" FontSize="24" FontWeight="Bold" Foreground="#27ae60" Margin="0,0,0,10"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Tổng thanh toán:" FontSize="32" FontWeight="Bold" Foreground="#2c3e50" Margin="0,10,0,0"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding TotalAmount, StringFormat={}{0:N0} đ}" FontSize="48" FontWeight="Bold" Foreground="#e74c3c" Margin="0,10,0,0"/>
+                    </Grid>
                 </Border>
-
-                <!-- Nút test F3 (Cho DEV, phòng khi hỏng bàn phím cứng) -->
-                <Button Content="[DEV TEST] Bấm F3 (hoặc vào đây) để giả lập Đã Nhận Tiền" Command="{Binding SimulatePaymentSuccessCommand}" FontSize="20" Background="#95a5a6" Foreground="White" Padding="20" Margin="0,50,0,0" HorizontalAlignment="Left" Focusable="False">
-                    <Button.Resources>
-                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="10"/></Style>
-                    </Button.Resources>
-                </Button>
-
-                <!-- Nút Hủy giao dịch -->
-                <Button Content="✖ HỦY GIAO DỊCH" Command="{Binding CancelCommand}" FontSize="32" FontWeight="Bold" Background="#7f8c8d" Foreground="White" Padding="30,20" Margin="0,30,0,0" HorizontalAlignment="Left" Focusable="False">
-                    <Button.Resources>
-                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="15"/></Style>
-                    </Button.Resources>
-                </Button>
-            </StackPanel>
+                
+                <!-- Nút thao tác và đếm ngược -->
+                <StackPanel Grid.Row="3">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="#ecf0f1" CornerRadius="15" Padding="20" Margin="0,0,20,0">
+                            <StackPanel>
+                                <TextBlock Text="⏳ THỜI GIAN CHỜ:" FontSize="20" FontWeight="Bold" Foreground="#34495e"/>
+                                <TextBlock Text="{Binding TimeRemainingText}" FontSize="48" FontWeight="Bold" Foreground="#e67e22" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <Button Content="[DEV F3] ĐÃ NHẬN TIỀN" Command="{Binding SimulatePaymentSuccessCommand}" FontSize="16" Background="#95a5a6" Foreground="White" Padding="15" Margin="0,0,0,10" Focusable="False">
+                                <Button.Resources>
+                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="10"/></Style>
+                                </Button.Resources>
+                            </Button>
+                            <Button Content="✖ HỦY BỎ" Command="{Binding CancelCommand}" FontSize="24" FontWeight="Bold" Background="#7f8c8d" Foreground="White" Padding="15" Focusable="False">
+                                <Button.Resources>
+                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="10"/></Style>
+                                </Button.Resources>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- Phải: Mã QR Code giả lập lớn -->
