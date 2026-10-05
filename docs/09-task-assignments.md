@@ -84,7 +84,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 5.2 | Logic: Tự động quét và áp dụng Promotion (KM) | | @thien33 | | `[x]` |
 | 5.3 | Logic: Trừ tiền điểm (Points), tính TotalAmount | | @thien33 | | `[x]` |
 | 5.4 | Logic: Cập nhật `ReservedQuantity` & Lưu Order | | @thien33 | | `[x]` |
-| 5.5 | **[Leader]** Viết test kịch bản tính điểm và áp KM, fix bug Concurrency | @Unknown4505 | | | `[ ]` |
+| 5.5 | **[Leader]** Viết test kịch bản tính điểm và áp KM, fix bug Concurrency | @Unknown4505 | | | `[x]` |
 
 ### MODULE 6: KIOSK WPF - GIỎ HÀNG & THANH TOÁN
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
@@ -111,7 +111,8 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 8.2 | Kiosk: Sinh file PDF Hóa đơn với QuestPDF | | | @lehuukhang | `[ ]` |
 | 8.3 | Kiosk: `MaintenancePage` Báo lỗi thiết bị, khóa Kiosk | | | @lehuukhang | `[ ]` |
 | 8.4 | **[Leader]** Khởi tạo Interface phần cứng (`IBarcodeScanner`, `IPrinter`) và Class Mock | @Unknown4505 | | | `[x]` |
-| 8.4.1 | Tự định nghĩa dữ liệu Mock (Mock Data) cho Bill in ra màn hình để nắm rõ cấu trúc dữ liệu | | | @lehuukhang | `[ ]` |
+| 8.4.1 | **[Ghi chú Kiosk]** FE bắt buộc dùng interface `BookKiosk.Kiosk.Services.Hardware.IBarcodeScanner` đã được Leader mock sẵn, KHÔNG tự tạo service quét mã mới. | | | @lehuukhang | `[ ]` |
+| 8.4.2 | Tự định nghĩa dữ liệu Mock (Mock Data) cho Bill in ra màn hình để nắm rõ cấu trúc dữ liệu | | | @lehuukhang | `[ ]` |
 | 8.5 | **[Leader]** Triển khai gọi Driver ESC/POS in nhiệt thật | @Unknown4505 | | | `[ ]` |
 | 8.6 | HeartbeatService: `POST /api/kiosk/heartbeat` | | | @lehuukhang | `[ ]` |
 
