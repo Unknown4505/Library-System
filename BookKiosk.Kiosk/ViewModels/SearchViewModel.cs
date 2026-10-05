@@ -3,6 +3,8 @@ using System.Windows.Input;
 using BookKiosk.Kiosk.Models;
 using BookKiosk.Kiosk.Services;
 using BookKiosk.Kiosk.Pages;
+using System.Windows.Threading;
+using System;
 
 namespace BookKiosk.Kiosk.ViewModels
 {
@@ -12,6 +14,7 @@ namespace BookKiosk.Kiosk.ViewModels
         private readonly NavigationService _navigationService;
         private int _skip = 0;
         private const int Take = 10;
+        private DispatcherTimer _debounceTimer;
 
         public ObservableCollection<BookModel> SearchResults { get; } = new ObservableCollection<BookModel>();
         public ObservableCollection<CategoryModel> Categories { get; } = new ObservableCollection<CategoryModel>();
@@ -20,7 +23,16 @@ namespace BookKiosk.Kiosk.ViewModels
         public string Keyword 
         {
             get => _keyword;
-            set { _keyword = value; OnPropertyChanged(); }
+            set 
+            { 
+                _keyword = value; 
+                OnPropertyChanged(); 
+                if (_debounceTimer != null)
+                {
+                    _debounceTimer.Stop();
+                    _debounceTimer.Start();
+                }
+            }
         }
 
         private CategoryModel _selectedCategory;
@@ -44,6 +56,13 @@ namespace BookKiosk.Kiosk.ViewModels
             FilterCommand = new RelayCommand(cat => ExecuteFilter(cat as CategoryModel));
             LoadMoreCommand = new RelayCommand(_ => ExecuteSearch(false));
             BookClickCommand = new RelayCommand(ExecuteBookClick);
+
+            _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            _debounceTimer.Tick += (s, e) => 
+            {
+                _debounceTimer.Stop();
+                ExecuteSearch(true);
+            };
 
             LoadCategoriesAsync();
             ExecuteSearch(true);

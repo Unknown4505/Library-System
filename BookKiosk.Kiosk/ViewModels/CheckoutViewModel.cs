@@ -3,6 +3,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using BookKiosk.Kiosk.Services;
 using BookKiosk.Kiosk.Pages;
+using BookKiosk.Kiosk.Services.Api;
 
 namespace BookKiosk.Kiosk.ViewModels
 {
@@ -10,6 +11,7 @@ namespace BookKiosk.Kiosk.ViewModels
     {
         private readonly CartService _cartService;
         private readonly NavigationService _navigationService;
+        private readonly IBookKioskApiClient _api;
 
         private DispatcherTimer _countdownTimer;
         private DispatcherTimer _pollingTimer;
@@ -43,10 +45,11 @@ namespace BookKiosk.Kiosk.ViewModels
         public ICommand SimulatePaymentSuccessCommand { get; }
         public ICommand CancelCommand { get; }
 
-        public CheckoutViewModel(CartService cartService, NavigationService navigationService)
+        public CheckoutViewModel(CartService cartService, NavigationService navigationService, IBookKioskApiClient api)
         {
             _cartService = cartService;
             _navigationService = navigationService;
+            _api = api;
 
             SimulatePaymentSuccessCommand = new RelayCommand(_ => HandlePaymentSuccess());
             CancelCommand = new RelayCommand(_ => ExecuteCancel());
@@ -96,10 +99,21 @@ namespace BookKiosk.Kiosk.ViewModels
             }
         }
 
-        private void PollingTimer_Tick(object sender, EventArgs e)
+        private async void PollingTimer_Tick(object sender, EventArgs e)
         {
-            // Trong thực tế: var status = await _api.CheckOrderStatus(orderId);
-            // Ở đây chờ user bấm F3 (thông qua lệnh SimulatePaymentSuccessCommand)
+            try
+            {
+                // Gọi API lấy trạng thái đơn hàng (orderId mockup tạm là 0 vì hiện tại chưa truyền thực tế)
+                var status = await _api.GetPaymentStatusAsync(0);
+                if (status != null && status.Data != null && status.Data.IsPaid)
+                {
+                    HandlePaymentSuccess();
+                }
+            }
+            catch
+            {
+                // Bỏ qua lỗi tạm thời (mạng rớt, timeout) để timer tick lần sau tiếp tục chạy
+            }
         }
 
         private void UpdateTimeText()
