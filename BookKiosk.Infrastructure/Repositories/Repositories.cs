@@ -78,6 +78,7 @@ public class OrderRepository : IOrderRepository
     public async Task DecreaseStockAndReservedQuantityAsync(int bookId, int quantity) => await _context.Books.Where(b => b.BookId == bookId).ExecuteUpdateAsync(s => s.SetProperty(b => b.StockQuantity, b => b.StockQuantity - quantity).SetProperty(b => b.ReservedQuantity, b => b.ReservedQuantity - quantity));
     public async Task AddOrderAsync(Order order) => await _context.Orders.AddAsync(order);
     public async Task<Order?> GetPendingOrderByCodeAsync(string orderCode) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode && o.OrderStatus == OrderStatus.Pending);
+    public async Task<Order?> GetOrderByIdAsync(int orderId) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderId == orderId);
 }
 
 public class PaymentRepository : IPaymentRepository
