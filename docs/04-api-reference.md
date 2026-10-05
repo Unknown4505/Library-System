@@ -16,7 +16,7 @@ Nếu bạn là AI agent đọc file này:
 
 ## 1. Thông tin chung (Base Info)
 
-- **Base URL:** `https://localhost:5001/api/`
+- **Base URL:** `https://localhost:7111/` (HTTP fallback: `http://localhost:5014/`)
 - **Content-Type:** `application/json`
 - **Xác thực:** 
   - Kiosk gọi API: Gửi Header `X-Api-Key: <kiosk_secret_key>`
