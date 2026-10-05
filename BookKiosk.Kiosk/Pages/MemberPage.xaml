@@ -8,86 +8,120 @@
       d:DesignHeight="1080" d:DesignWidth="1920"
       Title="MemberPage" Background="#f0f2f5">
 
-    <Grid Margin="100">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="6*"/>
-            <ColumnDefinition Width="4*"/>
-        </Grid.ColumnDefinitions>
+    <Viewbox Stretch="Uniform">
+        <Grid Margin="100" Width="1720" Height="880" PreviewMouseDown="Page_PreviewMouseDown">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="6*"/>
+                <ColumnDefinition Width="4*"/>
+            </Grid.ColumnDefinitions>
 
-        <!-- Trái: Nhập SĐT & Điểm -->
-        <Border Grid.Column="0" Background="White" CornerRadius="20" Padding="50" Margin="0,0,40,0">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="20" ShadowDepth="5" Opacity="0.1"/>
-            </Border.Effect>
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+            <!-- Trái: Nhập SĐT & Bàn phím ảo -->
+            <Border Grid.Column="0" Background="White" CornerRadius="20" Padding="50" Margin="0,0,40,0">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="20" ShadowDepth="5" Opacity="0.1"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="🌟 BẠN CÓ PHẢI LÀ THÀNH VIÊN?" FontSize="48" FontWeight="Bold" Foreground="#2c3e50" Margin="0,0,0,30" HorizontalAlignment="Center"/>
-                
-                <TextBlock Grid.Row="1" Text="Vui lòng nhập Số điện thoại của bạn:" FontSize="32" Foreground="#7f8c8d" Margin="0,0,0,20"/>
-                
-                <TextBox Grid.Row="2" Text="{Binding ElementName=Numpad, Path=TargetText, Mode=OneWay}" Foreground="Black" FontSize="48" FontWeight="Bold" Padding="20" BorderBrush="#bdc3c7" BorderThickness="2" TextAlignment="Center" Margin="0,0,0,30" IsReadOnly="True" Background="#ecf0f1"/>
-
-                <Grid Grid.Row="3" Margin="0,0,0,40">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Text="🌟 BẠN CÓ PHẢI LÀ THÀNH VIÊN?" FontSize="48" FontWeight="Bold" Foreground="#2c3e50" Margin="0,0,0,30" HorizontalAlignment="Center"/>
                     
-                    <StackPanel Grid.Column="0">
-                        <TextBlock Text="Tổng Tiền Gốc:" FontSize="28" Foreground="#7f8c8d"/>
-                        <TextBlock Text="{Binding SubTotal, StringFormat={}{0:N0} đ}" FontSize="40" FontWeight="Bold" Foreground="#34495e"/>
-                    </StackPanel>
+                    <TextBlock Grid.Row="1" Text="Vui lòng nhập Số điện thoại của bạn:" FontSize="32" Foreground="#7f8c8d" Margin="0,0,0,20"/>
                     
-                    <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-                        <TextBlock Text="Thanh Toán:" FontSize="28" Foreground="#7f8c8d"/>
-                        <TextBlock Text="{Binding TotalAmount, StringFormat={}{0:N0} đ}" FontSize="48" FontWeight="Bold" Foreground="#e74c3c"/>
-                    </StackPanel>
+                    <TextBox x:Name="PhoneTextBox" Grid.Row="2" Text="{Binding PhoneNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                             Foreground="Black" FontSize="48" FontWeight="Bold" Padding="20" TextAlignment="Center" Margin="0,0,0,30" 
+                             IsReadOnly="False" InputMethod.IsInputMethodEnabled="False" GotFocus="TextBox_GotFocus">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Setter Property="Background" Value="#ecf0f1"/>
+                                <Setter Property="BorderBrush" Value="#bdc3c7"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsFocused" Value="True">
+                                        <Setter Property="BorderBrush" Value="#3498db"/>
+                                        <Setter Property="BorderThickness" Value="4"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+
+                    <TextBlock Grid.Row="3" Text="{Binding ErrorMessage}" Foreground="#e74c3c" FontSize="24" Margin="0,20,0,0" HorizontalAlignment="Center" FontWeight="Bold"/>
                 </Grid>
-
-                <!-- Bàn phím ảo để nhập SĐT (Tự động lấp đầy phần height còn lại) -->
-                <controls:VirtualKeyboardControl x:Name="Numpad" Grid.Row="4" TargetText="{Binding PhoneNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" EnterClicked="Numpad_EnterClicked"/>
-
-                <TextBlock Grid.Row="5" Text="{Binding ErrorMessage}" Foreground="#e74c3c" FontSize="24" Margin="0,20,0,0" HorizontalAlignment="Center" FontWeight="Bold"/>
-            </Grid>
-        </Border>
-
-        <!-- Phải: Các nút hành động -->
-        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-            <!-- Tùy chọn dùng điểm -->
-            <Border Background="#fff3cd" CornerRadius="15" Padding="30" Margin="0,0,0,40">
-                <StackPanel>
-                    <TextBlock Text="🎁 Dùng điểm tích lũy?" FontSize="32" FontWeight="Bold" Foreground="#856404" Margin="0,0,0,20"/>
-                    <TextBlock Text="Bạn có thể dùng tối đa 100 điểm để giảm 100,000 đ cho hóa đơn này." FontSize="24" Foreground="#856404" TextWrapping="Wrap" Margin="0,0,0,20"/>
-                    
-                    <Button Content="SỬ DỤNG TỐI ĐA ĐIỂM" Command="{Binding UseMaxPointsCommand}" FontSize="28" FontWeight="Bold" Background="#f1c40f" Foreground="White" Height="80" Focusable="False">
-                        <Button.Resources>
-                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="10"/></Style>
-                        </Button.Resources>
-                    </Button>
-                </StackPanel>
             </Border>
 
-            <!-- Nút Xác nhận -->
-            <Button Content="XÁC NHẬN" Command="{Binding ConfirmCommand}" FontSize="40" FontWeight="Bold" Background="#3498db" Foreground="White" Height="120" Margin="0,0,0,30" Focusable="False">
-                <Button.Resources>
-                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="15"/></Style>
-                </Button.Resources>
-            </Button>
+            <!-- Phải: Các nút hành động -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <!-- Tùy chọn dùng điểm -->
+                <Border Background="#fff3cd" CornerRadius="15" Padding="30" Margin="0,0,0,40">
+                    <StackPanel>
+                        <TextBlock Text="🎁 Dùng điểm tích lũy?" FontSize="32" FontWeight="Bold" Foreground="#856404" Margin="0,0,0,20"/>
+                        <TextBlock Text="Bạn có thể dùng điểm để giảm giá hóa đơn này." FontSize="24" Foreground="#856404" TextWrapping="Wrap" Margin="0,0,0,20"/>
+                        
+                        <StackPanel>
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding AvailablePoints}" Value="0">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            
+                            <TextBlock Text="{Binding AvailablePoints, StringFormat='Bạn đang có: {0:N0} điểm'}" FontSize="28" FontWeight="Bold" Foreground="#2ecc71" Margin="0,0,0,10"/>
+                            <TextBlock Text="Nhập số điểm muốn dùng:" FontSize="24" Foreground="#7f8c8d" Margin="0,0,0,10"/>
+                            
+                            <TextBox x:Name="PointsTextBox" Text="{Binding PointsUsedText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                     Foreground="Black" FontSize="36" FontWeight="Bold" Padding="15" TextAlignment="Center" Margin="0,0,0,20" 
+                                     IsReadOnly="False" InputMethod.IsInputMethodEnabled="False" GotFocus="TextBox_GotFocus">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox">
+                                        <Setter Property="Background" Value="White"/>
+                                        <Setter Property="BorderBrush" Value="#bdc3c7"/>
+                                        <Setter Property="BorderThickness" Value="2"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsFocused" Value="True">
+                                                <Setter Property="BorderBrush" Value="#3498db"/>
+                                                <Setter Property="BorderThickness" Value="4"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
+                        </StackPanel>
 
-            <!-- Nút Bỏ qua -->
-            <Button Content="BỎ QUA (Khách vãng lai)" Command="{Binding SkipCommand}" FontSize="32" FontWeight="Bold" Background="#95a5a6" Foreground="White" Height="100" Focusable="False">
-                <Button.Resources>
-                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="15"/></Style>
-                </Button.Resources>
-            </Button>
-        </StackPanel>
-    </Grid>
+                        <Button Content="SỬ DỤNG TỐI ĐA ĐIỂM" Command="{Binding UseMaxPointsCommand}" FontSize="28" FontWeight="Bold" Background="#f1c40f" Foreground="White" Height="80" Focusable="False">
+                            <Button.Resources>
+                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="10"/></Style>
+                            </Button.Resources>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <!-- Nút Xác nhận -->
+                <Button Content="XÁC NHẬN" Command="{Binding ConfirmCommand}" FontSize="40" FontWeight="Bold" Background="#3498db" Foreground="White" Height="120" Focusable="False">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="15"/></Style>
+                    </Button.Resources>
+                </Button>
+            </StackPanel>
+
+            <!-- Bàn phím số dạng Popup nổi (Pop-up) đè lên màn hình -->
+            <Popup x:Name="KeyboardPopup" StaysOpen="True" AllowsTransparency="True" PopupAnimation="Slide" Placement="Bottom" VerticalOffset="10">
+                <Border Background="White" CornerRadius="15" Padding="5">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="15" ShadowDepth="5" Opacity="0.3"/>
+                    </Border.Effect>
+                    <controls:VirtualKeyboardControl x:Name="Numpad" Margin="0" EnterClicked="Numpad_EnterClicked"/>
+                </Border>
+            </Popup>
+        </Grid>
+    </Viewbox>
 </Page>

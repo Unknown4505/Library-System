@@ -13,7 +13,7 @@ namespace BookKiosk.Kiosk
     {
         private readonly NavigationService _navigationService;
         private readonly IdleTimerService _idleTimerService;
-        private readonly IBarcodeScannerService _barcodeScannerService;
+        private readonly IBarcodeScanner _barcodeScanner;
 
         private int _clickCount = 0;
         private DateTime _lastClickTime = DateTime.MinValue;
@@ -29,13 +29,15 @@ namespace BookKiosk.Kiosk
         }
 
         // Constructor tiêm Dependency Injection
-        public MainWindow(NavigationService navigationService, IdleTimerService idleTimerService, IBarcodeScannerService barcodeScannerService)
+        public MainWindow(NavigationService navigationService, IdleTimerService idleTimerService, IBarcodeScanner barcodeScanner, IDialogService dialogService)
         {
             InitializeComponent();
             
             _navigationService = navigationService ?? throw new ArgumentNullException(nameof(navigationService));
             _idleTimerService = idleTimerService ?? throw new ArgumentNullException(nameof(idleTimerService));
-            _barcodeScannerService = barcodeScannerService ?? throw new ArgumentNullException(nameof(barcodeScannerService));
+            _barcodeScanner = barcodeScanner ?? throw new ArgumentNullException(nameof(barcodeScanner));
+            
+            dialogService.RegisterDialogHandler(OverlayDialog.ShowDialogAsync);
 
             // Timer để reset buffer nếu gõ phím quá chậm (giả định khoảng cách giữa các phím của máy quét thật là < 50ms)
             _barcodeTimer = new DispatcherTimer
@@ -92,7 +94,7 @@ namespace BookKiosk.Kiosk
                 if (!string.IsNullOrEmpty(barcode))
                 {
                     // Chuyển mã vạch sang Service để các màn hình xử lý
-                    _barcodeScannerService.PushBarcode(barcode);
+                    if (_barcodeScanner is MockBarcodeScanner mock) mock.SimulateScan(barcode);
                     e.Handled = true;
                 }
             }
@@ -126,7 +128,7 @@ namespace BookKiosk.Kiosk
                 if (!string.IsNullOrEmpty(barcode))
                 {
                     // Đẩy barcode y hệt như máy quét thật
-                    _barcodeScannerService.PushBarcode(barcode);
+                    if (_barcodeScanner is MockBarcodeScanner mock) mock.SimulateScan(barcode);
                     DevBarcodeTextBox.Clear();
                     
                     // Giấu đi sau khi nhập xong
@@ -150,8 +152,8 @@ namespace BookKiosk.Kiosk
             _clickCount++;
             _lastClickTime = now;
 
-            // Đủ 5 lần click liên tiếp -> Hiển thị Popup Mật khẩu bảo trì
-            if (_clickCount >= 5)
+            // Đủ 2 lần click liên tiếp -> Hiển thị Popup Mật khẩu bảo trì
+            if (_clickCount >= 2)
             {
                 _clickCount = 0; // Reset
                 

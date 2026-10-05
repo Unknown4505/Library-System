@@ -13,7 +13,29 @@ namespace BookKiosk.Kiosk.ViewModels
         public string PhoneNumber
         {
             get => _phoneNumber;
-            set { _phoneNumber = value; OnPropertyChanged(); }
+            set 
+            { 
+                _phoneNumber = value; 
+                OnPropertyChanged();
+                
+                // Mock: Khi nhập đủ 10 số thì hiển thị điểm
+                if (_phoneNumber != null && _phoneNumber.Length >= 10)
+                {
+                    AvailablePoints = 500; // Giả lập có 500 điểm
+                }
+                else
+                {
+                    AvailablePoints = 0;
+                    PointsUsed = 0;
+                }
+            }
+        }
+
+        private int _availablePoints = 0;
+        public int AvailablePoints
+        {
+            get => _availablePoints;
+            set { _availablePoints = value; OnPropertyChanged(); }
         }
 
         private int _pointsUsed = 0;
@@ -25,6 +47,32 @@ namespace BookKiosk.Kiosk.ViewModels
                 _pointsUsed = value; 
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(TotalAmount));
+                
+                string newText = _pointsUsed > 0 ? _pointsUsed.ToString() : "";
+                if (_pointsUsedText != newText)
+                {
+                    _pointsUsedText = newText;
+                    OnPropertyChanged(nameof(PointsUsedText));
+                }
+            }
+        }
+
+        private string _pointsUsedText = "";
+        public string PointsUsedText
+        {
+            get => _pointsUsedText;
+            set
+            {
+                _pointsUsedText = value;
+                OnPropertyChanged();
+                if (int.TryParse(value, out int parsed))
+                {
+                    if (PointsUsed != parsed) PointsUsed = parsed;
+                }
+                else
+                {
+                    if (PointsUsed != 0) PointsUsed = 0;
+                }
             }
         }
 
@@ -40,7 +88,6 @@ namespace BookKiosk.Kiosk.ViewModels
             }
         }
 
-        public ICommand SkipCommand { get; }
         public ICommand ConfirmCommand { get; }
         public ICommand UseMaxPointsCommand { get; }
 
@@ -49,7 +96,6 @@ namespace BookKiosk.Kiosk.ViewModels
             _cartService = cartService;
             _navigationService = navigationService;
 
-            SkipCommand = new RelayCommand(_ => ExecuteSkip());
             ConfirmCommand = new RelayCommand(_ => ExecuteConfirm());
             UseMaxPointsCommand = new RelayCommand(_ => ExecuteUseMaxPoints());
         }
@@ -61,12 +107,6 @@ namespace BookKiosk.Kiosk.ViewModels
             PointsUsed = 0;
             OnPropertyChanged(nameof(SubTotal));
             OnPropertyChanged(nameof(TotalAmount));
-        }
-
-        private void ExecuteSkip()
-        {
-            // Bỏ qua nhập thông tin, đi tới CheckoutPage
-            _navigationService.Navigate<CheckoutPage>(new CheckoutParameter { TotalAmount = SubTotal, PointsUsed = 0 });
         }
 
         private void ExecuteConfirm()
@@ -83,13 +123,10 @@ namespace BookKiosk.Kiosk.ViewModels
                 return;
             }
 
-            // Quy tắc: 1 điểm = 1000đ. Tối đa dùng 100 điểm.
-            // Không được dùng điểm lớn hơn tổng giá trị đơn hàng
-            int maxPointsAllowed = (int)(SubTotal / 1000m);
-            if (maxPointsAllowed > 100) 
-            {
-                maxPointsAllowed = 100;
-            }
+            // Quy tắc: 1 điểm = 1000đ.
+            // Không được dùng điểm lớn hơn tổng giá trị đơn hàng và số điểm đang có
+            int maxPointsForOrder = (int)(SubTotal / 1000m);
+            int maxPointsAllowed = Math.Min(maxPointsForOrder, AvailablePoints);
             
             PointsUsed = maxPointsAllowed;
             ErrorMessage = $"Đã áp dụng tối đa {PointsUsed} điểm.";

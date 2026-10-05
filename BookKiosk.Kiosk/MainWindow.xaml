@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:BookKiosk.Kiosk"
+        xmlns:controls="clr-namespace:BookKiosk.Kiosk.Controls"
         mc:Ignorable="d"
         Title="BookKiosk" Height="1080" Width="1920"
         WindowStyle="None" WindowState="Maximized" Topmost="True" ResizeMode="NoResize"
@@ -33,5 +34,8 @@
                          KeyDown="DevBarcodeTextBox_KeyDown" VerticalContentAlignment="Center"/>
             </StackPanel>
         </Border>
+
+        <!-- Kiosk Dialog Overlay -->
+        <controls:CustomKioskDialogControl x:Name="OverlayDialog" />
     </Grid>
 </Window>

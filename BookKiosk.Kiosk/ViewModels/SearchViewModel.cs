@@ -34,7 +34,6 @@ namespace BookKiosk.Kiosk.ViewModels
         public ICommand FilterCommand { get; }
         public ICommand LoadMoreCommand { get; }
         public ICommand BookClickCommand { get; }
-        public ICommand HomeCommand { get; }
 
         public SearchViewModel(IBookService bookService, NavigationService navigationService)
         {
@@ -45,10 +44,18 @@ namespace BookKiosk.Kiosk.ViewModels
             FilterCommand = new RelayCommand(cat => ExecuteFilter(cat as CategoryModel));
             LoadMoreCommand = new RelayCommand(_ => ExecuteSearch(false));
             BookClickCommand = new RelayCommand(ExecuteBookClick);
-            HomeCommand = new RelayCommand(_ => _navigationService.Navigate<HomePage>());
 
             LoadCategoriesAsync();
             ExecuteSearch(true);
+        }
+
+        public override void Initialize(object parameter)
+        {
+            if (parameter is string keyword && !string.IsNullOrWhiteSpace(keyword))
+            {
+                Keyword = keyword;
+                ExecuteSearch(true);
+            }
         }
 
         private async void LoadCategoriesAsync()

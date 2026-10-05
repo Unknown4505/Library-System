@@ -38,11 +38,11 @@ public partial class App : System.Windows.Application
                 // Đăng ký Hardware Mock Services (Dùng cho Laptop Dev)
                 services.AddSingleton<IBarcodeScanner, MockBarcodeScanner>();
                 services.AddSingleton<IReceiptPrinter, MockReceiptPrinter>();
-                services.AddSingleton<IBarcodeScannerService, MockBarcodeScannerService>();
 
                 // Đăng ký Core Services cho Kiosk
                 services.AddSingleton<NavigationService>();
                 services.AddSingleton<IdleTimerService>();
+                services.AddSingleton<IDialogService, DialogService>();
                 services.AddSingleton<IBookService, MockBookService>();
                 services.AddSingleton<CartService>();
                 services.AddSingleton<CartViewModel>();
@@ -50,7 +50,6 @@ public partial class App : System.Windows.Application
                 // Đăng ký Windows/Pages
                 services.AddSingleton<MainWindow>();
                 services.AddTransient<IdlePage>();
-                services.AddTransient<HomePage>();
                 services.AddTransient<SearchPage>();
                 services.AddTransient<BookDetailPage>();
                 services.AddTransient<MemberPage>();
@@ -59,7 +58,6 @@ public partial class App : System.Windows.Application
 
                 // Đăng ký ViewModels
                 services.AddTransient<IdleViewModel>();
-                services.AddTransient<HomePageViewModel>();
                 services.AddTransient<SearchViewModel>();
                 services.AddTransient<BookDetailViewModel>();
                 services.AddTransient<MemberViewModel>();

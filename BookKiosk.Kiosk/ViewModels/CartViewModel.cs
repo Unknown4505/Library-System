@@ -11,9 +11,10 @@ namespace BookKiosk.Kiosk.ViewModels
     public class CartViewModel : BaseViewModel
     {
         private readonly CartService _cartService;
-        private readonly IBarcodeScannerService _barcodeScannerService;
+        private readonly IBarcodeScanner _barcodeScanner;
         private readonly IBookService _bookService;
         private readonly NavigationService _navigationService;
+        private readonly IDialogService _dialogService;
 
         public ObservableCollection<CartItemModel> CartItems => _cartService.Items;
         public decimal SubTotal => _cartService.GetTotalAmount();
@@ -26,24 +27,27 @@ namespace BookKiosk.Kiosk.ViewModels
 
         public CartViewModel(
             CartService cartService, 
-            IBarcodeScannerService barcodeScannerService, 
+            IBarcodeScanner barcodeScanner, 
             IBookService bookService, 
-            NavigationService navigationService)
+            NavigationService navigationService,
+            IDialogService dialogService)
         {
             _cartService = cartService;
-            _barcodeScannerService = barcodeScannerService;
+            _barcodeScanner = barcodeScanner;
             _bookService = bookService;
             _navigationService = navigationService;
+            _dialogService = dialogService;
 
             // Subscribe to Service events
             _cartService.CartChanged += OnCartChanged;
-            _barcodeScannerService.BarcodeScanned += OnBarcodeScanned;
+            _barcodeScanner.BarcodeScanned += OnBarcodeScanned;
+            _barcodeScanner.StartListening();
 
             // Initialize Commands
             IncreaseCommand = new RelayCommand(ExecuteIncrease);
             DecreaseCommand = new RelayCommand(ExecuteDecrease);
             RemoveCommand = new RelayCommand(ExecuteRemove);
-            CheckoutCommand = new RelayCommand(ExecuteCheckout, _ => HasItems);
+            CheckoutCommand = new RelayCommand(ExecuteCheckout);
         }
 
         private void OnCartChanged()
@@ -53,7 +57,7 @@ namespace BookKiosk.Kiosk.ViewModels
             System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         }
 
-        private async void OnBarcodeScanned(object sender, string barcode)
+        private async void OnBarcodeScanned(object? sender, string barcode)
         {
             // Parse barcode. Assuming Barcode equals BookId for Mock Scanner
             if (int.TryParse(barcode, out int bookId))
@@ -103,12 +107,19 @@ namespace BookKiosk.Kiosk.ViewModels
             }
         }
 
-        private void ExecuteCheckout(object parameter)
+        private async void ExecuteCheckout(object parameter)
         {
-            if (!HasItems) return;
+            if (!HasItems)
+            {
+                await _dialogService.ShowDialogAsync("Bạn chưa có sách để thanh toán!", false);
+                return;
+            }
             
-            // Chuyển sang màn hình Thành viên (MemberPage)
-            _navigationService.Navigate<Pages.MemberPage>();
+            bool isConfirm = await _dialogService.ShowDialogAsync("Bạn có chắc chắn muốn thanh toán các cuốn sách này?", true);
+            if (isConfirm)
+            {
+                _navigationService.Navigate<Pages.MemberPage>();
+            }
         }
     }
 }

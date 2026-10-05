@@ -56,7 +56,7 @@ namespace BookKiosk.Kiosk.ViewModels
         {
             StopTimers();
             // Đưa khách về Trang chủ, reset lại luồng mua sắm
-            _navigationService.Navigate<HomePage>();
+            _navigationService.Navigate<SearchPage>();
         }
 
         public override void Initialize(object parameter)

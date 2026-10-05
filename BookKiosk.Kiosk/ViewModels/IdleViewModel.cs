@@ -19,7 +19,7 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private void ExecuteStart(object parameter)
         {
-            _navigationService.Navigate<HomePage>();
+            _navigationService.Navigate<SearchPage>();
         }
     }
 }
