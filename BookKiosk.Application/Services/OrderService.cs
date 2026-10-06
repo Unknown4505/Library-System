@@ -74,13 +74,25 @@ public class OrderService : IOrderService
                 }
             }
 
+            decimal totalAmountWithoutPoints = subTotal - maxDiscountAmount;
+            if (totalAmountWithoutPoints < 0) totalAmountWithoutPoints = 0;
+
             decimal pointsUsedAmount = 0m;
             if (request.MemberId.HasValue && request.PointsToUse > 0)
             {
                 var member = await _memberRepository.GetByIdAsync(request.MemberId.Value);
                 if (member != null && member.Points >= request.PointsToUse)
                 {
-                    pointsUsedAmount = request.PointsToUse * 1000m;
+                    decimal requestedPointsValue = request.PointsToUse * 1000m;
+                    if (requestedPointsValue > totalAmountWithoutPoints)
+                    {
+                        request.PointsToUse = (int)Math.Ceiling(totalAmountWithoutPoints / 1000m);
+                        pointsUsedAmount = request.PointsToUse * 1000m;
+                    }
+                    else
+                    {
+                        pointsUsedAmount = requestedPointsValue;
+                    }
                 }
                 else
                 {
@@ -88,7 +100,7 @@ public class OrderService : IOrderService
                 }
             }
 
-            decimal totalAmount = subTotal - maxDiscountAmount - pointsUsedAmount;
+            decimal totalAmount = totalAmountWithoutPoints - pointsUsedAmount;
             if (totalAmount < 0) totalAmount = 0;
 
             var orderCode = "ORD" + DateTime.Now.ToString("yyyyMMddHHmmss");
