@@ -11,7 +11,7 @@ namespace BookKiosk.Kiosk.ViewModels
     {
         private readonly CartService _cartService;
         private readonly NavigationService _navigationService;
-        private readonly IBookKioskApiClient _api;
+        private readonly IBookKioskApiClient _apiClient;
 
         private DispatcherTimer _countdownTimer;
         private DispatcherTimer _pollingTimer;
@@ -46,19 +46,23 @@ namespace BookKiosk.Kiosk.ViewModels
         public ICommand SimulatePaymentSuccessCommand { get; }
         public ICommand CancelCommand { get; }
 
-        public CheckoutViewModel(CartService cartService, NavigationService navigationService, IBookKioskApiClient api)
+        public CheckoutViewModel(CartService cartService, NavigationService navigationService, IBookKioskApiClient apiClient)
         {
             _cartService = cartService;
             _navigationService = navigationService;
-            _api = api;
+            _apiClient = apiClient;
 
             SimulatePaymentSuccessCommand = new RelayCommand(_ => HandlePaymentSuccess());
             CancelCommand = new RelayCommand(_ => ExecuteCancel());
         }
 
-        private void ExecuteCancel()
+        private async void ExecuteCancel()
         {
             StopTimers();
+            
+            // Hủy đơn hàng an toàn (nhả tồn kho)
+            await _apiClient.CancelOrderAsync(_orderId);
+            
             // Đưa khách về Trang chủ, reset lại luồng mua sắm
             _navigationService.Navigate<SearchPage>();
         }
@@ -88,7 +92,7 @@ namespace BookKiosk.Kiosk.ViewModels
             _pollingTimer.Start();
         }
 
-        private void CountdownTimer_Tick(object sender, EventArgs e)
+        private async void CountdownTimer_Tick(object sender, EventArgs e)
         {
             _timeRemainingSeconds--;
             UpdateTimeText();
@@ -96,6 +100,10 @@ namespace BookKiosk.Kiosk.ViewModels
             if (_timeRemainingSeconds <= 0)
             {
                 StopTimers();
+                
+                // Hủy đơn hàng an toàn do hết giờ (nhả tồn kho)
+                await _apiClient.CancelOrderAsync(_orderId);
+                
                 _cartService.ClearCart();
                 _navigationService.Navigate<IdlePage>();
             }
@@ -106,8 +114,8 @@ namespace BookKiosk.Kiosk.ViewModels
             try
             {
                 // Gọi API lấy trạng thái đơn hàng
-                var status = await _api.GetPaymentStatusAsync(_orderId);
-                if (status != null && status.Data != null && status.Data.IsPaid)
+                var status = await _apiClient.GetPaymentStatusAsync(_orderId);
+                if (status == "Paid")
                 {
                     HandlePaymentSuccess();
                 }

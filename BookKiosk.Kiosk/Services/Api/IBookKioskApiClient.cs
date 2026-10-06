@@ -55,10 +55,10 @@ public interface IBookKioskApiClient
     /// <summary>
     /// Kiosk polling mỗi 3 giây — kiểm tra đơn đã được thanh toán chưa (task 7.5 / 7.6)
     /// </summary>
-    Task<ApiResponseDto<PaymentStatusDto>?> GetPaymentStatusAsync(int orderId);
+    Task<string?> GetPaymentStatusAsync(int orderId);
 
     // ── KIOSK HEARTBEAT ───────────────────────────────────────────────────────
 
     /// <summary>Gửi heartbeat định kỳ để báo Kiosk đang online (task 8.6)</summary>
-    Task<ApiResponseDto<object>?> SendHeartbeatAsync(string kioskId);
+    Task<ApiResponseDto<object>?> SendHeartbeatAsync(string kioskId, int status, string errorCode = "", string errorMessage = "");
 }

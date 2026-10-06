@@ -25,9 +25,19 @@ namespace BookKiosk.Kiosk.ViewModels
                 _phoneNumber = value; 
                 OnPropertyChanged();
                 
-                if (_phoneNumber != null && _phoneNumber.Length >= 10)
+                if (_phoneNumber != null && _phoneNumber.Length == 10)
                 {
-                    CheckMemberPhoneAsync(_phoneNumber);
+                    // Mock data để test
+                    var mockMember = BookKiosk.Kiosk.Models.MockDataStore.Members.FirstOrDefault(m => m.PhoneNumber == _phoneNumber);
+                    if (mockMember != null)
+                    {
+                        AvailablePoints = mockMember.Points;
+                        MemberId = mockMember.MemberId;
+                    }
+                    else
+                    {
+                        CheckMemberPhoneAsync(_phoneNumber);
+                    }
                 }
                 else
                 {
@@ -43,7 +53,7 @@ namespace BookKiosk.Kiosk.ViewModels
             try
             {
                 var response = await _api.GetMemberByPhoneAsync(phone);
-                if (response != null && response.IsSuccess && response.Data != null)
+                if (response != null && response.Success && response.Data != null)
                 {
                     AvailablePoints = response.Data.Points;
                     MemberId = response.Data.MemberId;
@@ -154,14 +164,14 @@ namespace BookKiosk.Kiosk.ViewModels
                     PointsToUse = this.PointsUsed,
                     Items = _cartService.Items.Select(x => new CheckoutItemDto 
                     { 
-                        BookId = x.Book.Id, 
+                        BookId = x.Book.BookId, 
                         Quantity = x.Quantity 
                     }).ToList()
                 };
 
                 var response = await _api.CheckoutAsync(request);
 
-                if (response != null && response.IsSuccess && response.Data != null)
+                if (response != null && response.Success && response.Data != null)
                 {
                     _navigationService.Navigate<CheckoutPage>(new CheckoutParameter 
                     { 

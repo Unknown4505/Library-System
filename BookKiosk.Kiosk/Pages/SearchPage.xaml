@@ -7,6 +7,9 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       mc:Ignorable="d">
+    <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </Page.Resources>
     <Grid Background="#f0f2f5" PreviewMouseDown="Page_PreviewMouseDown">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="7*"/>
@@ -24,7 +27,12 @@
                 
                 <!-- Thanh công cụ tìm kiếm -->
                 <Grid Grid.Row="0" Margin="0,0,0,20">
-                    <Border x:Name="SearchContainer" Background="White" BorderBrush="#bdc3c7" BorderThickness="2" CornerRadius="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <Border Grid.Column="0" x:Name="SearchContainer" Background="White" BorderBrush="#bdc3c7" BorderThickness="2" CornerRadius="10">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -75,6 +83,14 @@
                             </Button>
                         </Grid>
                     </Border>
+                    
+                    <!-- Nút Quét Mã Vạch -->
+                    <Button Grid.Column="1" Content="📷 QUÉT MÃ" FontSize="24" FontWeight="Bold" Foreground="White" Background="#e67e22" 
+                            Padding="30,0" Margin="20,0,0,0" Cursor="Hand" Command="{Binding OpenScannerCommand}">
+                        <Button.Resources>
+                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="10"/></Style>
+                        </Button.Resources>
+                    </Button>
                 </Grid>
 
             <!-- Bộ lọc thể loại -->
@@ -140,5 +156,9 @@
 
         <!-- CỘT PHẢI: Giỏ Hàng -->
         <controls:CartView Grid.Column="1" />
+
+        <!-- Lớp Overlay: Popup Camera (Nằm trên cùng) -->
+        <controls:CustomScannerPopupControl Grid.ColumnSpan="2" Panel.ZIndex="1000" 
+            Visibility="{Binding IsScannerOpen, Converter={StaticResource BooleanToVisibilityConverter}}" />
     </Grid>
 </Page>
