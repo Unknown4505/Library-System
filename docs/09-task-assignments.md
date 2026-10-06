@@ -65,7 +65,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 3.2 | Thiết lập `NavigationService` (Quản lý Frame) | | | @lehuukhang | `[ ]` |
 | 3.3 | Layout `IdlePage`: Màn hình chờ + Video QC | | | @lehuukhang | `[ ]` |
 | 3.4 | Cấu hình `IdleTimerService` (Quay về màn hình chờ) | | | @lehuukhang | `[ ]` |
-| 3.5 | Layout `HomePage`: Slider Sách bán chạy / Mới | | | @lehuukhang | `[ ]` |
+| 3.5 | Layout `HomePage`: (Đã gộp chung vào SearchPage) | | | @lehuukhang | `[x]` |
 | 3.6 | **[Leader]** Setup HttpClientFactory / ApiClient thuần túy để FE kiểm soát hoàn toàn API | @Unknown4505 | | | `[x]` |
 
 ### MODULE 4: KIOSK WPF - TÌM KIẾM & CHI TIẾT
