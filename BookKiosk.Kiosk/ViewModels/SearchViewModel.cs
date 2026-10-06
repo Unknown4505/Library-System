@@ -95,13 +95,19 @@ namespace BookKiosk.Kiosk.ViewModels
             }
 
             IsLoading = true;
-            int? categoryId = SelectedCategory?.Id == 0 ? null : SelectedCategory?.Id;
-            var books = await _bookService.SearchBooksAsync(Keyword, categoryId, _skip, Take);
-            
-            foreach(var b in books) SearchResults.Add(b);
-            
-            _skip += Take;
-            IsLoading = false;
+            try
+            {
+                int? categoryId = SelectedCategory?.Id == 0 ? null : SelectedCategory?.Id;
+                var books = await _bookService.SearchBooksAsync(Keyword, categoryId, _skip, Take);
+                
+                foreach(var b in books) SearchResults.Add(b);
+                
+                _skip += Take;
+            }
+            finally
+            {
+                IsLoading = false;
+            }
         }
 
         private void ExecuteFilter(CategoryModel category)

@@ -16,6 +16,7 @@ namespace BookKiosk.Kiosk.ViewModels
         private DispatcherTimer _countdownTimer;
         private DispatcherTimer _pollingTimer;
         private int _timeRemainingSeconds = 180; // 3 phút
+        private int _orderId;
 
         private decimal _totalAmount;
         public decimal TotalAmount
@@ -70,6 +71,7 @@ namespace BookKiosk.Kiosk.ViewModels
             {
                 TotalAmount = p.TotalAmount;
                 Discount = p.PointsUsed * 1000m;
+                _orderId = p.OrderId;
             }
 
             _timeRemainingSeconds = 180;
@@ -103,8 +105,8 @@ namespace BookKiosk.Kiosk.ViewModels
         {
             try
             {
-                // Gọi API lấy trạng thái đơn hàng (orderId mockup tạm là 0 vì hiện tại chưa truyền thực tế)
-                var status = await _api.GetPaymentStatusAsync(0);
+                // Gọi API lấy trạng thái đơn hàng
+                var status = await _api.GetPaymentStatusAsync(_orderId);
                 if (status != null && status.Data != null && status.Data.IsPaid)
                 {
                     HandlePaymentSuccess();

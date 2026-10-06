@@ -1,6 +1,10 @@
+using System;
+using System.Linq;
 using System.Windows.Input;
 using BookKiosk.Kiosk.Services;
+using BookKiosk.Kiosk.Services.Api;
 using BookKiosk.Kiosk.Pages;
+using BookKiosk.Application.DTOs.Order;
 
 namespace BookKiosk.Kiosk.ViewModels
 {
@@ -8,6 +12,9 @@ namespace BookKiosk.Kiosk.ViewModels
     {
         private readonly CartService _cartService;
         private readonly NavigationService _navigationService;
+        private readonly IBookKioskApiClient _api;
+
+        public int? MemberId { get; private set; }
 
         private string _phoneNumber = "";
         public string PhoneNumber
@@ -18,16 +25,41 @@ namespace BookKiosk.Kiosk.ViewModels
                 _phoneNumber = value; 
                 OnPropertyChanged();
                 
-                // Mock: Khi nhập đủ 10 số thì hiển thị điểm
                 if (_phoneNumber != null && _phoneNumber.Length >= 10)
                 {
-                    AvailablePoints = 500; // Giả lập có 500 điểm
+                    CheckMemberPhoneAsync(_phoneNumber);
                 }
                 else
                 {
                     AvailablePoints = 0;
                     PointsUsed = 0;
+                    MemberId = null;
                 }
+            }
+        }
+
+        private async void CheckMemberPhoneAsync(string phone)
+        {
+            try
+            {
+                var response = await _api.GetMemberByPhoneAsync(phone);
+                if (response != null && response.IsSuccess && response.Data != null)
+                {
+                    AvailablePoints = response.Data.Points;
+                    MemberId = response.Data.MemberId;
+                }
+                else
+                {
+                    AvailablePoints = 0;
+                    MemberId = null;
+                    PointsUsed = 0;
+                }
+            }
+            catch
+            {
+                AvailablePoints = 0;
+                MemberId = null;
+                PointsUsed = 0;
             }
         }
 
@@ -91,10 +123,11 @@ namespace BookKiosk.Kiosk.ViewModels
         public ICommand ConfirmCommand { get; }
         public ICommand UseMaxPointsCommand { get; }
 
-        public MemberViewModel(CartService cartService, NavigationService navigationService)
+        public MemberViewModel(CartService cartService, NavigationService navigationService, IBookKioskApiClient api)
         {
             _cartService = cartService;
             _navigationService = navigationService;
+            _api = api;
 
             ConfirmCommand = new RelayCommand(_ => ExecuteConfirm());
             UseMaxPointsCommand = new RelayCommand(_ => ExecuteUseMaxPoints());
@@ -109,10 +142,48 @@ namespace BookKiosk.Kiosk.ViewModels
             OnPropertyChanged(nameof(TotalAmount));
         }
 
-        private void ExecuteConfirm()
+        private async void ExecuteConfirm()
         {
-            // Nếu có SĐT thì áp dụng điểm (Thực tế sẽ gọi API check SĐT)
-            _navigationService.Navigate<CheckoutPage>(new CheckoutParameter { TotalAmount = TotalAmount, PointsUsed = PointsUsed });
+            try
+            {
+                IsLoading = true;
+                
+                var request = new CheckoutRequestDto
+                {
+                    MemberId = this.MemberId,
+                    PointsToUse = this.PointsUsed,
+                    Items = _cartService.Items.Select(x => new CheckoutItemDto 
+                    { 
+                        BookId = x.Book.Id, 
+                        Quantity = x.Quantity 
+                    }).ToList()
+                };
+
+                var response = await _api.CheckoutAsync(request);
+
+                if (response != null && response.IsSuccess && response.Data != null)
+                {
+                    _navigationService.Navigate<CheckoutPage>(new CheckoutParameter 
+                    { 
+                        TotalAmount = TotalAmount, 
+                        PointsUsed = PointsUsed,
+                        MemberId = this.MemberId,
+                        OrderId = response.Data.OrderId
+                    });
+                }
+                else
+                {
+                    ErrorMessage = response?.Message ?? "Thanh toán thất bại. Vui lòng thử lại.";
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = "Có lỗi xảy ra khi tạo đơn hàng: " + ex.Message;
+            }
+            finally
+            {
+                IsLoading = false;
+            }
         }
 
         private void ExecuteUseMaxPoints()
@@ -137,5 +208,7 @@ namespace BookKiosk.Kiosk.ViewModels
     {
         public decimal TotalAmount { get; set; }
         public int PointsUsed { get; set; }
+        public int? MemberId { get; set; }
+        public int OrderId { get; set; }
     }
 }
