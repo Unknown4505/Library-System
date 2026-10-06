@@ -12,6 +12,8 @@ namespace BookKiosk.Application.Services;
 public interface IOrderService
 {
     Task<CheckoutResponseDto> CheckoutKioskAsync(CheckoutRequestDto request);
+    Task<bool> CancelOrderAsync(int orderId);
+    Task<string> GetPaymentStatusAsync(int orderId);
 }
 
 public class OrderService : IOrderService
@@ -72,13 +74,25 @@ public class OrderService : IOrderService
                 }
             }
 
-            int pointsUsedAmount = 0;
+            decimal totalAmountWithoutPoints = subTotal - maxDiscountAmount;
+            if (totalAmountWithoutPoints < 0) totalAmountWithoutPoints = 0;
+
+            decimal pointsUsedAmount = 0m;
             if (request.MemberId.HasValue && request.PointsToUse > 0)
             {
                 var member = await _memberRepository.GetByIdAsync(request.MemberId.Value);
                 if (member != null && member.Points >= request.PointsToUse)
                 {
-                    pointsUsedAmount = request.PointsToUse * 1000;
+                    decimal requestedPointsValue = request.PointsToUse * 1000m;
+                    if (requestedPointsValue > totalAmountWithoutPoints)
+                    {
+                        request.PointsToUse = (int)Math.Ceiling(totalAmountWithoutPoints / 1000m);
+                        pointsUsedAmount = request.PointsToUse * 1000m;
+                    }
+                    else
+                    {
+                        pointsUsedAmount = requestedPointsValue;
+                    }
                 }
                 else
                 {
@@ -86,7 +100,7 @@ public class OrderService : IOrderService
                 }
             }
 
-            decimal totalAmount = subTotal - maxDiscountAmount - pointsUsedAmount;
+            decimal totalAmount = totalAmountWithoutPoints - pointsUsedAmount;
             if (totalAmount < 0) totalAmount = 0;
 
             var orderCode = "ORD" + DateTime.Now.ToString("yyyyMMddHHmmss");
@@ -137,5 +151,42 @@ public class OrderService : IOrderService
             await _unitOfWork.RollbackAsync();
             throw;
         }
+    }
+
+    public async Task<bool> CancelOrderAsync(int orderId)
+    {
+        var order = await _orderRepository.GetOrderByIdAsync(orderId);
+        if (order == null) throw new Exception("Không tìm thấy đơn hàng.");
+        
+        if (order.OrderStatus != OrderStatus.Pending)
+            throw new Exception("Đơn hàng không ở trạng thái chờ thanh toán để hủy.");
+
+        await _unitOfWork.BeginTransactionAsync();
+        try
+        {
+            order.OrderStatus = OrderStatus.Cancelled;
+            
+            // Nhả lại sách (trừ đi phần đã Reserved)
+            foreach (var detail in order.OrderDetails)
+            {
+                await _orderRepository.IncreaseReservedQuantityAsync(detail.BookId, -detail.Quantity);
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
+            return true;
+        }
+        catch (Exception)
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task<string> GetPaymentStatusAsync(int orderId)
+    {
+        var order = await _orderRepository.GetOrderByIdAsync(orderId);
+        if (order == null) throw new Exception("Không tìm thấy đơn hàng.");
+        return order.OrderStatus.ToString();
     }
 }

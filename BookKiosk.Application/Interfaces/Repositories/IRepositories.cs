@@ -49,6 +49,7 @@ public interface IOrderRepository
     Task DecreaseStockAndReservedQuantityAsync(int bookId, int quantity);
     Task AddOrderAsync(Order order);
     Task<Order?> GetPendingOrderByCodeAsync(string orderCode);
+    Task<Order?> GetOrderByIdAsync(int orderId);
 }
 
 public interface IPaymentRepository

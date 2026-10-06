@@ -35,4 +35,38 @@ public class OrdersController : ControllerBase
             return Conflict(new { Message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Kiosk gửi yêu cầu hủy đơn hàng (Khách bấm X)
+    /// </summary>
+    [HttpPost("kiosk/{orderId}/cancel")]
+    public async Task<IActionResult> CancelOrder(int orderId)
+    {
+        try
+        {
+            await _orderService.CancelOrderAsync(orderId);
+            return Ok(new { Message = "Đã hủy đơn hàng và hoàn trả số lượng sách về kho." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Kiosk polling trạng thái thanh toán
+    /// </summary>
+    [HttpGet("kiosk/{orderId}/payment-status")]
+    public async Task<IActionResult> GetPaymentStatus(int orderId)
+    {
+        try
+        {
+            var status = await _orderService.GetPaymentStatusAsync(orderId);
+            return Ok(new { status });
+        }
+        catch (Exception ex)
+        {
+            return NotFound(new { Message = ex.Message });
+        }
+    }
 }
