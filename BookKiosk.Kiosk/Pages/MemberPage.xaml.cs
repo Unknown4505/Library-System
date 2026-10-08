@@ -19,11 +19,6 @@ namespace BookKiosk.Kiosk.Pages
         {
             KeyboardPopup.IsOpen = false;
             System.Windows.Input.Keyboard.ClearFocus();
-
-            if (DataContext is ViewModels.MemberViewModel vm && vm.ConfirmCommand.CanExecute(null))
-            {
-                vm.ConfirmCommand.Execute(null);
-            }
         }
 
         private void TextBox_GotFocus(object sender, System.Windows.RoutedEventArgs e)

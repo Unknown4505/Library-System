@@ -93,23 +93,20 @@
                     </Button>
                 </Grid>
 
-            <!-- Bộ lọc thể loại -->
-            <ItemsControl Grid.Row="1" ItemsSource="{Binding Categories}" Margin="0,0,0,20">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel Orientation="Horizontal"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Button Content="{Binding Name}" Command="{Binding DataContext.FilterCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" FontSize="24" Background="#3498db" Foreground="White" Padding="25,10" Margin="0,0,15,15" Focusable="False">
-                            <Button.Resources>
-                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="20"/></Style>
-                            </Button.Resources>
-                        </Button>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <!-- Bộ lọc thể loại (Dropdown) -->
+            <ComboBox Grid.Row="1" ItemsSource="{Binding Categories}" 
+                      SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
+                      DisplayMemberPath="Name"
+                      FontSize="28" Padding="15" Margin="0,0,0,20"
+                      Background="White" Foreground="#2c3e50"
+                      BorderBrush="#bdc3c7" BorderThickness="2">
+                <ComboBox.Resources>
+                    <!-- Tùy chỉnh bo góc cho ComboBox -->
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="10"/>
+                    </Style>
+                </ComboBox.Resources>
+            </ComboBox>
 
             <!-- Lưới kết quả (Card Sách) -->
             <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">

@@ -12,6 +12,7 @@ namespace BookKiosk.Kiosk.ViewModels
         private readonly CartService _cartService;
         private readonly NavigationService _navigationService;
         private readonly IBookKioskApiClient _apiClient;
+        private readonly IdleTimerService _idleTimerService;
 
         private DispatcherTimer _countdownTimer;
         private DispatcherTimer _pollingTimer;
@@ -46,11 +47,12 @@ namespace BookKiosk.Kiosk.ViewModels
         public ICommand SimulatePaymentSuccessCommand { get; }
         public ICommand CancelCommand { get; }
 
-        public CheckoutViewModel(CartService cartService, NavigationService navigationService, IBookKioskApiClient apiClient)
+        public CheckoutViewModel(CartService cartService, NavigationService navigationService, IBookKioskApiClient apiClient, IdleTimerService idleTimerService)
         {
             _cartService = cartService;
             _navigationService = navigationService;
             _apiClient = apiClient;
+            _idleTimerService = idleTimerService;
 
             SimulatePaymentSuccessCommand = new RelayCommand(_ => HandlePaymentSuccess());
             CancelCommand = new RelayCommand(_ => ExecuteCancel());
@@ -58,18 +60,27 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private async void ExecuteCancel()
         {
+            if (IsLoading) return;
+            IsLoading = true;
             StopTimers();
             
-            // Hủy đơn hàng an toàn (nhả tồn kho)
-            await _apiClient.CancelOrderAsync(_orderId);
-            
-            // Đưa khách về Trang chủ, reset lại luồng mua sắm
-            _navigationService.Navigate<SearchPage>();
+            try
+            {
+                // Hủy đơn hàng an toàn (nhả tồn kho)
+                await _apiClient.CancelOrderAsync(_orderId);
+            }
+            finally
+            {
+                IsLoading = false;
+                // Đưa khách về Trang chủ, reset lại luồng mua sắm
+                _navigationService.Navigate<SearchPage>();
+            }
         }
 
         public override void Initialize(object parameter)
         {
             base.Initialize(parameter);
+            _idleTimerService.Stop(); // Tạm dừng Idle Timer toàn cục để không đá văng người dùng khi đang thanh toán
 
             if (parameter is CheckoutParameter p)
             {
@@ -99,13 +110,21 @@ namespace BookKiosk.Kiosk.ViewModels
 
             if (_timeRemainingSeconds <= 0)
             {
+                if (IsLoading) return;
+                IsLoading = true;
                 StopTimers();
                 
-                // Hủy đơn hàng an toàn do hết giờ (nhả tồn kho)
-                await _apiClient.CancelOrderAsync(_orderId);
-                
-                _cartService.ClearCart();
-                _navigationService.Navigate<IdlePage>();
+                try
+                {
+                    // Hủy đơn hàng an toàn do hết giờ (nhả tồn kho)
+                    await _apiClient.CancelOrderAsync(_orderId);
+                }
+                finally
+                {
+                    IsLoading = false;
+                    _cartService.ClearCart();
+                    _navigationService.Navigate<IdlePage>();
+                }
             }
         }
 
@@ -143,6 +162,7 @@ namespace BookKiosk.Kiosk.ViewModels
         public void Cleanup()
         {
             StopTimers();
+            _idleTimerService.Start(); // Bật lại Idle Timer
         }
 
         private void StopTimers()

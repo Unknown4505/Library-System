@@ -105,6 +105,41 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Tóm tắt thanh toán -->
+                <Border Background="White" CornerRadius="15" Padding="25" Margin="0,0,0,30">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.1"/>
+                    </Border.Effect>
+                    <StackPanel>
+                        <Grid Margin="0,0,0,10">
+                            <TextBlock Text="Tổng tiền hàng:" FontSize="24" Foreground="#7f8c8d" HorizontalAlignment="Left"/>
+                            <TextBlock Text="{Binding SubTotal, StringFormat='{}{0:N0} ₫'}" FontSize="24" FontWeight="Bold" Foreground="#2c3e50" HorizontalAlignment="Right"/>
+                        </Grid>
+                        
+                        <Grid Margin="0,0,0,15">
+                            <Grid.Style>
+                                <Style TargetType="Grid">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Discount}" Value="0">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
+                            <TextBlock Text="Giảm giá (Điểm):" FontSize="24" Foreground="#7f8c8d" HorizontalAlignment="Left"/>
+                            <TextBlock Text="{Binding Discount, StringFormat='{}- {0:N0} ₫'}" FontSize="24" FontWeight="Bold" Foreground="#e74c3c" HorizontalAlignment="Right"/>
+                        </Grid>
+
+                        <Rectangle Height="2" Fill="#ecf0f1" Margin="0,5,0,15"/>
+                        
+                        <Grid>
+                            <TextBlock Text="Cần thanh toán:" FontSize="28" FontWeight="Bold" Foreground="#2c3e50" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding TotalAmount, StringFormat='{}{0:N0} ₫'}" FontSize="36" FontWeight="Bold" Foreground="#e74c3c" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
                 <!-- Nút Xác nhận -->
                 <Button Content="XÁC NHẬN" Command="{Binding ConfirmCommand}" FontSize="40" FontWeight="Bold" Background="#3498db" Foreground="White" Height="120" Focusable="False">
                     <Button.Resources>

@@ -8,6 +8,7 @@ using BookKiosk.Kiosk.Services.Hardware;
 using BookKiosk.Kiosk.Services;
 using BookKiosk.Kiosk.ViewModels;
 using BookKiosk.Kiosk.Pages;
+using QuestPDF.Infrastructure;
 
 namespace BookKiosk.Kiosk;
 
@@ -46,6 +47,8 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<IBookService, MockBookService>();
                 services.AddSingleton<CartService>();
                 services.AddSingleton<CartViewModel>();
+                services.AddSingleton<HeartbeatWorker>();
+                services.AddSingleton<IReceiptService, ReceiptPdfService>();
 
                 // Đăng ký Windows/Pages
                 services.AddSingleton<MainWindow>();
@@ -69,6 +72,8 @@ public partial class App : System.Windows.Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        QuestPDF.Settings.License = LicenseType.Community;
+
         await AppHost!.StartAsync();
 
         var mainWindow = AppHost.Services.GetRequiredService<MainWindow>();
@@ -77,6 +82,10 @@ public partial class App : System.Windows.Application
         // Điều hướng trang ban đầu sau khi load MainWindow
         var navigationService = AppHost.Services.GetRequiredService<NavigationService>();
         navigationService.Navigate<IdlePage>();
+
+        // Khởi động Heartbeat Worker
+        var heartbeatWorker = AppHost.Services.GetRequiredService<HeartbeatWorker>();
+        heartbeatWorker.Start();
 
         base.OnStartup(e);
     }

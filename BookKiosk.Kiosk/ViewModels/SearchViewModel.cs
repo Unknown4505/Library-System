@@ -11,7 +11,7 @@ using System.Linq;
 
 namespace BookKiosk.Kiosk.ViewModels
 {
-    public class SearchViewModel : BaseViewModel
+    public class SearchViewModel : BaseViewModel, IDisposable
     {
         private readonly IBookService _bookService;
         private readonly NavigationService _navigationService;
@@ -47,7 +47,19 @@ namespace BookKiosk.Kiosk.ViewModels
         public CategoryModel SelectedCategory
         {
             get => _selectedCategory;
-            set { _selectedCategory = value; OnPropertyChanged(); }
+            set 
+            { 
+                if (_selectedCategory != value)
+                {
+                    _selectedCategory = value; 
+                    OnPropertyChanged(); 
+                    if (_debounceTimer != null)
+                    {
+                        _debounceTimer.Stop();
+                        _debounceTimer.Start();
+                    }
+                }
+            }
         }
 
         private bool _isScannerOpen;
@@ -193,11 +205,20 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private async void LoadCategoriesAsync()
         {
-            var cats = await _bookService.GetCategoriesAsync();
+            var result = await _apiClient.GetCategoriesAsync();
             Categories.Clear();
             Categories.Add(new CategoryModel { Id = 0, Name = "Tất cả" });
-            foreach(var cat in cats) Categories.Add(cat);
-            SelectedCategory = Categories[0];
+            
+            if (result != null && result.Success && result.Data != null)
+            {
+                foreach(var cat in result.Data)
+                {
+                    Categories.Add(new CategoryModel { Id = cat.CategoryId, Name = cat.Name });
+                }
+            }
+            
+            _selectedCategory = Categories[0];
+            OnPropertyChanged(nameof(SelectedCategory));
         }
 
         private async void ExecuteSearch(bool reset)
@@ -237,6 +258,12 @@ namespace BookKiosk.Kiosk.ViewModels
             {
                 _navigationService.Navigate<BookDetailPage>(bookId);
             }
+        }
+
+        public void Dispose()
+        {
+            // Giải phóng bộ nhớ, chống memory leak khi Navigate đi
+            _scanner.BarcodeScanned -= Scanner_BarcodeScanned;
         }
     }
 }

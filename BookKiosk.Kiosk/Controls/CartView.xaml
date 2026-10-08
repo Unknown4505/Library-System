@@ -47,21 +47,23 @@
                                     <TextBlock Text="{Binding Book.SellingPrice, StringFormat={}{0:N0} đ}" FontSize="22" Foreground="#e74c3c" FontWeight="Bold" Margin="0,5,0,10"/>
                                     
                                     <!-- Số lượng -->
-                                    <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
-                                        <Button Content="-" Command="{Binding DataContext.DecreaseCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding Book.BookId}" Width="80" Height="80" FontSize="48" FontWeight="Bold" Background="#bdc3c7" Foreground="White" Focusable="False">
-                                            <Button.Resources>
-                                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="15"/></Style>
-                                            </Button.Resources>
-                                        </Button>
-                                        
-                                        <TextBlock Text="{Binding Quantity}" FontSize="40" FontWeight="Bold" Width="80" TextAlignment="Center" VerticalAlignment="Center" Margin="10,0"/>
-                                        
-                                        <Button Content="+" Command="{Binding DataContext.IncreaseCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding Book.BookId}" Width="80" Height="80" FontSize="48" FontWeight="Bold" Background="#3498db" Foreground="White" Focusable="False">
-                                            <Button.Resources>
-                                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="15"/></Style>
-                                            </Button.Resources>
-                                        </Button>
-                                    </StackPanel>
+                                    <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left" Margin="0,15,0,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Content="-" Command="{Binding DataContext.DecreaseCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding Book.BookId}" Width="80" Height="80" FontSize="48" FontWeight="Bold" Background="#bdc3c7" Foreground="White" Focusable="False">
+                                                <Button.Resources>
+                                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="15"/></Style>
+                                                </Button.Resources>
+                                            </Button>
+                                            
+                                            <TextBlock Text="{Binding Quantity}" FontSize="40" FontWeight="Bold" Width="80" TextAlignment="Center" VerticalAlignment="Center" Margin="10,0"/>
+                                            
+                                            <Button Content="+" Command="{Binding DataContext.IncreaseCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding Book.BookId}" Width="80" Height="80" FontSize="48" FontWeight="Bold" Background="#3498db" Foreground="White" Focusable="False">
+                                                <Button.Resources>
+                                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="15"/></Style>
+                                                </Button.Resources>
+                                            </Button>
+                                        </StackPanel>
+                                    </Viewbox>
                                 </StackPanel>
                                 
                                 <!-- Nút Xóa -->

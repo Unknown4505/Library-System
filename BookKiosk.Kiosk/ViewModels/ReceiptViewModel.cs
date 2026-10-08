@@ -4,6 +4,8 @@ using System.Windows.Threading;
 using BookKiosk.Kiosk.Services;
 using BookKiosk.Kiosk.Pages;
 using BookKiosk.Kiosk.Controls;
+using System.Diagnostics;
+using System.Windows;
 
 namespace BookKiosk.Kiosk.ViewModels
 {
@@ -11,16 +13,18 @@ namespace BookKiosk.Kiosk.ViewModels
     {
         private readonly CartService _cartService;
         private readonly NavigationService _navigationService;
+        private readonly IReceiptService _receiptService;
         private DispatcherTimer _timer;
         private MockReceiptDialog _mockDialog;
 
-        public ReceiptViewModel(CartService cartService, NavigationService navigationService)
+        public ReceiptViewModel(CartService cartService, NavigationService navigationService, IReceiptService receiptService)
         {
             _cartService = cartService;
             _navigationService = navigationService;
+            _receiptService = receiptService;
         }
 
-        public override void Initialize(object parameter)
+        public override async void Initialize(object parameter)
         {
             base.Initialize(parameter);
             
@@ -30,6 +34,17 @@ namespace BookKiosk.Kiosk.ViewModels
             
             _mockDialog = new MockReceiptDialog(cartItems, totalAmount);
             _mockDialog.Show();
+
+            // In Hóa Đơn PDF (Task 8.2)
+            try
+            {
+                var pdfPath = await _receiptService.GenerateReceiptPdfAsync(cartItems, totalAmount);
+                Process.Start(new ProcessStartInfo(pdfPath) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ReceiptViewModel] Lỗi sinh Hóa đơn PDF: {ex.Message}");
+            }
 
             // Khởi tạo Timer đếm đúng 5 giây
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
@@ -48,11 +63,14 @@ namespace BookKiosk.Kiosk.ViewModels
                 _mockDialog = null;
             }
 
-            // Xóa sạch giỏ hàng (LOGIC BẮT BUỘC)
-            _cartService.ClearCart();
-
-            // Về trang chủ (IdlePage) đón khách tiếp theo
+            // Về trang chủ (IdlePage) đón khách tiếp theo TRƯỚC
             _navigationService.Navigate<IdlePage>();
+
+            // Xóa sạch giỏ hàng SAU ĐÓ trên một luồng ngầm để tránh giật UI
+            System.Windows.Application.Current.Dispatcher.InvokeAsync(() => 
+            {
+                _cartService.ClearCart();
+            });
         }
 
         public void Cleanup()

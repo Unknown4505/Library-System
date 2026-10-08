@@ -27,17 +27,7 @@ namespace BookKiosk.Kiosk.ViewModels
                 
                 if (_phoneNumber != null && _phoneNumber.Length == 10)
                 {
-                    // Mock data để test
-                    var mockMember = BookKiosk.Kiosk.Models.MockDataStore.Members.FirstOrDefault(m => m.PhoneNumber == _phoneNumber);
-                    if (mockMember != null)
-                    {
-                        AvailablePoints = mockMember.Points;
-                        MemberId = mockMember.MemberId;
-                    }
-                    else
-                    {
-                        CheckMemberPhoneAsync(_phoneNumber);
-                    }
+                    CheckMemberPhoneAsync(_phoneNumber);
                 }
                 else
                 {
@@ -88,6 +78,7 @@ namespace BookKiosk.Kiosk.ViewModels
             {
                 _pointsUsed = value; 
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(Discount));
                 OnPropertyChanged(nameof(TotalAmount));
                 
                 string newText = _pointsUsed > 0 ? _pointsUsed.ToString() : "";
@@ -120,12 +111,13 @@ namespace BookKiosk.Kiosk.ViewModels
 
         public decimal SubTotal => _cartService.GetTotalAmount();
         
+        public decimal Discount => PointsUsed * 1000m;
+
         public decimal TotalAmount
         {
             get
             {
-                decimal discount = PointsUsed * 1000m;
-                decimal total = SubTotal - discount;
+                decimal total = SubTotal - Discount;
                 return total < 0 ? 0 : total;
             }
         }
@@ -149,6 +141,7 @@ namespace BookKiosk.Kiosk.ViewModels
             PhoneNumber = "";
             PointsUsed = 0;
             OnPropertyChanged(nameof(SubTotal));
+            OnPropertyChanged(nameof(Discount));
             OnPropertyChanged(nameof(TotalAmount));
         }
 

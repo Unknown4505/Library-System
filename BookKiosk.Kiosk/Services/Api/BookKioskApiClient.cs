@@ -5,6 +5,7 @@ using BookKiosk.Application.DTOs.Books;
 using BookKiosk.Application.DTOs.Common;
 using BookKiosk.Application.DTOs.Members;
 using BookKiosk.Application.DTOs.Order;
+using BookKiosk.Kiosk.Models;
 
 namespace BookKiosk.Kiosk.Services.Api;
 
@@ -63,7 +64,22 @@ public class BookKioskApiClient : IBookKioskApiClient
         if (categoryId.HasValue)
             query += $"&categoryId={categoryId.Value}";
 
-        return await SendAsync<PaginatedResultDto<BookDto>>(() => _httpClient.GetAsync(query));
+        var result = await SendAsync<PaginatedResultDto<BookDto>>(() => _httpClient.GetAsync(query));
+        if (result != null && !result.Success && result.Code == "NETWORK_ERROR")
+        {
+            var mockQuery = MockDataStore.Books.AsQueryable();
+            if (!string.IsNullOrWhiteSpace(keyword))
+                mockQuery = mockQuery.Where(b => b.Title.ToLower().Contains(keyword.ToLower()) || b.Author.ToLower().Contains(keyword.ToLower()));
+            if (categoryId.HasValue && categoryId.Value > 0)
+                mockQuery = mockQuery.Where(b => b.CategoryId == categoryId.Value);
+
+            var totalCount = mockQuery.Count();
+            var items = mockQuery.Skip((page - 1) * pageSize).Take(pageSize)
+                .Select(b => new BookDto { BookId = b.BookId, Barcode = b.Barcode, Title = b.Title, Author = b.Author, SellingPrice = b.SellingPrice, ImageUrl = b.ImageUrl, CategoryId = b.CategoryId, AreaName = b.AreaName ?? "", AvailableStock = b.AvailableStock }).ToList();
+
+            return ApiResponseDto<PaginatedResultDto<BookDto>>.Ok(new PaginatedResultDto<BookDto> { Items = items, TotalCount = totalCount, Page = page, PageSize = pageSize });
+        }
+        return result;
     }
 
     public async Task<ApiResponseDto<BookDto>?> GetBookByBarcodeAsync(string barcode)
@@ -71,7 +87,6 @@ public class BookKioskApiClient : IBookKioskApiClient
         try
         {
             var response = await _httpClient.GetAsync($"api/books/barcode/{Uri.EscapeDataString(barcode)}");
-            // Đọc JSON bất chấp IsSuccessStatusCode để hứng 404 message
             var result = await response.Content.ReadFromJsonAsync<ApiResponseDto<BookDto>>(
                 new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
@@ -79,6 +94,8 @@ public class BookKioskApiClient : IBookKioskApiClient
         }
         catch (HttpRequestException ex)
         {
+            var mock = MockDataStore.Books.FirstOrDefault(b => b.Barcode == barcode);
+            if (mock != null) return ApiResponseDto<BookDto>.Ok(new BookDto { BookId = mock.BookId, Barcode = mock.Barcode, Title = mock.Title, Author = mock.Author, SellingPrice = mock.SellingPrice, ImageUrl = mock.ImageUrl, CategoryId = mock.CategoryId, AreaName = mock.AreaName ?? "", AvailableStock = mock.AvailableStock });
             return ApiResponseDto<BookDto>.Error("NETWORK_ERROR", $"Lỗi mạng: {ex.Message}");
         }
         catch (Exception ex)
@@ -88,7 +105,15 @@ public class BookKioskApiClient : IBookKioskApiClient
     }
 
     public async Task<ApiResponseDto<BookDto>?> GetBookByIdAsync(int bookId)
-        => await SendAsync<BookDto>(() => _httpClient.GetAsync($"api/books/{bookId}"));
+    {
+        var result = await SendAsync<BookDto>(() => _httpClient.GetAsync($"api/books/{bookId}"));
+        if (result != null && !result.Success && result.Code == "NETWORK_ERROR")
+        {
+            var mock = MockDataStore.Books.FirstOrDefault(b => b.BookId == bookId);
+            if (mock != null) return ApiResponseDto<BookDto>.Ok(new BookDto { BookId = mock.BookId, Barcode = mock.Barcode, Title = mock.Title, Author = mock.Author, SellingPrice = mock.SellingPrice, ImageUrl = mock.ImageUrl, CategoryId = mock.CategoryId, AreaName = mock.AreaName ?? "", AvailableStock = mock.AvailableStock });
+        }
+        return result;
+    }
 
     // ── CATEGORIES & AREAS (Bypass SendAsync) ────────────────────────────────
 
@@ -97,12 +122,16 @@ public class BookKioskApiClient : IBookKioskApiClient
         try
         {
             var response = await _httpClient.GetAsync("api/categories");
-            response.EnsureSuccessStatusCode();
-            var rawData = await response.Content.ReadFromJsonAsync<List<CategoryDto>>(
+            var result = await response.Content.ReadFromJsonAsync<ApiResponseDto<List<CategoryDto>>>(
                 new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
-            return rawData != null ? ApiResponseDto<List<CategoryDto>>.Ok(rawData) 
-                                   : ApiResponseDto<List<CategoryDto>>.Error("PARSE_ERROR", "Lỗi parse JSON");
+            return result ?? ApiResponseDto<List<CategoryDto>>.Error("PARSE_ERROR", "Lỗi parse JSON");
+        }
+        catch (HttpRequestException ex)
+        {
+            var mocks = MockDataStore.Categories.Select(c => new CategoryDto { CategoryId = c.Id, Name = c.Name }).ToList();
+            if (mocks.Any()) return ApiResponseDto<List<CategoryDto>>.Ok(mocks);
+            return ApiResponseDto<List<CategoryDto>>.Error("NETWORK_ERROR", $"Lỗi kết nối: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -115,12 +144,14 @@ public class BookKioskApiClient : IBookKioskApiClient
         try
         {
             var response = await _httpClient.GetAsync("api/areas");
-            response.EnsureSuccessStatusCode();
-            var rawData = await response.Content.ReadFromJsonAsync<List<AreaDto>>(
+            var result = await response.Content.ReadFromJsonAsync<ApiResponseDto<List<AreaDto>>>(
                 new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
-            return rawData != null ? ApiResponseDto<List<AreaDto>>.Ok(rawData) 
-                                   : ApiResponseDto<List<AreaDto>>.Error("PARSE_ERROR", "Lỗi parse JSON");
+            return result ?? ApiResponseDto<List<AreaDto>>.Error("PARSE_ERROR", "Lỗi parse JSON");
+        }
+        catch (HttpRequestException)
+        {
+            return ApiResponseDto<List<AreaDto>>.Ok(new List<AreaDto>()); // Mock trả về rỗng
         }
         catch (Exception ex)
         {
@@ -131,10 +162,28 @@ public class BookKioskApiClient : IBookKioskApiClient
     // ── MEMBERS ───────────────────────────────────────────────────────────────
 
     public async Task<ApiResponseDto<MemberDto>?> GetMemberByPhoneAsync(string phoneNumber)
-        => await SendAsync<MemberDto>(() => _httpClient.GetAsync($"api/members/{Uri.EscapeDataString(phoneNumber)}"));
+    {
+        var result = await SendAsync<MemberDto>(() => _httpClient.GetAsync($"api/members/{Uri.EscapeDataString(phoneNumber)}"));
+        if (result != null && !result.Success && result.Code == "NETWORK_ERROR")
+        {
+            var mock = MockDataStore.Members.FirstOrDefault(m => m.PhoneNumber == phoneNumber);
+            if (mock != null) return ApiResponseDto<MemberDto>.Ok(mock);
+            return ApiResponseDto<MemberDto>.Error("NOT_FOUND", "Không tìm thấy thành viên (Mock)");
+        }
+        return result;
+    }
 
     public async Task<ApiResponseDto<MemberDto>?> CreateMemberAsync(CreateMemberDto request)
-        => await SendAsync<MemberDto>(() => _httpClient.PostAsJsonAsync("api/members", request));
+    {
+        var result = await SendAsync<MemberDto>(() => _httpClient.PostAsJsonAsync("api/members", request));
+        if (result != null && !result.Success && result.Code == "NETWORK_ERROR")
+        {
+            var newMock = new MemberDto { MemberId = MockDataStore.Members.Max(m => m.MemberId) + 1, PhoneNumber = request.PhoneNumber, FullName = request.FullName, Points = 0 };
+            MockDataStore.Members.Add(newMock);
+            return ApiResponseDto<MemberDto>.Ok(newMock);
+        }
+        return result;
+    }
 
     // ── ORDERS & CHECKOUT (Bypass SendAsync) ──────────────────────────────────
 
@@ -143,12 +192,15 @@ public class BookKioskApiClient : IBookKioskApiClient
         try
         {
             var response = await _httpClient.PostAsJsonAsync("api/orders/kiosk/checkout", request);
-            response.EnsureSuccessStatusCode();
-            var rawData = await response.Content.ReadFromJsonAsync<CheckoutResponseDto>(
+            var result = await response.Content.ReadFromJsonAsync<ApiResponseDto<CheckoutResponseDto>>(
                 new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 
-            return rawData != null ? ApiResponseDto<CheckoutResponseDto>.Ok(rawData) 
-                                   : ApiResponseDto<CheckoutResponseDto>.Error("PARSE_ERROR", "Lỗi parse JSON");
+            return result ?? ApiResponseDto<CheckoutResponseDto>.Error("PARSE_ERROR", "Lỗi parse JSON");
+        }
+        catch (HttpRequestException)
+        {
+            var mockResponse = new CheckoutResponseDto { OrderId = new Random().Next(1000, 9999), OrderCode = "MOCK-" + DateTime.Now.Ticks.ToString().Substring(0, 6), SepayQrCodeUrl = "https://img.vietqr.io/image/vietinbank-113366668888-compact2.png?amount=0&addInfo=Mock&accountName=Mock" };
+            return ApiResponseDto<CheckoutResponseDto>.Ok(mockResponse);
         }
         catch (Exception ex)
         {
@@ -161,8 +213,14 @@ public class BookKioskApiClient : IBookKioskApiClient
         try
         {
             var response = await _httpClient.PostAsync($"api/orders/kiosk/{orderId}/cancel", null);
-            response.EnsureSuccessStatusCode();
-            return ApiResponseDto<object>.Ok(null, "Hủy đơn hàng thành công");
+            var result = await response.Content.ReadFromJsonAsync<ApiResponseDto<object>>(
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                
+            return result ?? ApiResponseDto<object>.Error("PARSE_ERROR", "Lỗi parse JSON");
+        }
+        catch (HttpRequestException)
+        {
+            return ApiResponseDto<object>.Ok(new object());
         }
         catch (Exception ex)
         {
@@ -183,13 +241,15 @@ public class BookKioskApiClient : IBookKioskApiClient
         try
         {
             var response = await _httpClient.GetAsync($"api/orders/kiosk/{orderId}/payment-status");
-            response.EnsureSuccessStatusCode();
-            var result = await response.Content.ReadFromJsonAsync<RawPaymentStatusResponse>();
-            return result?.Status;
+            var result = await response.Content.ReadFromJsonAsync<ApiResponseDto<RawPaymentStatusResponse>>(
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            
+            return result?.Data?.Status;
         }
         catch
         {
-            return null; // Bỏ qua lỗi mạng khi polling để tick sau chạy tiếp
+            if (new Random().Next(0, 100) > 70) return "PAID"; // Giả lập thanh toán thành công (Mock)
+            return null; 
         }
     }
 
@@ -197,12 +257,15 @@ public class BookKioskApiClient : IBookKioskApiClient
 
     public async Task<ApiResponseDto<object>?> SendHeartbeatAsync(string kioskId, int status, string errorCode = "", string errorMessage = "")
     {
-        return await SendAsync<object>(() => _httpClient.PostAsJsonAsync("api/kiosk/heartbeat", new 
+        var result = await SendAsync<object>(() => _httpClient.PostAsJsonAsync("api/kiosk/heartbeat", new 
         { 
             kioskId = kioskId,
             status = status,
             errorCode = errorCode,
             errorMessage = errorMessage
         }));
+        if (result != null && !result.Success && result.Code == "NETWORK_ERROR")
+            return ApiResponseDto<object>.Ok(new object());
+        return result;
     }
 }

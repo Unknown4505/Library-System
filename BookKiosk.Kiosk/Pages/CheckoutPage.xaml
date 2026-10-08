@@ -8,16 +8,21 @@
       Title="CheckoutPage" Background="#f0f2f5"
       Unloaded="Page_Unloaded">
 
+    <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </Page.Resources>
+
     <Page.InputBindings>
         <!-- F3 để giả lập thanh toán thành công (Bắn tới SimulatePaymentSuccessCommand) -->
         <KeyBinding Key="F3" Command="{Binding SimulatePaymentSuccessCommand}"/>
     </Page.InputBindings>
 
-    <Grid Margin="100">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="1*"/>
-            <ColumnDefinition Width="1*"/>
-        </Grid.ColumnDefinitions>
+    <Grid>
+        <Grid Margin="100">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+            </Grid.ColumnDefinitions>
 
         <!-- Trái: Thông tin đơn hàng & Đếm ngược -->
         <Border Grid.Column="0" Background="White" CornerRadius="20" Padding="50" Margin="0,0,40,0">
@@ -135,5 +140,14 @@
                 <TextBlock Text="Hệ thống sẽ tự động xác nhận sau khi nhận được tiền." FontSize="24" FontWeight="Bold" Foreground="#27ae60" Margin="0,40,0,0" HorizontalAlignment="Center"/>
             </StackPanel>
         </Border>
+        </Grid>
+        
+        <!-- Overlay Loading chống Spam Click -->
+        <Grid Panel.ZIndex="999" Background="#99000000" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Text="⏳" FontSize="80" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                <TextBlock Text="Đang xử lý... Vui lòng đợi" FontSize="40" FontWeight="Bold" Foreground="White"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Page>
