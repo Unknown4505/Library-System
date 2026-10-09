@@ -228,42 +228,42 @@ public class BookKioskApiClient : IBookKioskApiClient
         }
     }
 
-    // ── PAYMENT POLLING (Custom Raw Parsing) ──────────────────────────────────
+    // ── PAYMENT POLLING ───────────────────────────────────────────────────────
 
-    private class RawPaymentStatusResponse 
-    { 
-        [JsonPropertyName("status")] 
-        public string Status { get; set; } = string.Empty; 
-    }
-
-    public async Task<string?> GetPaymentStatusAsync(int orderId)
+    public async Task<ApiResponseDto<PaymentStatusDto>?> GetPaymentStatusAsync(int orderId)
     {
         try
         {
             var response = await _httpClient.GetAsync($"api/orders/kiosk/{orderId}/payment-status");
-            var result = await response.Content.ReadFromJsonAsync<ApiResponseDto<RawPaymentStatusResponse>>(
+            var result = await response.Content.ReadFromJsonAsync<ApiResponseDto<PaymentStatusDto>>(
                 new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
-            return result?.Data?.Status;
+            return result ?? ApiResponseDto<PaymentStatusDto>.Error("PARSE_ERROR", "Lỗi parse JSON");
         }
-        catch
+        catch (HttpRequestException)
         {
-            if (new Random().Next(0, 100) > 70) return "PAID"; // Giả lập thanh toán thành công (Mock)
-            return null; 
+            if (new Random().Next(0, 100) > 70) 
+                return ApiResponseDto<PaymentStatusDto>.Ok(new PaymentStatusDto { Status = "Paid" }); // Giả lập thanh toán thành công (Mock)
+            return ApiResponseDto<PaymentStatusDto>.Ok(new PaymentStatusDto { Status = "Pending" }); 
+        }
+        catch (Exception ex)
+        {
+            return ApiResponseDto<PaymentStatusDto>.Error("ERROR", ex.Message);
         }
     }
 
     // ── KIOSK HEARTBEAT ───────────────────────────────────────────────────────
 
-    public async Task<ApiResponseDto<object>?> SendHeartbeatAsync(string kioskId, int status, string errorCode = "", string errorMessage = "")
+    public async Task<ApiResponseDto<object>?> SendHeartbeatAsync(string kioskId)
     {
-        var result = await SendAsync<object>(() => _httpClient.PostAsJsonAsync("api/kiosk/heartbeat", new 
+        var payload = new 
         { 
-            kioskId = kioskId,
-            status = status,
-            errorCode = errorCode,
-            errorMessage = errorMessage
-        }));
+            kioskId = kioskId, 
+            status = 1, // 1 = Online
+            errorCode = (string?)null, 
+            errorMessage = (string?)null 
+        };
+        var result = await SendAsync<object>(() => _httpClient.PostAsJsonAsync("api/kiosk/heartbeat", payload));
         if (result != null && !result.Success && result.Code == "NETWORK_ERROR")
             return ApiResponseDto<object>.Ok(new object());
         return result;

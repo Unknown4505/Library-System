@@ -146,7 +146,21 @@
             </Grid>
 
             <!-- Nút Thêm vào giỏ hàng bự -->
-            <Button Grid.Row="2" Content="🛒 THÊM VÀO GIỎ HÀNG" Command="{Binding AddToCartCommand}" FontSize="40" FontWeight="Bold" Background="#e67e22" Foreground="White" Height="120">
+            <Button Grid.Row="2" Command="{Binding AddToCartCommand}" FontSize="40" FontWeight="Bold" Foreground="White" Height="120">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Content" Value="🛒 THÊM VÀO GIỎ HÀNG"/>
+                        <Setter Property="Background" Value="#e67e22"/>
+                        <Setter Property="IsEnabled" Value="True"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Book.AvailableStock}" Value="0">
+                                <Setter Property="Content" Value="🚫 HẾT HÀNG"/>
+                                <Setter Property="Background" Value="#95a5a6"/>
+                                <Setter Property="IsEnabled" Value="False"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
                 <Button.Resources>
                     <Style TargetType="Border"><Setter Property="CornerRadius" Value="15"/></Style>
                 </Button.Resources>

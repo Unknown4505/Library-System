@@ -5,6 +5,7 @@ using System.Windows.Input;
 using BookKiosk.Kiosk.Models;
 using BookKiosk.Kiosk.Services;
 using BookKiosk.Kiosk.Services.Hardware;
+using BookKiosk.Kiosk.Services.Api;
 
 namespace BookKiosk.Kiosk.ViewModels
 {
@@ -12,7 +13,7 @@ namespace BookKiosk.Kiosk.ViewModels
     {
         private readonly CartService _cartService;
         private readonly IBarcodeScanner _barcodeScanner;
-        private readonly IBookService _bookService;
+        private readonly IBookKioskApiClient _apiClient;
         private readonly NavigationService _navigationService;
         private readonly IDialogService _dialogService;
 
@@ -28,13 +29,13 @@ namespace BookKiosk.Kiosk.ViewModels
         public CartViewModel(
             CartService cartService, 
             IBarcodeScanner barcodeScanner, 
-            IBookService bookService, 
+            IBookKioskApiClient apiClient, 
             NavigationService navigationService,
             IDialogService dialogService)
         {
             _cartService = cartService;
             _barcodeScanner = barcodeScanner;
-            _bookService = bookService;
+            _apiClient = apiClient;
             _navigationService = navigationService;
             _dialogService = dialogService;
 
@@ -59,26 +60,37 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private async void OnBarcodeScanned(object? sender, string barcode)
         {
-            // Parse barcode. Assuming Barcode equals BookId for Mock Scanner
-            if (int.TryParse(barcode, out int bookId))
+            if (string.IsNullOrWhiteSpace(barcode)) return;
+
+            var result = await _apiClient.GetBookByBarcodeAsync(barcode);
+            if (result != null && result.Success && result.Data != null)
             {
-                var book = await _bookService.GetBookByIdAsync(bookId);
-                if (book != null)
+                var bookDto = result.Data;
+                // Ensure UI updates are made on the Dispatcher thread
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    // Ensure UI updates are made on the Dispatcher thread
-                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    if (bookDto.AvailableStock <= 0)
                     {
-                        if (book.AvailableStock <= 0)
-                        {
-                            // Could trigger a toast notification here
-                            return;
-                        }
-                        _cartService.AddItem(book);
-                        
-                        // Phát âm thanh báo hiệu quét mã thành công
-                        System.Media.SystemSounds.Beep.Play();
-                    });
-                }
+                        // Could trigger a toast notification here
+                        return;
+                    }
+                    var bookModel = new BookModel 
+                    {
+                        BookId = bookDto.BookId,
+                        Barcode = bookDto.Barcode,
+                        Title = bookDto.Title,
+                        Author = bookDto.Author,
+                        ImageUrl = bookDto.ImageUrl,
+                        SellingPrice = bookDto.SellingPrice,
+                        AvailableStock = bookDto.AvailableStock,
+                        CategoryId = bookDto.CategoryId,
+                        AreaName = bookDto.AreaName
+                    };
+                    _cartService.AddItem(bookModel);
+                    
+                    // Phát âm thanh báo hiệu quét mã thành công
+                    System.Media.SystemSounds.Beep.Play();
+                });
             }
         }
 

@@ -41,7 +41,7 @@ namespace BookKiosk.Kiosk.Services
             try
             {
                 // Gọi API với đầy đủ tham số để không bị lỗi build
-                await _apiClient.SendHeartbeatAsync("KIOSK-01", 1, "", "");
+                await _apiClient.SendHeartbeatAsync("KIOSK-01");
             }
             catch (Exception ex)
             {

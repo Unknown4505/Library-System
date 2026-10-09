@@ -108,8 +108,26 @@
                 </ComboBox.Resources>
             </ComboBox>
 
+            <!-- Text báo không tìm thấy kết quả -->
+            <TextBlock Grid.Row="2" Text="Không tìm thấy sách nào phù hợp..." 
+                       FontSize="32" Foreground="#95a5a6" HorizontalAlignment="Center" Margin="0,50,0,0">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SearchResults.Count}" Value="0">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
             <!-- Lưới kết quả (Card Sách) -->
-            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" PanningMode="VerticalOnly">
                 <ItemsControl ItemsSource="{Binding SearchResults}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>

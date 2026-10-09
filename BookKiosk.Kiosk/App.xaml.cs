@@ -44,7 +44,6 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<NavigationService>();
                 services.AddSingleton<IdleTimerService>();
                 services.AddSingleton<IDialogService, DialogService>();
-                services.AddSingleton<IBookService, MockBookService>();
                 services.AddSingleton<CartService>();
                 services.AddSingleton<CartViewModel>();
                 services.AddSingleton<HeartbeatWorker>();

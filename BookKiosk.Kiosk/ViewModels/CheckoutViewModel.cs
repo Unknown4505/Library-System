@@ -133,8 +133,8 @@ namespace BookKiosk.Kiosk.ViewModels
             try
             {
                 // Gọi API lấy trạng thái đơn hàng
-                var status = await _apiClient.GetPaymentStatusAsync(_orderId);
-                if (status == "Paid")
+                var response = await _apiClient.GetPaymentStatusAsync(_orderId);
+                if (response != null && response.Success && response.Data != null && response.Data.Status == "Paid")
                 {
                     HandlePaymentSuccess();
                 }

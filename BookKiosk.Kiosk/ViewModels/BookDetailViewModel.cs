@@ -1,12 +1,13 @@
 using System.Windows.Input;
 using BookKiosk.Kiosk.Models;
 using BookKiosk.Kiosk.Services;
+using BookKiosk.Kiosk.Services.Api;
 
 namespace BookKiosk.Kiosk.ViewModels
 {
     public class BookDetailViewModel : BaseViewModel
     {
-        private readonly IBookService _bookService;
+        private readonly IBookKioskApiClient _apiClient;
         private readonly NavigationService _navigationService;
         private readonly CartService _cartService;
 
@@ -20,9 +21,9 @@ namespace BookKiosk.Kiosk.ViewModels
         public ICommand AddToCartCommand { get; }
         public ICommand BackCommand { get; }
 
-        public BookDetailViewModel(IBookService bookService, NavigationService navigationService, CartService cartService)
+        public BookDetailViewModel(IBookKioskApiClient apiClient, NavigationService navigationService, CartService cartService)
         {
-            _bookService = bookService;
+            _apiClient = apiClient;
             _navigationService = navigationService;
             _cartService = cartService;
 
@@ -35,7 +36,23 @@ namespace BookKiosk.Kiosk.ViewModels
             if (parameter is int bookId)
             {
                 IsLoading = true;
-                Book = await _bookService.GetBookByIdAsync(bookId);
+                var result = await _apiClient.GetBookByIdAsync(bookId);
+                if (result != null && result.Success && result.Data != null)
+                {
+                    var bookDto = result.Data;
+                    Book = new BookModel 
+                    {
+                        BookId = bookDto.BookId,
+                        Barcode = bookDto.Barcode,
+                        Title = bookDto.Title,
+                        Author = bookDto.Author,
+                        ImageUrl = bookDto.ImageUrl,
+                        SellingPrice = bookDto.SellingPrice,
+                        AvailableStock = bookDto.AvailableStock,
+                        CategoryId = bookDto.CategoryId,
+                        AreaName = bookDto.AreaName
+                    };
+                }
                 IsLoading = false;
             }
         }

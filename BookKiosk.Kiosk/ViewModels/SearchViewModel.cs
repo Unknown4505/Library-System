@@ -13,7 +13,6 @@ namespace BookKiosk.Kiosk.ViewModels
 {
     public class SearchViewModel : BaseViewModel, IDisposable
     {
-        private readonly IBookService _bookService;
         private readonly NavigationService _navigationService;
         private readonly IBarcodeScanner _scanner;
         private readonly IBookKioskApiClient _apiClient;
@@ -79,14 +78,12 @@ namespace BookKiosk.Kiosk.ViewModels
         public ICommand SimulateScanCommand { get; }
 
         public SearchViewModel(
-            IBookService bookService, 
             NavigationService navigationService,
             IBarcodeScanner scanner,
             IBookKioskApiClient apiClient,
             CartService cartService,
             IDialogService dialogService)
         {
-            _bookService = bookService;
             _navigationService = navigationService;
             _scanner = scanner;
             _apiClient = apiClient;
@@ -233,11 +230,28 @@ namespace BookKiosk.Kiosk.ViewModels
             try
             {
                 int? categoryId = SelectedCategory?.Id == 0 ? null : SelectedCategory?.Id;
-                var books = await _bookService.SearchBooksAsync(Keyword, categoryId, _skip, Take);
+                int page = (_skip / Take) + 1;
+                var result = await _apiClient.GetBooksAsync(page, Take, Keyword, categoryId);
                 
-                foreach(var b in books) SearchResults.Add(b);
-                
-                _skip += Take;
+                if (result != null && result.Success && result.Data != null)
+                {
+                    foreach (var b in result.Data.Items)
+                    {
+                        SearchResults.Add(new BookModel 
+                        {
+                            BookId = b.BookId,
+                            Barcode = b.Barcode,
+                            Title = b.Title,
+                            Author = b.Author,
+                            ImageUrl = b.ImageUrl,
+                            SellingPrice = b.SellingPrice,
+                            AvailableStock = b.AvailableStock,
+                            CategoryId = b.CategoryId,
+                            AreaName = b.AreaName
+                        });
+                    }
+                    _skip += Take;
+                }
             }
             finally
             {
