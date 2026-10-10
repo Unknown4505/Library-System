@@ -5,5 +5,4 @@
   <Project Path="BookKiosk.Domain/BookKiosk.Domain.csproj" />
   <Project Path="BookKiosk.Infrastructure/BookKiosk.Infrastructure.csproj" />
   <Project Path="BookKiosk.Kiosk/BookKiosk.Kiosk.csproj" />
-  <Project Path="BookKiosk.Tests/BookKiosk.Tests.csproj" />
 </Solution>

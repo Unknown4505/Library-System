@@ -26,7 +26,7 @@ BookKiosk/                              ← root của repo (git)
 │
 ├── docs/                               ← toàn bộ tài liệu (bạn đang đọc)
 │
-├── BookKiosk.sln                       ← Visual Studio solution file
+├── BookKiosk.slnx                      ← Visual Studio solution file
 │
 ├── BookKiosk.API/                      ← Web API entry point
 ├── BookKiosk.Application/              ← Business logic
@@ -111,7 +111,7 @@ BookKiosk.Application/
 │
 ├── Services/
 │   ├── BookService.cs
-│   ├── CheckoutService.cs              ← nghiệp vụ trọng tâm: giữ chỗ kho, tính tiền
+│   ├── OrderService.cs                 ← nghiệp vụ trọng tâm: giữ chỗ kho, tính tiền
 │   ├── PaymentService.cs               ← sinh QR, xử lý webhook SePay
 │   ├── InventoryService.cs             ← nhập kho, điều chỉnh, lịch sử
 │   ├── MemberService.cs                ← đăng ký, tra điểm, tích/dùng điểm
@@ -152,7 +152,7 @@ BookKiosk.Application/
 │   │   ├── IMemberRepository.cs
 │   │   └── IImportReceiptRepository.cs
 │   └── Services/
-│       ├── ICheckoutService.cs
+│       ├── IOrderService.cs
 │       ├── IPaymentService.cs
 │       ├── IMemberService.cs
 │       └── IPromotionService.cs
@@ -253,10 +253,10 @@ BookKiosk.Kiosk/
 │   └── ReceiptViewModel.cs
 │
 ├── Services/
-│   ├── ApiClient.cs                    ← HttpClient + Polly (retry, timeout, circuit breaker)
+│   ├── Api/BookKioskApiClient.cs       ← HttpClient, timeout 30 giây
 │   ├── CameraService.cs                ← ZXing.Net, quét barcode từ webcam
 │   ├── IdleTimerService.cs             ← 60 giây không thao tác → về Idle
-│   ├── KioskHealthService.cs           ← heartbeat 30s, báo incident
+│   ├── HeartbeatWorker.cs              ← heartbeat 60 giây (PR #11, chưa merge main)
 │   └── PdfViewerService.cs             ← mở PDF sau khi QuestPDF sinh
 │
 ├── Models/                             ← Model nội bộ Kiosk (không dùng DTO API trực tiếp)
@@ -354,17 +354,17 @@ public class BookDTO { }               // viết hoa cả DTO (dùng Dto)
 
 ```csharp
 // ✅ Đúng
-public interface ICheckoutService
+public interface IOrderService
 {
     Task<CheckoutResponseDto> CheckoutAsync(CheckoutRequestDto request);
     Task<bool> CancelOrderAsync(int orderId);
 }
 
-public class CheckoutService : ICheckoutService { }
+public class OrderService : IOrderService { }
 
 // ❌ Sai
-public interface CheckoutService { }   // Interface không có prefix I
-public class CheckoutServiceImpl { }   // không dùng Impl suffix
+public interface OrderService { }      // Interface không có prefix I
+public class OrderServiceImpl { }      // không dùng Impl suffix
 public class CheckoutManager { }       // không nhất quán (dùng Service)
 ```
 
@@ -552,18 +552,18 @@ public enum OrderStatus
 ### 6.1 Kiosk App gọi API
 
 ```
-BookKiosk.Kiosk/Services/ApiClient.cs
-    │  HttpClient + Polly (retry / timeout / circuit breaker)
+BookKiosk.Kiosk/Services/Api/BookKioskApiClient.cs
+    │  HttpClient (timeout 30 giây)
     │  Header: Authorization: Bearer <jwt>  hoặc  X-Api-Key: <kiosk-key>
     │
     ├── GET  /api/recommendations          → RecommendationController
     ├── GET  /api/books?keyword=&page=     → BooksController
     ├── GET  /api/books/{id}               → BooksController
-    ├── POST /api/orders/checkout          → OrdersController
-    ├── GET  /api/orders/{id}/status       → OrdersController  (poll)
-    ├── POST /api/members/lookup           → MembersController (tra SĐT)
+    ├── POST /api/orders/kiosk/checkout    → OrdersController
+    ├── GET  /api/orders/kiosk/{id}/payment-status → OrdersController (poll 3 giây)
+    ├── GET  /api/members/{phoneNumber}    → MembersController
     ├── GET  /api/promotions/active        → PromotionsController
-    └── POST /api/kiosks/heartbeat         → KiosksController
+    └── POST /api/kiosk/heartbeat          → KioskController (PR #17, chưa merge main)
 ```
 
 ### 6.2 CMS Web Admin gọi API
@@ -611,7 +611,7 @@ BookKiosk.CMS/Controllers/*.cs
 ### 6.4 Webhook SePay
 
 ```
-SePay Server ──► POST /api/payments/webhook (public, không cần JWT)
+SePay Server ──► POST /api/payments/sepay-webhook (public, xác thực chữ ký)
                           │
                     PaymentsController
                     └── xác thực HMAC signature (bắt buộc, reject nếu sai)
@@ -655,18 +655,14 @@ Tối đa:    pageSize=100 (reject nếu vượt quá)
 
 ```csharp
 // Wrapper chuẩn cho mọi response có phân trang
-public class PagedResult<T>
+public class PaginatedResultDto<T>
 {
-    public List<T> Data { get; set; }
-    public PaginationMeta Pagination { get; set; }
-}
-
-public class PaginationMeta
-{
-    public int Page { get; set; }        // trang hiện tại
-    public int PageSize { get; set; }    // số item / trang
-    public int Total { get; set; }       // tổng số item
-    public int TotalPages { get; set; }  // tổng số trang
+    public List<T> Items { get; set; }
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public int TotalPages { get; }
+    public bool HasNextPage { get; }
 }
 ```
 
@@ -674,16 +670,15 @@ public class PaginationMeta
 // Ví dụ response thực tế
 {
   "success": true,
-  "code": "BOOKS_FOUND",
+  "code": "SUCCESS",
   "message": "Tìm thấy 42 sách",
   "data": {
-    "data": [ { "bookId": 1, "title": "Harry Potter" } ],
-    "pagination": {
-      "page": 1,
-      "pageSize": 20,
-      "total": 42,
-      "totalPages": 3
-    }
+    "items": [ { "bookId": 1, "title": "Harry Potter" } ],
+    "totalCount": 42,
+    "page": 1,
+    "pageSize": 20,
+    "totalPages": 3,
+    "hasNextPage": true
   }
 }
 ```
@@ -717,7 +712,7 @@ public ICommand LoadMoreCommand { get; }  // append, không replace list
 ### 8.1 Wrapper bắt buộc cho MỌI response
 
 ```csharp
-public class ApiResponse<T>
+public class ApiResponseDto<T>
 {
     public bool Success { get; set; }
     public string Code { get; set; }      // machine-readable, dùng để Kiosk xử lý
@@ -730,13 +725,8 @@ public class ApiResponse<T>
 
 | HTTP Status | Code | Khi nào dùng |
 |---|---|---|
-| 200 | `BOOKS_FOUND` | GET list thành công |
-| 200 | `BOOK_FOUND` | GET single thành công |
-| 201 | `ORDER_CREATED` | Tạo đơn thành công |
-| 200 | `PAYMENT_CONFIRMED` | Webhook xác nhận thành công |
-| 200 | `MEMBER_FOUND` | Tra SĐT tìm thấy member |
-| 200 | `STOCK_UPDATED` | Cập nhật kho thành công |
-| 400 | `INVALID_REQUEST` | Request body sai format/thiếu field |
+| 200/201 | `SUCCESS` | Request thành công; factory `ApiResponseDto<T>.Ok` dùng code này |
+| 400 | `BAD_REQUEST` | Request body sai format/thiếu field |
 | 400 | `OUT_OF_STOCK` | Sách hết hàng khi checkout |
 | 400 | `POINTS_EXCEEDED` | Dùng quá 100 điểm |
 | 401 | `UNAUTHORIZED` | Không có token hoặc token hết hạn |
@@ -744,7 +734,7 @@ public class ApiResponse<T>
 | 404 | `BOOK_NOT_FOUND` | Không tìm thấy sách |
 | 404 | `ORDER_NOT_FOUND` | Không tìm thấy đơn |
 | 404 | `MEMBER_NOT_FOUND` | SĐT chưa đăng ký |
-| 409 | `DUPLICATE_WEBHOOK` | Webhook trùng lặp (đã xử lý rồi) |
+| 200 | `SUCCESS` | Webhook trùng đã xử lý: trả success theo tính idempotent, không xử lý lại |
 | 408 | `PAYMENT_EXPIRED` | Đơn hết hạn thanh toán (3 phút) |
 | 500 | `INTERNAL_ERROR` | Lỗi không xác định |
 
@@ -752,7 +742,7 @@ public class ApiResponse<T>
 
 ```json
 // ✅ Thành công
-{ "success": true,  "code": "ORDER_CREATED",  "message": "Đơn hàng đã được tạo", "data": { "orderId": 42, ... } }
+{ "success": true,  "code": "SUCCESS",  "message": "Đơn hàng đã được tạo", "data": { "orderId": 42, ... } }
 
 // ✅ Lỗi nghiệp vụ (không phải lỗi server)
 { "success": false, "code": "OUT_OF_STOCK",   "message": "Sách 'Harry Potter' vừa hết hàng", "data": null }

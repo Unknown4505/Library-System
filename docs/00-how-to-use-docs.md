@@ -166,7 +166,7 @@ Làm theo thứ tự, không bỏ bước:
 [ ] 2. Đọc 01-overview.md — hiểu hệ thống tổng quan
 [ ] 3. Đọc 02-project-structure.md — thuộc naming convention
 [ ] 4. Làm theo 06-local-setup.md — clone repo, chạy được API trên máy local
-[ ] 5. Mở Swagger UI: http://localhost:5001/swagger — gọi thử GET /api/books
+[ ] 5. Mở Swagger UI: https://localhost:7111/swagger — gọi thử GET /api/books
 [ ] 6. Đọc các file docs theo thứ tự role của mình (xem mục 5)
 [ ] 7. Tạo branch: git checkout -b feat/<module>-<mo-ta-ngan>
 [ ] 8. Code task nhỏ đầu tiên → push → mở Pull Request
@@ -243,7 +243,7 @@ scope: tên module (checkout, cart, payment, kiosk, cms, db, auth, ...)
 Ví dụ đúng ✅:
   feat(checkout): implement stock reservation with transaction
   fix(payment): handle duplicate webhook by reference code
-  docs(api): add POST /orders/checkout request/response example
+  docs(api): add POST /api/orders/kiosk/checkout request/response example
   refactor(cart): extract CartService from CartViewModel
 
 Ví dụ sai ❌:
