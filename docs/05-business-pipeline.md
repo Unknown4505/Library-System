@@ -80,7 +80,7 @@ Khi khách dùng app ngân hàng quét mã QR và chuyển khoản thành công,
 > **💡 LƯU Ý QUAN TRỌNG VỀ VIỆC KHÓA CỨNG SỐ TIỀN QR (CHỐNG GIAN LẬN)**
 > - Nếu hệ thống dùng **Mã VietQR Chuyển khoản cá nhân** (như gói miễn phí của SePay/Casso), mã QR mang cờ lệnh "Chuyển tiền". Nhiều App ngân hàng sẽ cho phép khách chạm vào và sửa số tiền. Do đó bắt buộc phải có luồng bắt lỗi **"Trường hợp LỆCH"** như trên.
 > - **Khuyến nghị nâng cấp:** Để khóa cứng 100% ô nhập tiền khiến khách tuyệt đối không thể sửa, dự án nên sử dụng API của các **Cổng thanh toán Merchant QR** hoặc **Tài khoản ảo (Virtual Account)**:
->   1. **PayOS (Khuyên dùng cho Đồ án/Dự án mới):** Miễn phí, dễ tích hợp với C#/.NET. Mã QR sinh ra qua hệ thống Tài khoản ảo định danh sẽ khóa cứng số tiền trên mọi app ngân hàng.
+>   1. **PayOS (phương án tham khảo, không phải gateway hiện tại):** Có thể dùng tài khoản ảo định danh để khóa số tiền, nhưng việc chuyển gateway cần quyết định riêng.
 >   2. **VNPAY / MoMo / ZaloPay:** Mã QR chuẩn Merchant (Thanh toán hóa đơn). Mọi app khi quét trúng sẽ bị vô hiệu hóa ô nhập tiền, chỉ có thể bấm Xác nhận/Hủy. (Yêu cầu ĐKKD).
 >   3. **SePay / Casso (Gói Doanh nghiệp - Virtual Account):** Cấp 1 số Tài khoản ảo riêng cho từng hóa đơn. Khách chuyển sai số tiền sẽ bị ngân hàng từ chối và hoàn tiền tự động ngay lập tức.
 

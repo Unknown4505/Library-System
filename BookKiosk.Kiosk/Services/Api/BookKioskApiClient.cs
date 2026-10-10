@@ -254,18 +254,19 @@ public class BookKioskApiClient : IBookKioskApiClient
 
     // ── KIOSK HEARTBEAT ───────────────────────────────────────────────────────
 
-    public async Task<ApiResponseDto<object>?> SendHeartbeatAsync(string kioskId)
+    public async Task<ApiResponseDto<object>?> SendHeartbeatAsync(int kioskId, int status = 1, string? errorCode = null, string? errorMessage = null)
     {
-        var payload = new 
-        { 
-            kioskId = kioskId, 
-            status = 1, // 1 = Online
-            errorCode = (string?)null, 
-            errorMessage = (string?)null 
-        };
-        var result = await SendAsync<object>(() => _httpClient.PostAsJsonAsync("api/kiosk/heartbeat", payload));
+        var result = await SendAsync<object>(() => _httpClient.PostAsJsonAsync("api/kiosk/heartbeat", new { kioskId, status, errorCode, errorMessage }));
         if (result != null && !result.Success && result.Code == "NETWORK_ERROR")
             return ApiResponseDto<object>.Ok(new object());
         return result;
+    }
+
+    public Task<ApiResponseDto<object>?> SendHeartbeatAsync(string kioskId)
+    {
+        return int.TryParse(kioskId, out var databaseId)
+            ? SendHeartbeatAsync(databaseId)
+            : Task.FromResult<ApiResponseDto<object>?>(
+                ApiResponseDto<object>.Error("INVALID_KIOSK_ID", "Kiosk ID must be the numeric ID assigned by the database."));
     }
 }

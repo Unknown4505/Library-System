@@ -27,28 +27,42 @@ Nếu bạn là AI agent đọc file này:
 
 ## 2. Chuẩn Response (Standard Wrapper)
 
-Mọi API trả về (kể cả lỗi) đều phải được wrap trong object `ApiResponse<T>`:
+Mọi API trả về (kể cả lỗi) đều phải được wrap trong object `ApiResponseDto<T>`:
 
 ```json
 {
   "success": true,               // true/false
+  "code": "SUCCESS",             // Mã lỗi/thành công chuẩn hóa
   "message": "Thành công",       // Lời nhắn hiển thị cho người dùng (nếu cần)
   "data": { ... }                // Payload thực tế (nếu success=true)
 }
 ```
 
+HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết quả giao thức; `code` là mã máy đọc trong response body. Ví dụ lỗi chuẩn:
+
+```json
+{
+  "success": false,
+  "code": "NOT_FOUND",
+  "message": "Không tìm thấy thông tin đơn hàng.",
+  "data": null
+}
+```
+
 **Đối với API có phân trang (Pagination):**
-`data` sẽ trả về `PagedResult<T>` (đã chốt ở file `02`):
+`data` sẽ trả về `PaginatedResultDto<T>`:
 ```json
 {
   "success": true,
-  "message": "Lấy danh sách thành công",
+  "code": "SUCCESS",
+  "message": "Lấy dữ liệu thành công",
   "data": {
     "items": [ { ... }, { ... } ],
     "totalCount": 105,
+    "page": 1,
     "pageSize": 20,
-    "currentPage": 1,
-    "totalPages": 6
+    "totalPages": 6,
+    "hasNextPage": true
   }
 }
 ```
@@ -159,6 +173,7 @@ Mọi API trả về (kể cả lỗi) đều phải được wrap trong object 
 - **Lý do:** Giúp nhả tồn kho ngay lập tức thay vì bắt hệ thống/khách hàng khác chờ 4 phút timeout (dù thực tế khách vẫn cầm cuốn sách trên tay, nhưng về mặt số liệu kho phần mềm sẽ được mở khóa ngay để cho phép thanh toán ở quầy hoặc kiosk khác).
 
 #### Tạo đơn hàng tại quầy (POS) — Đơn nháp
+- **Trạng thái:** `Planned` — chưa có endpoint trên `main`.
 - **Endpoint:** `POST /api/orders/counter/checkout`
 - **Auth:** `Bearer <token>` (Role Staff)
 - **Request Body:** Giống Kiốsk, thêm `promotionId` (nhân viên bấm áp KM thủ công) và `paymentMethod` (Cash / QR).
@@ -168,6 +183,7 @@ Mọi API trả về (kể cả lỗi) đều phải được wrap trong object 
 - **Response:** Trả về `orderId`, thông tin giỏ hàng, tổng tiền để nhân viên xác nhận với khách.
 
 #### Xác nhận thanh toán tại quầy (Thu tiền mặt hoặc QR khách đã trả)
+- **Trạng thái:** `Planned` — chưa có endpoint trên `main`.
 - **Endpoint:** `POST /api/orders/counter/{orderId}/confirm-payment`
 - **Auth:** `Bearer <token>` (Role Staff)
 - **Xử lý Backend:**
@@ -178,6 +194,7 @@ Mọi API trả về (kể cả lỗi) đều phải được wrap trong object 
 - **Response:** Trả về thông tin Order hoàn chỉnh để in bill.
 
 #### Hủy đơn nháp tại quầy (Khách từ chối)
+- **Trạng thái:** `Planned` — chưa có endpoint trên `main`.
 - **Endpoint:** `POST /api/orders/counter/{orderId}/cancel`
 - **Auth:** `Bearer <token>` (Role Staff)
 - **Xử lý Backend:**
@@ -219,7 +236,7 @@ Mọi API trả về (kể cả lỗi) đều phải được wrap trong object 
 ```
 - **Xử lý Backend:** 
   - Regex chuỗi `transactionContent` tìm ra `OrderCode`.
-  - Check Idempotent: Nếu `referenceCode` đã lưu trong `PaymentTransactions` -> Bỏ qua.
+  - Check Idempotent: Nếu `referenceCode` đã lưu trong `PaymentTransactions` -> không xử lý lại và trả `200` với response success; không dùng `409 DUPLICATE_WEBHOOK`.
   - So khớp `amountIn` với `Order.TotalAmount`:
     - **Nếu ĐÚNG:** Cập nhật Order -> `Paid`. Trừ kho thật sự (`StockQuantity -= qty`, `ReservedQuantity -= qty`). Cộng điểm cho Member.
     - **Nếu LỆCH (Khách tự sửa số tiền):** Vẫn giữ Order -> `Pending`. Insert `PaymentTransactions` để lưu vết giao dịch lệch. Gửi Notification cho Staff kiểm tra và xử lý thủ công. Kiosk hiển thị màn hình "Chờ nhân viên hỗ trợ". Không nhả sách.
@@ -228,18 +245,20 @@ Mọi API trả về (kể cả lỗi) đều phải được wrap trong object 
 
 ### 3.5 Quản lý thiết bị (Kiosk Heartbeat)
 
+- **Trạng thái:** contract đã chốt; implementation Backend đang ở PR #17, chưa có trên `main`.
 - **Endpoint:** `POST /api/kiosk/heartbeat`
 - **Auth:** `X-Api-Key`
 - **Request Body:**
 ```json
 {
-  "kioskId": "K-01",
+  "kioskId": 1,
   "status": 1,             // Enum: 1=Online, 2=Offline, 3=Error
   "errorCode": null,       // "CAM_DISCONNECTED", "PRINTER_OUT_OF_PAPER"
   "errorMessage": null
 }
 ```
-- **Xử lý Backend:** Update `LastPingAt` và tạo `KioskIncident` nếu có lỗi chưa fix.
+- **Validation:** `kioskId` là số nguyên dương đã tồn tại; `status` chỉ nhận `1`, `2`, `3`. Giá trị khác phải trả `400 BAD_REQUEST`; ID không tồn tại trả `404 NOT_FOUND`.
+- **Xử lý Backend:** Update `LastPingAt` bằng UTC và tạo `KioskIncident` nếu có lỗi chưa fix. `kioskId` là khóa database được cấp ở bước đăng ký/cấu hình thiết bị và lưu trong cấu hình Kiosk; không hardcode `1` và không gửi mã hiển thị như `KIOSK-01`.
 
 ---
 
@@ -247,8 +266,8 @@ Mọi API trả về (kể cả lỗi) đều phải được wrap trong object 
 
 Nếu `success = false`, Backend nên trả về HTTP Status Code chuẩn:
 - `400 Bad Request`: Validation Error (Gửi thiếu/sai tham số).
-- `401 Unauthorized`: Thiếu hoặc sai Token/API Key.
-- `403 Forbidden`: Token hợp lệ nhưng không đủ quyền (Staff cố gọi API xóa Admin).
+- `401 Unauthorized`: Thiếu thông tin xác thực (không có Token/API Key) hoặc JWT không hợp lệ/hết hạn.
+- `403 Forbidden`: API Key được gửi nhưng sai, hoặc danh tính đã xác thực không đủ quyền.
 - `404 Not Found`: Không tìm thấy Resource (Mã sách sai, mã đơn sai).
 - `409 Conflict`: Lỗi Logic nghiệp vụ (Ví dụ: Thanh toán lố hàng, Khách không đủ điểm).
   - *Lúc này `message` sẽ chứa câu tiếng Việt giải thích lỗi để Kiosk show lên ngay.*

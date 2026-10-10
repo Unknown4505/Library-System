@@ -246,7 +246,9 @@ Hệ thống hỗ trợ **2 loại khuyến mãi**. Tất cả đều giảm b�
 | `KioskName` | `string` | `nvarchar(255)` | VD: "Kiosk Tầng 1" |
 | `MacAddress` | `string` | `varchar(50)` | UNIQUE Index. Định danh Kiosk |
 | `Status` | `KioskStatus`| `int` | Enum: Online(1), Offline(2), Error(3) |
-| `LastPingAt` | `DateTime?` | `datetime2` | Backend cập nhật mỗi 30s khi Kiosk gọi heartbeat |
+| `LastPingAt` | `DateTime?` | `datetime2` | Backend cập nhật theo heartbeat; worker ở PR #11 đang gửi mỗi 60 giây |
+
+`KioskId` là khóa số do database cấp. Mã hiển thị như `K-01`/`KIOSK-01` không được dùng thay cho `KioskId` trong API. Sau bước đăng ký/cấu hình thiết bị, Kiosk phải lưu ID đã được cấp; không hardcode giả định `KioskId = 1`.
 
 **Bảng `KioskIncidents`**
 | Cột | Kiểu C# | Kiểu SQL | Ràng buộc / Ghi chú |

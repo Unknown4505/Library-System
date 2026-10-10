@@ -61,20 +61,20 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 ### MODULE 3: KIOSK WPF - ĐIỀU HƯỚNG & TRANG CHỦ
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 3.1 | Thiết lập MVVM (BaseViewModel, RelayCommand) | | | @lehuukhang | `[ ]` |
-| 3.2 | Thiết lập `NavigationService` (Quản lý Frame) | | | @lehuukhang | `[ ]` |
-| 3.3 | Layout `IdlePage`: Màn hình chờ + Video QC | | | @lehuukhang | `[ ]` |
-| 3.4 | Cấu hình `IdleTimerService` (Quay về màn hình chờ) | | | @lehuukhang | `[ ]` |
-| 3.5 | Layout `HomePage`: Slider Sách bán chạy / Mới | | | @lehuukhang | `[ ]` |
+| 3.1 | Thiết lập MVVM (BaseViewModel, RelayCommand) | | | @lehuukhang | `[x]` |
+| 3.2 | Thiết lập `NavigationService` (Quản lý Frame) | | | @lehuukhang | `[x]` |
+| 3.3 | Layout `IdlePage`: Màn hình chờ + Video QC | | | @lehuukhang | `[x]` |
+| 3.4 | Cấu hình `IdleTimerService` (Quay về màn hình chờ) | | | @lehuukhang | `[x]` |
+| 3.5 | Layout `HomePage`: (Đã gộp chung vào SearchPage) | | | @lehuukhang | `[x]` |
 | 3.6 | **[Leader]** Setup HttpClientFactory / ApiClient thuần túy để FE kiểm soát hoàn toàn API | @Unknown4505 | | | `[x]` |
 
 ### MODULE 4: KIOSK WPF - TÌM KIẾM & CHI TIẾT
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 4.1 | Layout `SearchPage`: Lưới sách + Load More | | | @lehuukhang | `[ ]` |
-| 4.2 | Logic Filter theo Danh mục, Tác giả | | | @lehuukhang | `[ ]` |
-| 4.3 | Layout `BookDetailPage`: Chi tiết + Vị trí kệ | | | @lehuukhang | `[ ]` |
-| 4.4 | Kiểm tra Tồn kho trước khi cho thêm vào giỏ | | | @lehuukhang | `[ ]` |
+| 4.1 | Layout `SearchPage`: Lưới sách + Load More | | | @lehuukhang | `[x]` |
+| 4.2 | Logic Filter theo Danh mục, Tác giả | | | @lehuukhang | `[x]` |
+| 4.3 | Layout `BookDetailPage`: Chi tiết + Vị trí kệ | | | @lehuukhang | `[x]` |
+| 4.4 | Kiểm tra Tồn kho trước khi cho thêm vào giỏ | | | @lehuukhang | `[x]` |
 | 4.5 | **[Leader]** Ghép nối: Đổi từ Mock Data Data giả sang gọi API thật (Phần Search & Detail) | @Unknown4505 | | | `[ ]` |
 
 ### MODULE 5: BACKEND API - CHECKOUT & GIỮ KHO
@@ -89,10 +89,10 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 ### MODULE 6: KIOSK WPF - GIỎ HÀNG & THANH TOÁN
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 6.1 | Layout `CartPage`: Hiển thị sách, Tăng giảm SL | | | @lehuukhang | `[ ]` |
-| 6.2 | Bàn phím ảo (Numpad) nhập SĐT quy đổi điểm | | | @lehuukhang | `[ ]` |
-| 6.3 | Khang gọi API Checkout, nhận OrderCode sang Payment | | | @lehuukhang | `[ ]` |
-| 6.4 | `PaymentPage`: Hiện bảng tóm tắt tiền + Đếm ngược | | | @lehuukhang | `[ ]` |
+| 6.1 | Layout `CartPage`: Hiển thị sách, Tăng giảm SL | | | @lehuukhang | `[x]` |
+| 6.2 | Bàn phím ảo (Numpad) nhập SĐT quy đổi điểm | | | @lehuukhang | `[x]` |
+| 6.3 | Khang gọi API Checkout, nhận OrderCode sang Payment | | | @lehuukhang | `[x]` |
+| 6.4 | `PaymentPage`: Hiện bảng tóm tắt tiền + Đếm ngược | | | @lehuukhang | `[x]` |
 
 ### MODULE 7: PAYMENT - SEPAY & WEBHOOK
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
@@ -101,17 +101,17 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 7.2 | API: `POST /api/payments/sepay-webhook` | | @thien33 | | `[x]` |
 | 7.3 | Logic: Xác thực HMAC Signature bảo mật | | @thien33 | | `[x]` |
 | 7.4 | Logic: Cập nhật Paid, trừ kho vật lý (StockQuantity)| | @thien33 | | `[x]` |
-| 7.5 | Kiosk `PaymentPage`: Polling API Status mỗi 3s | | | @lehuukhang | `[ ]` |
+| 7.5 | Kiosk `PaymentPage`: Polling API Status mỗi 3s | | | @lehuukhang | `[x]` |
 | 7.6 | **[Leader]** Ghép nối: Viết logic Polling cho FE để tự động chuyển trang khi BE nhận được tiền (SignalR hoặc Timer) | @Unknown4505 | | | `[ ]` |
 
 ### MODULE 8: KIOSK WPF - THIẾT BỊ PHẦN CỨNG
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 8.1 | Kiosk: Gắn UI xử lý dữ liệu từ Camera/Máy quét | | | @lehuukhang | `[ ]` |
+| 8.1 | Kiosk: Gắn UI xử lý dữ liệu từ Camera/Máy quét | | | @lehuukhang | `[x]` |
 | 8.2 | Kiosk: Sinh file PDF Hóa đơn với QuestPDF | | | @lehuukhang | `[ ]` |
 | 8.3 | Kiosk: `MaintenancePage` Báo lỗi thiết bị, khóa Kiosk | | | @lehuukhang | `[ ]` |
-| 8.4 | **[Leader]** Khởi tạo Interface phần cứng (`IBarcodeScanner`, `IPrinter`) và Class Mock | @Unknown4505 | | | `[x]` |
-| 8.4.1 | **[Ghi chú Kiosk]** FE bắt buộc dùng interface `BookKiosk.Kiosk.Services.Hardware.IBarcodeScanner` đã được Leader mock sẵn, KHÔNG tự tạo service quét mã mới. | | | @lehuukhang | `[ ]` |
+| 8.4 | **[Leader]** Khởi tạo Interface phần cứng (`IBarcodeScanner`, `IReceiptPrinter`) và Class Mock | @Unknown4505 | | | `[x]` |
+| 8.4.1 | **[Ghi chú Kiosk]** FE bắt buộc dùng interface `BookKiosk.Kiosk.Services.Hardware.IBarcodeScanner` đã được Leader mock sẵn, KHÔNG tự tạo service quét mã mới. | | | @lehuukhang | `[x]` |
 | 8.4.2 | Tự định nghĩa dữ liệu Mock (Mock Data) cho Bill in ra màn hình để nắm rõ cấu trúc dữ liệu | | | @lehuukhang | `[ ]` |
 | 8.5 | **[Leader]** Triển khai gọi Driver ESC/POS in nhiệt thật | @Unknown4505 | | | `[ ]` |
 | 8.6 | HeartbeatService: `POST /api/kiosk/heartbeat` | | | @lehuukhang | `[ ]` |
@@ -199,12 +199,12 @@ Luồng nghiệp vụ lõi phải được xây dựng theo đúng thứ tự (M
 ### 5. QUY TẮC LƯU TRỮ VÀ XỬ LÝ ĐƯỜNG DẪN ẢNH (Image URL)
 Để tránh tình trạng lỗi đường dẫn (Conflict 404) khi các thành viên (nhất là FE Khang và BE Thiện) pull code của nhau về máy tính cá nhân:
 1. **Lưu database (Entity `Book.ImageUrl`):**
-   - **Tối kỵ:** KHÔNG ĐƯỢC lưu đường dẫn tuyệt đối (VD: `C:/images/demen.jpg` hay `https://localhost:5001/uploads/...`).
+   - **Tối kỵ:** KHÔNG ĐƯỢC lưu đường dẫn tuyệt đối (VD: `C:/images/demen.jpg` hay `https://localhost:7111/uploads/...`).
    - **Bắt buộc:** Chỉ lưu đường dẫn tương đối, luôn bắt đầu bằng `/uploads/`. VD: `/uploads/books/demen.jpg`.
 2. **Thư mục chứa ảnh vật lý (wwwroot):**
    - Đã cấu hình `app.UseStaticFiles()` trong API.
    - Thư mục vật lý nằm tại: `BookKiosk.API/wwwroot/uploads/books/`. (Đã tạo sẵn file `.gitkeep` để ae clone về tự có folder này).
 3. **Khi FE hiển thị ảnh:**
    - Kiosk UI hoặc CMS chỉ cần ghép Base URL của API với đường dẫn trong DB. 
-   - VD: `<img src="https://localhost:5001" + book.ImageUrl />`
+   - VD: `<img src="https://localhost:7111" + book.ImageUrl />`
 

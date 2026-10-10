@@ -40,18 +40,29 @@ public class GlobalExceptionHandlerMiddleware
         {
             KeyNotFoundException => (int)HttpStatusCode.NotFound, // 404
             UnauthorizedAccessException => (int)HttpStatusCode.Forbidden, // 403
-            ArgumentException or ArgumentNullException => (int)HttpStatusCode.BadRequest, // 400
-            Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException => (int)HttpStatusCode.Conflict, // 409 - Lỗi ghi đè dữ liệu (Booking trùng sách)
-            _ => (int)HttpStatusCode.InternalServerError // 500 - Lỗi mặc định chưa lường trước
+            ArgumentException => (int)HttpStatusCode.BadRequest, // 400
+            Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException => (int)HttpStatusCode.Conflict, // 409
+            _ => (int)HttpStatusCode.InternalServerError // 500
         };
 
-        var result = JsonSerializer.Serialize(new
+        var errorCode = context.Response.StatusCode switch
         {
-            StatusCode = context.Response.StatusCode,
-            Message = context.Response.StatusCode == 500 
-                ? "Hệ thống đang gặp sự cố nội bộ. Vui lòng thử lại sau!" 
-                : exception.Message,
-            ErrorDetail = exception.Message // Lưu ý: Nên ẩn Detail trên Production thực tế đối với lỗi 500
+            400 => "BAD_REQUEST",
+            404 => "NOT_FOUND",
+            403 => "FORBIDDEN",
+            409 => "CONFLICT",
+            _ => "INTERNAL_ERROR"
+        };
+
+        var message = context.Response.StatusCode == 500
+            ? "Hệ thống đang gặp sự cố nội bộ. Vui lòng thử lại sau!"
+            : exception.Message;
+
+        var response = BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error(errorCode, message);
+
+        var result = JsonSerializer.Serialize(response, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         });
 
         return context.Response.WriteAsync(result);

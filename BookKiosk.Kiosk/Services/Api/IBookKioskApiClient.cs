@@ -59,6 +59,12 @@ public interface IBookKioskApiClient
 
     // ── KIOSK HEARTBEAT ───────────────────────────────────────────────────────
 
-    /// <summary>Gửi heartbeat định kỳ để báo Kiosk đang online (task 8.6)</summary>
+    /// <summary>Gửi heartbeat theo contract chuẩn dùng ID số trong database.</summary>
+    Task<ApiResponseDto<object>?> SendHeartbeatAsync(int kioskId, int status = 1, string? errorCode = null, string? errorMessage = null);
+
+    /// <summary>
+    /// Overload tương thích với caller cũ. Giá trị phải là chuỗi biểu diễn ID số,
+    /// không phải mã hiển thị như KIOSK-01.
+    /// </summary>
     Task<ApiResponseDto<object>?> SendHeartbeatAsync(string kioskId);
 }

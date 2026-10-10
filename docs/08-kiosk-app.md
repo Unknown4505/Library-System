@@ -53,10 +53,16 @@ Dự án Kiosk bắt buộc tuân theo mô hình **MVVM (Model - View - ViewMode
 ### 4. Màn hình Thanh toán (Checkout / QR Screen)
 - **Giao diện:** Hiển thị tổng tiền và 1 mã QR code lớn ở giữa màn hình.
 - **Logic:**
-  - Gọi API `POST /api/orders/checkout` để lấy mã QR.
-  - Bật tính năng **SignalR Client** (hoặc Polling mỗi 2 giây gọi API kiểm tra trạng thái đơn hàng).
+  - Gọi API `POST /api/orders/kiosk/checkout` để lấy mã QR.
+  - Polling mỗi **3 giây** qua `GET /api/orders/kiosk/{orderId}/payment-status` (contract hiện tại; SignalR chưa triển khai).
   - Khóa màn hình (chặn nút Back) để tránh tình trạng khách vừa chuyển tiền xong lại bấm Back gây lỗi giỏ hàng.
-  - Nếu quá 3 phút không thanh toán -> Báo "Hết hạn" -> Trở về Màn hình Chờ.
+  - UI hiện đếm ngược 3 phút; Backend dọn đơn `Pending` sau 4 phút. Khoảng đệm cho phép request hủy/poll cuối hoàn tất. Hai timeout có chủ đích khác nhau.
+
+### Nhịp gọi và thời gian chuẩn
+
+- `HttpClient` của Kiosk timeout sau 30 giây cho một request.
+- `HeartbeatWorker` trong PR #11 gửi mỗi 60 giây; endpoint/worker chưa có trên `main`.
+- Timestamp Backend/database phải dùng UTC (`DateTime.UtcNow`); chỉ chuyển sang giờ địa phương khi hiển thị. Các chỗ còn dùng `DateTime.Now` là drift cần owner Backend xử lý, không phải contract mới.
 
 ### 5. Màn hình Hoàn tất & In Hóa Đơn (Success Screen)
 - **Giao diện:** Báo "Thanh toán thành công. Đang in hóa đơn...".
