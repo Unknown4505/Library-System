@@ -1,3 +1,5 @@
+using BookKiosk.Application.DTOs.Books;
+using BookKiosk.Application.DTOs.Common;
 using BookKiosk.Domain.Entities;
 using BookKiosk.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
@@ -24,14 +26,14 @@ public class AreasController : ControllerBase
     {
         var areas = await _context.Areas
             .OrderBy(a => a.Name)
-            .Select(a => new 
+            .Select(a => new AreaDto
             {
-                a.AreaId,
-                a.Name,
-                a.MapCoordinates
+                AreaId = a.AreaId,
+                Name = a.Name,
+                MapCoordinates = a.MapCoordinates
             })
             .ToListAsync();
             
-        return Ok(areas);
+        return Ok(ApiResponseDto<IEnumerable<AreaDto>>.Ok(areas));
     }
 }

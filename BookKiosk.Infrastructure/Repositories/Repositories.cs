@@ -88,3 +88,12 @@ public class PaymentRepository : IPaymentRepository
     public async Task<bool> CheckTransactionExistsAsync(string referenceCode) => await _context.PaymentTransactions.AnyAsync(pt => pt.ReferenceCode == referenceCode);
     public async Task AddTransactionAsync(PaymentTransaction transaction) => await _context.PaymentTransactions.AddAsync(transaction);
 }
+
+public class KioskRepository : IKioskRepository
+{
+    private readonly ApplicationDbContext _context;
+    public KioskRepository(ApplicationDbContext context) => _context = context;
+    public async Task<Kiosk?> GetByIdAsync(int id) => await _context.Kiosks.FindAsync(id);
+    public async Task AddIncidentAsync(KioskIncident incident) => await _context.KioskIncidents.AddAsync(incident);
+    public async Task<KioskIncident?> GetOpenIncidentAsync(int kioskId, string errorCode) => await _context.KioskIncidents.FirstOrDefaultAsync(i => i.KioskId == kioskId && i.ErrorCode == errorCode && i.ResolvedAt == null);
+}
