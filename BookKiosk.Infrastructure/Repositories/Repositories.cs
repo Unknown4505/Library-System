@@ -95,4 +95,5 @@ public class KioskRepository : IKioskRepository
     public KioskRepository(ApplicationDbContext context) => _context = context;
     public async Task<Kiosk?> GetByIdAsync(int id) => await _context.Kiosks.FindAsync(id);
     public async Task AddIncidentAsync(KioskIncident incident) => await _context.KioskIncidents.AddAsync(incident);
+    public async Task<KioskIncident?> GetOpenIncidentAsync(int kioskId, string errorCode) => await _context.KioskIncidents.FirstOrDefaultAsync(i => i.KioskId == kioskId && i.ErrorCode == errorCode && i.ResolvedAt == null);
 }

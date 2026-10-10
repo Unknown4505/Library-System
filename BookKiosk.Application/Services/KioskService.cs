@@ -22,23 +22,28 @@ public class KioskService : IKioskService
     public async Task<bool> HandleHeartbeatAsync(HeartbeatRequestDto request)
     {
         var kiosk = await _kioskRepository.GetByIdAsync(request.KioskId);
-        if (kiosk == null) throw new Exception("Kiosk không tồn tại.");
+        if (kiosk == null) throw new System.Collections.Generic.KeyNotFoundException("Kiosk không tồn tại.");
 
-        kiosk.LastPingAt = DateTime.Now;
-        
-        if (Enum.TryParse<KioskStatus>(request.Status, true, out var status))
-        {
-            kiosk.Status = status;
-        }
+        if (!Enum.IsDefined(typeof(KioskStatus), request.Status))
+            throw new ArgumentException("Trạng thái Kiosk không hợp lệ.");
+
+        kiosk.LastPingAt = DateTime.UtcNow;
+        kiosk.Status = (KioskStatus)request.Status;
 
         if (!string.IsNullOrEmpty(request.ErrorCode) || !string.IsNullOrEmpty(request.ErrorMessage))
         {
-            await _kioskRepository.AddIncidentAsync(new KioskIncident
+            var errorCode = request.ErrorCode ?? "UNKNOWN";
+            var openIncident = await _kioskRepository.GetOpenIncidentAsync(kiosk.KioskId, errorCode);
+            if (openIncident == null)
             {
-                KioskId = kiosk.KioskId,
-                ErrorCode = request.ErrorCode ?? "UNKNOWN",
-                Description = request.ErrorMessage ?? "Không có mô tả chi tiết",
-            });
+                await _kioskRepository.AddIncidentAsync(new KioskIncident
+                {
+                    KioskId = kiosk.KioskId,
+                    ErrorCode = errorCode,
+                    Description = request.ErrorMessage ?? "Không có mô tả chi tiết",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
         }
 
         await _unitOfWork.SaveChangesAsync();

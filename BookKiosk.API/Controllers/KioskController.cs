@@ -29,9 +29,13 @@ public class KioskController : ControllerBase
             var success = await _kioskService.HandleHeartbeatAsync(request);
             return Ok(ApiResponseDto<bool>.Ok(success));
         }
-        catch (Exception ex)
+        catch (System.Collections.Generic.KeyNotFoundException ex)
         {
             return NotFound(ApiResponseDto<object>.Error("NOT_FOUND", ex.Message));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", ex.Message));
         }
     }
 }
