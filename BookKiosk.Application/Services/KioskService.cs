@@ -21,11 +21,20 @@ public class KioskService : IKioskService
 
     public async Task<bool> HandleHeartbeatAsync(HeartbeatRequestDto request)
     {
-        var kiosk = await _kioskRepository.GetByIdAsync(request.KioskId);
-        if (kiosk == null) throw new System.Collections.Generic.KeyNotFoundException("Kiosk không tồn tại.");
+        // 1. Validation (Guard Clauses)
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Dữ liệu Heartbeat không được để trống.");
+
+        if (request.KioskId <= 0)
+            throw new ArgumentException("KioskId không hợp lệ. Giá trị phải là số nguyên dương lớn hơn 0.");
 
         if (!Enum.IsDefined(typeof(KioskStatus), request.Status))
-            throw new ArgumentException("Trạng thái Kiosk không hợp lệ.");
+            throw new ArgumentException($"Trạng thái Kiosk ({request.Status}) không hợp lệ. Chỉ chấp nhận các mã định danh chuẩn.");
+
+        // 2. Fetch Entity
+        var kiosk = await _kioskRepository.GetByIdAsync(request.KioskId);
+        if (kiosk == null) 
+            throw new System.Collections.Generic.KeyNotFoundException($"Kiosk với ID = {request.KioskId} không tồn tại trong hệ thống.");
 
         kiosk.LastPingAt = DateTime.UtcNow;
         kiosk.Status = (KioskStatus)request.Status;
