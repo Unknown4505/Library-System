@@ -24,11 +24,11 @@ Nếu bạn là AI agent đọc file này:
 Máy Kiosk là thiết bị cố định đặt tại cửa hàng, luôn được bật sáng màn hình. Kiosk không phải là một "người dùng" (User) để bắt nó phải gõ username/password đăng nhập mỗi sáng. 
 
 ### Cơ chế: Header `X-Api-Key`
-- Backend API sẽ quy định một đoạn chuỗi bí mật (Secret Key) trong `appsettings.json`.
+- Backend API đọc secret từ key canonical `ApiSettings:ApiKey`; production phải cấp bằng environment variable `ApiSettings__ApiKey` hoặc secret store, không commit vào `appsettings.json`.
 - Kiosk App (WPF) sẽ nhúng sẵn đoạn mã này trong config của nó.
 - Mỗi khi Kiosk gọi bất kỳ API nào (Tạo đơn, Heartbeat, Tra cứu), nó bắt buộc phải chèn vào HTTP Header:
   `X-Api-Key: <Kiosk_Secret_Key_Cua_Du_An>`
-- **Ở Backend:** Code một Middleware (`ApiKeyMiddleware.cs`) để chặn mọi request có đường dẫn `/api/kiosk/*` và `/api/orders/kiosk/*`. Nếu Header không có hoặc Key bị sai -> Trả về `401 Unauthorized`.
+- **Ở Backend:** `ApiKeyMiddleware.cs` bảo vệ `/api/kiosk/*` và `/api/orders/kiosk/*`. Thiếu header trả `401`; có header nhưng key sai trả `403`. Cả hai đều trả JSON `ApiResponseDto` và không log secret.
 
 ---
 
@@ -37,7 +37,7 @@ Máy Kiosk là thiết bị cố định đặt tại cửa hàng, luôn đượ
 ### Cơ chế: JSON Web Token (Bearer)
 Web Admin / CMS dành cho Thủ thư và Admin quản lý được dùng thông qua trình duyệt web. Trình duyệt bắt buộc phải đăng nhập.
 
-1. **Đăng nhập:** Gọi API `POST /api/auth/login` truyền `username` và `password`.
+1. **Đăng nhập (Planned):** Contract dự kiến là `POST /api/auth/login`; endpoint này chưa có trên `main`.
 2. **Cấp phát:** Backend xác thực BCrypt, trả về `AccessToken` (JWT, tuổi thọ **15–30 phút**). Không lưu gì vào DB.
 3. **Sử dụng:** Trình duyệt lưu AccessToken vào `sessionStorage`. Khi gọi API, chèn Header:
    `Authorization: Bearer <AccessToken>`
@@ -80,11 +80,11 @@ Admin có toàn quyền (Full Access) đối với toàn bộ hệ thống. Các
 ## 3. Bảo mật Webhook Thanh Toán (Webhook Signature)
 
 ### Nguy cơ bị tấn công Fake Webhook
-API Webhook (`POST /api/payments/webhook`) của Backend hoàn toàn mở ra ngoài Internet (qua Ngrok hoặc IP Public) để PayOS/SePay có thể gọi vào. 
+API Webhook (`POST /api/payments/sepay-webhook`) của Backend mở ra ngoài Internet (qua Ngrok hoặc IP Public) để SePay có thể gọi vào.
 Hacker có thể biết được URL này, và tự dùng Postman bắn request giả mạo: `"Tao vừa chuyển 5 triệu cho đơn hàng XYZ"`. Nếu Backend tin tưởng mù quáng -> Mất hàng.
 
 ### Cơ chế phòng thủ: Chữ ký HMAC SHA256 (Checksum)
-Khi tích hợp PayOS hoặc SePay, họ cung cấp cho bạn một **Checksum Key / Webhook Secret**.
+Khi tích hợp SePay, hệ thống thanh toán cung cấp **Webhook Secret** theo cơ chế đã cấu hình.
 
 1. Khi cổng thanh toán gọi API Webhook của bạn, họ lấy toàn bộ Body Data trộn với Checksum Key này và băm (hash) ra một chuỗi chữ ký (Signature) đính kèm trong Header.
 2. Tại Backend của bạn, khi nhận được body, bạn cũng dùng Checksum Key của bạn để băm y hệt. 
@@ -92,13 +92,18 @@ Khi tích hợp PayOS hoặc SePay, họ cung cấp cho bạn một **Checksum K
    - Nếu giống nhau: Yêu cầu **chắc chắn 100%** gửi từ hệ thống thanh toán chính chủ. (Bởi vì Hacker không thể biết được Checksum Key để giả mạo chữ ký).
    - Nếu khác nhau: Request giả mạo -> Trả về `403 Forbidden` và drop request.
 
-> **Lưu ý Code C#:** Hầu hết thư viện SDK của PayOS (`PayOS.Net`) hoặc SePay đã có sẵn hàm thư viện `VerifySignature(requestBody, signature)`. Backend dev chỉ cần gọi hàm này là xong, không phải tự viết code mã hóa.
+> **Lưu ý:** Phải đối chiếu chính xác thuật toán/header trong tài liệu SePay đang dùng; không giả định contract của gateway khác tương thích.
 
 ---
 
 ## 4. Chính sách CORS (Cross-Origin Resource Sharing)
 
 - **Kiosk App (WPF / Desktop App):** Hoàn toàn KHÔNG bị ảnh hưởng bởi CORS. Desktop app có thể gọi API thoải mái.
-- **CMS Web Admin (Browser):** Nếu API chạy ở port `5001` nhưng Web chạy ở port `3000`, trình duyệt sẽ chặn request.
-- **Backend Setup:** Phải cho phép Origin của Web Admin trong `Program.cs`. 
-  `builder.Services.AddCors(options => options.AddPolicy("WebAdminCors", policy => policy.WithOrigins("http://localhost:3000").AllowAnyHeader().AllowAnyMethod()));`
+- **CMS Web Admin (Browser):** API (`7111`/`5014`) và CMS (`7125`/`5131`) là hai origin khác nhau nên trình duyệt áp dụng CORS.
+- **Backend Setup:** Chỉ cho phép origin nằm trong `Cors:AllowedOrigins`; không dùng `AllowAnyOrigin()` khi triển khai.
+
+## 5. Cấu hình JWT và Swagger
+
+- JWT signing key dùng key `Jwt:Key` (environment: `Jwt__Key`). Development có fallback demo và ghi warning; Production từ chối startup nếu thiếu, không dùng fallback.
+- Swagger Development khai báo hai scheme: `Bearer` cho CMS và `ApiKey` qua header `X-API-KEY` cho Kiosk.
+- Xem `06-local-setup.md` để cấu hình bằng user-secrets/environment variables.

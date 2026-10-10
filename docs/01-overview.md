@@ -89,7 +89,7 @@ Nếu bạn là AI agent đọc file này:
                └──────────────────┬──────────────────┘
                                   ▼
                   ┌────────────────────────────────────┐
-                  │  ASP.NET Core Web API (.NET 8)     │
+                  │  ASP.NET Core Web API (.NET 10)    │
                   │                                    │
                   │  Controllers                       │
                   │      ↓ validate, authorize         │
@@ -116,17 +116,17 @@ Nếu bạn là AI agent đọc file này:
 - Mọi logic: tính tiền, trừ kho, kiểm tra quyền → chỉ nằm ở Backend.
 - Frontend (Kiosk, CMS) chỉ hiển thị dữ liệu Backend trả về. Không tự tính.
 
-**2. CMS + API là 1 process** ✅ chốt
-- `BookKiosk.CMS` và `BookKiosk.API` chạy chung trong 1 `dotnet run`.
-- CMS Controller inject `IService` trực tiếp — không gọi HTTP nội bộ.
-- Port chuẩn: `http://localhost:5000` | `https://localhost:5001`
-- Swagger: `https://localhost:5001/swagger` (chỉ hiển khi `env=Development`)
+**2. CMS và API là hai process riêng** ✅ theo source hiện tại
+- `BookKiosk.API`: `https://localhost:7111` hoặc `http://localhost:5014`.
+- `BookKiosk.CMS`: `https://localhost:7125` hoặc `http://localhost:5131`.
+- CMS gọi API qua HTTP; origin CMS phải có trong `Cors:AllowedOrigins` của API.
+- Swagger: `https://localhost:7111/swagger` (chỉ hiển thị ở Development).
 
 **3. Kiosk là client “mỏng”**
 - Không kết nối trực tiếp vào Database.
 - Không giữ giá, tồn kho ở local (trừ cache tra cứu ngắn hạn).
 - Mọi quyết định thanh toán đều đến từ Backend.
-- Kiosk gọi API tại: `https://localhost:5001/api/`
+- Kiosk gọi API tại: `https://localhost:7111/api/` (key `ApiSettings:BaseUrl`).
 
 **4. Idempotent — gọi lặp không gây hại**
 - Webhook SePay gửi 2 lần → kho chỉ trừ 1 lần.
@@ -144,12 +144,12 @@ Nếu bạn là AI agent đọc file này:
 
 | Thành phần | Công nghệ | Lý do chọn |
 |---|---|---|
-| **Backend API** | ASP.NET Core Web API (.NET 8) | Cùng stack C# với toàn nhóm |
+| **Backend API** | ASP.NET Core Web API (.NET 10) | Cùng stack C# với toàn nhóm |
 | **ORM / DB access** | Entity Framework Core (Code-First) | Migrations tự động, không viết SQL thủ công |
 | **CSDL** | SQL Server Express (LocalDB khi dev) | Hỗ trợ transaction, RowVersion, index tốt |
 | **Xác thực** | JWT stateless (access token 15-30 phút) | Chuẩn ngành, stateless, dễ triển khai |
 | **Web Admin** | ASP.NET Core MVC + Razor Pages | Cùng stack .NET, không cần học JS framework |
-| **Kiosk App** | WPF (.NET 8) + MVVM | Hỗ trợ cảm ứng, DPI scale, XAML quen thuộc |
+| **Kiosk App** | WPF (.NET 10) + MVVM | Hỗ trợ cảm ứng, DPI scale, XAML quen thuộc |
 | **Quét mã vạch** | ZXing.Net.Bindings.Windows.Compatibility | Chạy được trên webcam laptop, không cần USB scanner |
 | **Hóa đơn PDF** | QuestPDF | Thuần .NET, không cần Office/Acrobat, miễn phí cho đồ án |
 | **Thanh toán QR** | SePay | Sandbox dễ setup, webhook rõ ràng |
@@ -164,7 +164,7 @@ Nếu bạn là AI agent đọc file này:
 ## 6. Cấu trúc Solution
 
 ```
-BookKiosk.sln
+BookKiosk.slnx
 │
 ├── BookKiosk.API/                  ← [MVP] Web API entry point
 │   ├── Controllers/                   AuthController, BookController, OrderController,
@@ -173,13 +173,13 @@ BookKiosk.sln
 │   └── Program.cs                     Cấu hình DI, Swagger, CORS, Auth, Serilog
 │
 ├── BookKiosk.Application/          ← [MVP] Business logic layer
-│   ├── Services/                      CheckoutService, PaymentService, BookService,
+│   ├── Services/                      OrderService, PaymentService, BookService,
 │   │                                  InventoryService, ReportService, KioskService,
 │   │                                  MemberService,                     ← đăng ký, tra điểm, tích điểm
 │   │                                  DiscountService,                   ← validate mã, tính giảm
 │   │                                  RecommendationService              ← top-search, top-sell, newest
 │   ├── DTOs/                          Request & Response DTO cho từng client
-│   ├── Interfaces/                    IBookRepository, ICheckoutService, IMemberService, ...
+│   ├── Interfaces/                    IBookRepository, IOrderService, IMemberService, ...
 │   └── Validators/                    FluentValidation cho từng request DTO
 │
 ├── BookKiosk.Domain/               ← [MVP] Entities & Enums (không phụ thuộc gì)
@@ -206,8 +206,8 @@ BookKiosk.sln
 │   │                                  MemberLoginPage,                   ← nhập SĐT tra thẻ
 │   │                                  RecommendationPage                 ← gợi ý sách (home)
 │   ├── ViewModels/                    ViewModel cho từng Page
-│   ├── Services/                      ApiClient, CameraService, IdleTimerService,
-│   │                                  KioskHealthService, PdfViewerService
+│   ├── Services/                      BookKioskApiClient, IdleTimerService,
+│   │                                  Hardware mocks; HeartbeatWorker ở PR #11
 │   └── App.xaml / App.xaml.cs
 │
 └── BookKiosk.CMS/                  ← [MVP] ASP.NET Core MVC Web Admin
@@ -294,7 +294,7 @@ Quầy (phòng ngừa quên hủy): Background Service cũng quét Pending quầ
 | Nhập mã thủ công | Không có | `[DEV-ONLY]` — ô text trên Kiosk và POS/CMS, chỉ hiện khi `env=Development` |
 | Camera | USB scanner riêng | Webcam tích hợp (chọn camera index đúng) |
 | Chất lượng quét | Tốt | In mã to, giữ cách 15–25 cm, đủ sáng |
-| Webhook SePay | Server public | ngrok tunnel → `localhost:5001` |
+| Webhook SePay | Server public | ngrok tunnel → `https://localhost:7111` |
 | Thanh toán QR thật | Điện thoại quét màn hình laptop | Không xung đột webcam vì là thiết bị khác |
 | HTTPS | Chứng chỉ thật | `dotnet dev-certs https --trust` |
 | CSDL | SQL Server | SQL Server Express / LocalDB |

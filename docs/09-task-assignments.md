@@ -110,7 +110,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 8.1 | Kiosk: Gắn UI xử lý dữ liệu từ Camera/Máy quét | | | @lehuukhang | `[x]` |
 | 8.2 | Kiosk: Sinh file PDF Hóa đơn với QuestPDF | | | @lehuukhang | `[ ]` |
 | 8.3 | Kiosk: `MaintenancePage` Báo lỗi thiết bị, khóa Kiosk | | | @lehuukhang | `[ ]` |
-| 8.4 | **[Leader]** Khởi tạo Interface phần cứng (`IBarcodeScanner`, `IPrinter`) và Class Mock | @Unknown4505 | | | `[x]` |
+| 8.4 | **[Leader]** Khởi tạo Interface phần cứng (`IBarcodeScanner`, `IReceiptPrinter`) và Class Mock | @Unknown4505 | | | `[x]` |
 | 8.4.1 | **[Ghi chú Kiosk]** FE bắt buộc dùng interface `BookKiosk.Kiosk.Services.Hardware.IBarcodeScanner` đã được Leader mock sẵn, KHÔNG tự tạo service quét mã mới. | | | @lehuukhang | `[x]` |
 | 8.4.2 | Tự định nghĩa dữ liệu Mock (Mock Data) cho Bill in ra màn hình để nắm rõ cấu trúc dữ liệu | | | @lehuukhang | `[ ]` |
 | 8.5 | **[Leader]** Triển khai gọi Driver ESC/POS in nhiệt thật | @Unknown4505 | | | `[ ]` |
@@ -199,12 +199,12 @@ Luồng nghiệp vụ lõi phải được xây dựng theo đúng thứ tự (M
 ### 5. QUY TẮC LƯU TRỮ VÀ XỬ LÝ ĐƯỜNG DẪN ẢNH (Image URL)
 Để tránh tình trạng lỗi đường dẫn (Conflict 404) khi các thành viên (nhất là FE Khang và BE Thiện) pull code của nhau về máy tính cá nhân:
 1. **Lưu database (Entity `Book.ImageUrl`):**
-   - **Tối kỵ:** KHÔNG ĐƯỢC lưu đường dẫn tuyệt đối (VD: `C:/images/demen.jpg` hay `https://localhost:5001/uploads/...`).
+   - **Tối kỵ:** KHÔNG ĐƯỢC lưu đường dẫn tuyệt đối (VD: `C:/images/demen.jpg` hay `https://localhost:7111/uploads/...`).
    - **Bắt buộc:** Chỉ lưu đường dẫn tương đối, luôn bắt đầu bằng `/uploads/`. VD: `/uploads/books/demen.jpg`.
 2. **Thư mục chứa ảnh vật lý (wwwroot):**
    - Đã cấu hình `app.UseStaticFiles()` trong API.
    - Thư mục vật lý nằm tại: `BookKiosk.API/wwwroot/uploads/books/`. (Đã tạo sẵn file `.gitkeep` để ae clone về tự có folder này).
 3. **Khi FE hiển thị ảnh:**
    - Kiosk UI hoặc CMS chỉ cần ghép Base URL của API với đường dẫn trong DB. 
-   - VD: `<img src="https://localhost:5001" + book.ImageUrl />`
+   - VD: `<img src="https://localhost:7111" + book.ImageUrl />`
 
