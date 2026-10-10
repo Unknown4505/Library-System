@@ -18,11 +18,11 @@ Nếu bạn là AI agent đọc file này:
 ## 1. Yêu cầu hệ thống (Prerequisites)
 
 Trước khi bắt đầu, đảm bảo máy bạn đã cài đặt đủ các phần mềm sau:
-- **.NET 8 SDK:** Tải từ trang chủ Microsoft.
+- **.NET 10 SDK:** các project đang target `net10.0`; WPF cần Windows.
 - **SQL Server (Developer hoặc Express):** Local database.
 - **SSMS (SQL Server Management Studio)** hoặc **Azure Data Studio**: Để quản lý DB.
 - **Visual Studio 2022** (Khuyên dùng, cần thiết để code WPF Kiosk) hoặc **VS Code**.
-- **Ngrok:** Công cụ tạo đường hầm (tunnel) để máy chủ Local nhận được Webhook thanh toán từ PayOS/SePay.
+- **Ngrok:** Công cụ tạo đường hầm (tunnel) để máy chủ Local nhận được Webhook thanh toán từ SePay.
 
 ---
 
@@ -31,9 +31,9 @@ Trước khi bắt đầu, đảm bảo máy bạn đã cài đặt đủ các p
 Mở Terminal / Git Bash và chạy:
 
 ```bash
-git clone https://github.com/<your-org>/BookKiosk.git
-cd BookKiosk
-dotnet restore
+git clone https://github.com/Unknown4505/Library-System.git
+cd Library-System
+dotnet restore BookKiosk.slnx
 ```
 
 ---
@@ -62,19 +62,19 @@ Lệnh này sẽ tự động tạo Database tên là `BookKiosk_Dev` và đẩy
 
 ---
 
-## 4. Cấu hình Cổng Thanh Toán (PayOS / SePay)
+## 4. Cấu hình Secret và CORS
 
-Để Kiosk sinh được mã QR thanh toán đúng chuẩn đồ án, bạn cần khai báo API Key.
-Tiếp tục sửa file `BookKiosk.API/appsettings.Development.json`:
+API dùng các key canonical `ApiSettings:ApiKey`, `Jwt:Key` và `Cors:AllowedOrigins`. Cấu hình Development có API Key/JWT demo để chạy local; có thể ghi đè bằng user-secrets:
 
-```json
-"PaymentGateway": {
-  "ClientId": "YOUR_PAYOS_CLIENT_ID",
-  "ApiKey": "YOUR_PAYOS_API_KEY",
-  "ChecksumKey": "YOUR_PAYOS_CHECKSUM_KEY"
-}
+```bash
+dotnet user-secrets init --project BookKiosk.API
+dotnet user-secrets set "ApiSettings:ApiKey" "<development-kiosk-key>" --project BookKiosk.API
+dotnet user-secrets set "Jwt:Key" "<development-jwt-signing-key-at-least-32-bytes>" --project BookKiosk.API
 ```
-*(Nếu chưa có, hãy xin Leader hoặc tự đăng ký 1 tài khoản dev miễn phí trên PayOS để test).*
+
+Hoặc dùng environment variables `ApiSettings__ApiKey` và `Jwt__Key`. Production bắt buộc phải cung cấp secret thật; fallback JWT chỉ hoạt động ở Development. Origin local của CMS là `https://localhost:7125`/`http://localhost:5131` và được khai báo trong `Cors:AllowedOrigins`. Kiosk WPF không chịu CORS.
+
+Kiosk dùng `ApiSettings:BaseUrl` và `ApiSettings:ApiKey` trong config riêng. Giá trị API Key phải trùng với API. Chuỗi `kiosk-secret-key` trong file Development chỉ là dữ liệu local mẫu, không dùng khi deploy.
 
 ---
 
@@ -87,31 +87,33 @@ Hệ thống có 3 project chính. **BẮT BUỘC phải chạy Backend API lên
 cd BookKiosk.API
 dotnet run
 ```
-Truy cập: `https://localhost:5001/swagger` để xem tài liệu API (Swagger UI) và test thử.
+Truy cập: `https://localhost:7111/swagger` để xem tài liệu API (Swagger UI) và test thử.
+
+CMS là process riêng: chạy `dotnet run --project BookKiosk.CMS`, mặc định tại `https://localhost:7125` hoặc `http://localhost:5131`.
 
 ### Chạy Kiosk App (WPF)
 - Mở Visual Studio 2022.
 - Chọn project `BookKiosk.Kiosk` làm **Startup Project**.
 - Bấm **F5** để chạy Kiosk App.
-- Đảm bảo trong `appsettings.json` của Kiosk, `ApiBaseUrl` đang trỏ đúng về `https://localhost:5001`.
+- Đảm bảo `ApiSettings:BaseUrl` trong `BookKiosk.Kiosk/appsettings.json` trỏ tới `https://localhost:7111/`.
 
 ---
 
 ## 6. Setup Ngrok để Test Thanh toán thực tế (Webhook)
 
-Khi bạn test dùng điện thoại quét mã QR Kiosk để chuyển tiền thật, ngân hàng sẽ trả kết quả về cho PayOS. PayOS cần báo lại cho Backend API của bạn (Webhook). Nhưng vì API của bạn đang chạy ở `localhost:5001`, PayOS trên internet không thể gọi vào được. -> **Cần dùng Ngrok.**
+Khi test thanh toán, SePay cần gọi webhook về API local tại cổng `7111`, nên cần tunnel công khai.
 
 ### Bước 1: Chạy Ngrok
 Mở Terminal mới và gõ:
 ```bash
-ngrok http https://localhost:5001
+ngrok http https://localhost:7111
 ```
 Ngrok sẽ sinh ra một đường link internet (Ví dụ: `https://abcd-123.ap.ngrok.io`). Link này trỏ thẳng vào localhost của bạn.
 
 ### Bước 2: Cập nhật Webhook URL
-Vào màn hình quản trị của PayOS/SePay, paste đường link Ngrok vừa lấy được vào cấu hình Webhook URL.
+Vào màn hình quản trị SePay, paste đường link Ngrok vừa lấy được vào cấu hình Webhook URL.
 Thêm route API xử lý webhook của bạn vào đuôi:
-👉 `https://abcd-123.ap.ngrok.io/api/payments/webhook`
+👉 `https://abcd-123.ap.ngrok.io/api/payments/sepay-webhook`
 
 **Lưu ý:** Vì dùng bản ngrok miễn phí, mỗi lần bạn tắt máy bật lại, ngrok sẽ đổi link mới. Bạn phải vào trang quản trị cổng thanh toán cập nhật lại URL.
 
@@ -129,4 +131,4 @@ Thêm route API xử lý webhook của bạn vào đuôi:
 
 ### Lỗi 3: Kiosk gọi API toàn báo `401 Unauthorized`
 - **Nguyên nhân:** Kiosk chưa truyền `X-Api-Key` trong Header.
-- **Cách fix:** Kiểm tra lại class `HttpClient` trong project Kiosk, đảm bảo đã add Header `X-Api-Key` trùng khớp với khóa `KioskSecretKey` khai báo trong API.
+- **Cách fix:** Kiểm tra `BookKioskApiClient`/HttpClient gửi Header `X-API-KEY`, và `ApiSettings:ApiKey` của Kiosk trùng với `ApiSettings:ApiKey` phía API.

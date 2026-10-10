@@ -19,19 +19,34 @@ public class ApiKeyMiddleware
         // 1. Kiểm tra xem endpoint có cho phép gọi bằng API Key hay không (VD: Các API dành cho Kiosk)
         if (context.Request.Path.StartsWithSegments("/api/kiosk") || context.Request.Path.StartsWithSegments("/api/orders/kiosk"))
         {
-            if (!context.Request.Headers.TryGetValue(APIKEYNAME, out var extractedApiKey))
+            var extractedApiKey = context.Request.Headers[APIKEYNAME].ToString();
+
+            if (string.IsNullOrWhiteSpace(extractedApiKey))
             {
                 context.Response.StatusCode = 401; // Unauthorized
-                await context.Response.WriteAsync("API Key was not provided.");
+                context.Response.ContentType = "application/json";
+                var response = BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("UNAUTHORIZED", "API Key was not provided.");
+                await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
                 return;
             }
 
-            var appSettingsApiKey = config.GetValue<string>("ApiKey");
+            var appSettingsApiKey = config.GetValue<string>("ApiSettings:ApiKey");
 
-            if (!appSettingsApiKey.Equals(extractedApiKey))
+            if (string.IsNullOrWhiteSpace(appSettingsApiKey))
+            {
+                context.Response.StatusCode = 500; // Internal Server Error
+                context.Response.ContentType = "application/json";
+                var response = BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("INTERNAL_ERROR", "Server configuration error: API Key is missing.");
+                await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
+                return;
+            }
+
+            if (!string.Equals(appSettingsApiKey, extractedApiKey, StringComparison.Ordinal))
             {
                 context.Response.StatusCode = 403; // Forbidden
-                await context.Response.WriteAsync("Unauthorized client. Invalid API Key.");
+                context.Response.ContentType = "application/json";
+                var response = BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("FORBIDDEN", "Unauthorized client. Invalid API Key.");
+                await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
                 return;
             }
         }

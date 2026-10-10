@@ -1,5 +1,6 @@
 using Serilog;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 using BookKiosk.Infrastructure.Data;
 
 // 1. Cấu hình Serilog
@@ -53,20 +54,58 @@ try
     // Swagger/OpenAPI
     builder.Services.AddOpenApi();
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen();
+    builder.Services.AddSwaggerGen(options =>
+    {
+        options.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.ApiKey,
+            In = ParameterLocation.Header,
+            Name = "X-API-KEY",
+            Description = "API key dành cho các endpoint Kiosk."
+        });
+        options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            Description = "JWT Bearer token dành cho CMS."
+        });
+    });
 
     // Cấu hình CORS cho phép CMS Web gọi API
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+        ?? Array.Empty<string>();
+
     builder.Services.AddCors(options =>
     {
         options.AddPolicy("AllowAll", policy =>
         {
-            policy.AllowAnyOrigin()
+            policy.WithOrigins(allowedOrigins)
                   .AllowAnyHeader()
                   .AllowAnyMethod();
         });
     });
 
     // Cấu hình Authentication (JWT Bearer)
+    var jwtKey = builder.Configuration["Jwt:Key"];
+    if (string.IsNullOrWhiteSpace(jwtKey))
+    {
+        if (builder.Environment.IsProduction())
+        {
+            throw new InvalidOperationException(
+                "Missing required configuration: Jwt:Key. Set it with environment variables or a secret store.");
+        }
+
+        jwtKey = "Day_La_Mot_Khoa_Bi_Mat_Dai_Nhat_Co_The_123456789";
+        Log.Warning("Jwt:Key is not configured; using the Development-only demo key.");
+    }
+
+    var apiKey = builder.Configuration["ApiSettings:ApiKey"];
+    if (string.IsNullOrWhiteSpace(apiKey))
+    {
+        throw new InvalidOperationException("Missing required configuration: ApiSettings:ApiKey. Please set it in environment variables or user-secrets.");
+    }
+
     builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
@@ -79,7 +118,7 @@ try
                 ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "BookKiosk",
                 ValidAudience = builder.Configuration["Jwt:Audience"] ?? "BookKioskUser",
                 IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-                    System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "Day_La_Mot_Khoa_Bi_Mat_Dai_Nhat_Co_The_123456789"))
+                    System.Text.Encoding.UTF8.GetBytes(jwtKey))
             };
         });
     builder.Services.AddAuthorization();
