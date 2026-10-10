@@ -9,6 +9,7 @@ namespace BookKiosk.Kiosk.Services
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly DispatcherTimer _timer;
+        public bool IsSuspended { get; private set; }
 
         public IdleTimerService(IServiceProvider serviceProvider)
         {
@@ -23,16 +24,19 @@ namespace BookKiosk.Kiosk.Services
 
         public void Start()
         {
+            IsSuspended = false;
             _timer.Start();
         }
 
         public void Stop()
         {
+            IsSuspended = true;
             _timer.Stop();
         }
 
         public void ResetTimer()
         {
+            if (IsSuspended) return;
             // Reset timer bằng cách dừng rồi chạy lại
             _timer.Stop();
             _timer.Start();

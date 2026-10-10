@@ -18,6 +18,7 @@ namespace BookKiosk.Kiosk.ViewModels
         private DispatcherTimer _pollingTimer;
         private int _timeRemainingSeconds = 180; // 3 phút
         private int _orderId;
+        private string _orderCode;
 
         private decimal _totalAmount;
         public decimal TotalAmount
@@ -44,6 +45,20 @@ namespace BookKiosk.Kiosk.ViewModels
             set { _timeRemainingText = value; OnPropertyChanged(); }
         }
 
+        private string _sepayQrCodeUrl;
+        public string SepayQrCodeUrl
+        {
+            get => _sepayQrCodeUrl;
+            set { _sepayQrCodeUrl = value; OnPropertyChanged(); }
+        }
+
+        public bool IsDevMode =>
+#if DEBUG
+            true;
+#else
+            false;
+#endif
+
         public ICommand SimulatePaymentSuccessCommand { get; }
         public ICommand CancelCommand { get; }
 
@@ -54,8 +69,30 @@ namespace BookKiosk.Kiosk.ViewModels
             _apiClient = apiClient;
             _idleTimerService = idleTimerService;
 
-            SimulatePaymentSuccessCommand = new RelayCommand(_ => HandlePaymentSuccess());
+            SimulatePaymentSuccessCommand = new RelayCommand(_ => SimulatePaymentWebhook());
             CancelCommand = new RelayCommand(_ => ExecuteCancel());
+        }
+
+        private async void SimulatePaymentWebhook()
+        {
+            if (IsLoading) return;
+            IsLoading = true;
+            try
+            {
+                var response = await _apiClient.SimulatePaymentWebhookAsync(_orderCode, TotalAmount);
+                if (response == null || !response.Success)
+                {
+                    ErrorMessage = "Lỗi khi gọi Webhook giả lập: " + (response?.Message ?? "Mất mạng");
+                }
+                else
+                {
+                    ErrorMessage = "Đã gửi Webhook giả lập, đang chờ phản hồi...";
+                }
+            }
+            finally
+            {
+                IsLoading = false;
+            }
         }
 
         private async void ExecuteCancel()
@@ -67,13 +104,19 @@ namespace BookKiosk.Kiosk.ViewModels
             try
             {
                 // Hủy đơn hàng an toàn (nhả tồn kho)
-                await _apiClient.CancelOrderAsync(_orderId);
+                var result = await _apiClient.CancelOrderAsync(_orderId);
+                if (result == null || !result.Success)
+                {
+                    ErrorMessage = result?.Message ?? "Hủy đơn hàng thất bại do lỗi mạng. Vui lòng thử lại.";
+                    return; // Không chuyển trang nếu hủy thất bại
+                }
+                
+                // Đưa khách về Trang chủ, reset lại luồng mua sắm
+                _navigationService.Navigate<SearchPage>();
             }
             finally
             {
                 IsLoading = false;
-                // Đưa khách về Trang chủ, reset lại luồng mua sắm
-                _navigationService.Navigate<SearchPage>();
             }
         }
 
@@ -85,8 +128,10 @@ namespace BookKiosk.Kiosk.ViewModels
             if (parameter is CheckoutParameter p)
             {
                 TotalAmount = p.TotalAmount;
-                Discount = p.PointsUsed * 1000m;
+                Discount = p.PointsUsedAmount > 0 ? p.PointsUsedAmount : p.DiscountAmount;
                 _orderId = p.OrderId;
+                _orderCode = p.OrderCode;
+                SepayQrCodeUrl = p.SepayQrCodeUrl;
             }
 
             _timeRemainingSeconds = 180;
@@ -117,13 +162,19 @@ namespace BookKiosk.Kiosk.ViewModels
                 try
                 {
                     // Hủy đơn hàng an toàn do hết giờ (nhả tồn kho)
-                    await _apiClient.CancelOrderAsync(_orderId);
+                    var result = await _apiClient.CancelOrderAsync(_orderId);
+                    if (result == null || !result.Success)
+                    {
+                        ErrorMessage = "Hết giờ nhưng hủy đơn thất bại. Vui lòng thử lại.";
+                        return; // Khách có thể ấn nút hủy thủ công lại
+                    }
+
+                    _cartService.ClearCart();
+                    _navigationService.Navigate<IdlePage>();
                 }
                 finally
                 {
                     IsLoading = false;
-                    _cartService.ClearCart();
-                    _navigationService.Navigate<IdlePage>();
                 }
             }
         }
@@ -155,7 +206,7 @@ namespace BookKiosk.Kiosk.ViewModels
         {
             StopTimers();
             // Điều hướng sang màn hình In Hóa đơn
-            _navigationService.Navigate<ReceiptPage>();
+            _navigationService.Navigate<ReceiptPage>(TotalAmount);
         }
 
         // Hàm này sẽ được gọi từ Code-behind Page_Unloaded để dọn dẹp bộ nhớ (Tránh rò rỉ Memory Leak)

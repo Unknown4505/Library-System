@@ -197,10 +197,9 @@ public class BookKioskApiClient : IBookKioskApiClient
                 
             return result ?? ApiResponseDto<CheckoutResponseDto>.Error("PARSE_ERROR", "Lỗi parse JSON");
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
-            var mockResponse = new CheckoutResponseDto { OrderId = new Random().Next(1000, 9999), OrderCode = "MOCK-" + DateTime.Now.Ticks.ToString().Substring(0, 6), SepayQrCodeUrl = "https://img.vietqr.io/image/vietinbank-113366668888-compact2.png?amount=0&addInfo=Mock&accountName=Mock" };
-            return ApiResponseDto<CheckoutResponseDto>.Ok(mockResponse);
+            return ApiResponseDto<CheckoutResponseDto>.Error("NETWORK_ERROR", $"Lỗi kết nối tới máy chủ: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -218,9 +217,9 @@ public class BookKioskApiClient : IBookKioskApiClient
                 
             return result ?? ApiResponseDto<object>.Error("PARSE_ERROR", "Lỗi parse JSON");
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
-            return ApiResponseDto<object>.Ok(new object());
+            return ApiResponseDto<object>.Error("NETWORK_ERROR", $"Lỗi kết nối tới máy chủ: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -240,11 +239,9 @@ public class BookKioskApiClient : IBookKioskApiClient
             
             return result ?? ApiResponseDto<PaymentStatusDto>.Error("PARSE_ERROR", "Lỗi parse JSON");
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
-            if (new Random().Next(0, 100) > 70) 
-                return ApiResponseDto<PaymentStatusDto>.Ok(new PaymentStatusDto { Status = "Paid" }); // Giả lập thanh toán thành công (Mock)
-            return ApiResponseDto<PaymentStatusDto>.Ok(new PaymentStatusDto { Status = "Pending" }); 
+            return ApiResponseDto<PaymentStatusDto>.Error("NETWORK_ERROR", $"Lỗi kết nối tới máy chủ: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -268,5 +265,17 @@ public class BookKioskApiClient : IBookKioskApiClient
             ? SendHeartbeatAsync(databaseId)
             : Task.FromResult<ApiResponseDto<object>?>(
                 ApiResponseDto<object>.Error("INVALID_KIOSK_ID", "Kiosk ID must be the numeric ID assigned by the database."));
+    }
+
+    public async Task<ApiResponseDto<object>?> SimulatePaymentWebhookAsync(string orderCode, decimal amount)
+    {
+        var payload = new
+        {
+            referenceCode = "DEV-" + DateTime.Now.Ticks.ToString(),
+            amountIn = amount,
+            transactionContent = orderCode
+        };
+
+        return await SendAsync<object>(() => _httpClient.PostAsJsonAsync("api/payments/sepay-webhook", payload));
     }
 }

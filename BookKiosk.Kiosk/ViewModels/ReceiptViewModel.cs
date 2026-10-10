@@ -30,7 +30,7 @@ namespace BookKiosk.Kiosk.ViewModels
             
             // Kích hoạt UI Giả lập in hóa đơn đè giữa màn hình
             var cartItems = _cartService.Items.ToList(); // clone danh sách phòng khi clear
-            var totalAmount = _cartService.GetTotalAmount();
+            decimal totalAmount = parameter is decimal amt ? amt : _cartService.GetTotalAmount();
             
             _mockDialog = new MockReceiptDialog(cartItems, totalAmount);
             _mockDialog.Show();

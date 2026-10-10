@@ -30,7 +30,7 @@ namespace BookKiosk.Kiosk.Services
             var page = _serviceProvider.GetRequiredService<T>();
 
             // Nếu ViewModel của trang có kế thừa BaseViewModel, truyền tham số vào
-            if (parameter != null && page.DataContext is ViewModels.BaseViewModel baseViewModel)
+            if (page.DataContext is ViewModels.BaseViewModel baseViewModel)
             {
                 baseViewModel.Initialize(parameter);
             }

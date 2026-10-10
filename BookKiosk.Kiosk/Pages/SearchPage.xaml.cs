@@ -74,5 +74,13 @@ namespace BookKiosk.Kiosk.Pages
             }
             return false;
         }
+
+        private void Page_Unloaded(object sender, System.Windows.RoutedEventArgs e)
+        {
+            if (this.DataContext is System.IDisposable disposableVm)
+            {
+                disposableVm.Dispose();
+            }
+        }
     }
 }

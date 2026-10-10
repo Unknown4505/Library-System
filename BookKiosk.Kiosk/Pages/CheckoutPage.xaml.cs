@@ -25,5 +25,14 @@ namespace BookKiosk.Kiosk.Pages
                 vm.Cleanup();
             }
         }
+
+        private void QrImage_ImageFailed(object sender, ExceptionRoutedEventArgs e)
+        {
+            if (QrFallbackText != null)
+            {
+                QrFallbackText.Text = "Không tải được mã QR. Vui lòng thử lại";
+                QrFallbackText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
+            }
+        }
     }
 }

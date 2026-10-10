@@ -99,7 +99,7 @@
                         </Border>
                         
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <Button Content="[DEV F3] ĐÃ NHẬN TIỀN" Command="{Binding SimulatePaymentSuccessCommand}" FontSize="16" Background="#95a5a6" Foreground="White" Padding="15" Margin="0,0,0,10" Focusable="False">
+                            <Button Content="[DEV F3] ĐÃ NHẬN TIỀN" Command="{Binding SimulatePaymentSuccessCommand}" Visibility="{Binding IsDevMode, Converter={StaticResource BooleanToVisibilityConverter}}" FontSize="16" Background="#95a5a6" Foreground="White" Padding="15" Margin="0,0,0,10" Focusable="False">
                                 <Button.Resources>
                                     <Style TargetType="Border"><Setter Property="CornerRadius" Value="10"/></Style>
                                 </Button.Resources>
@@ -122,18 +122,24 @@
             </Border.Effect>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <TextBlock Text="QUÉT MÃ ĐỂ THANH TOÁN" FontSize="40" FontWeight="Bold" Foreground="#2980b9" Margin="0,0,0,20" HorizontalAlignment="Center"/>
-                <TextBlock Text="Hỗ trợ tất cả ứng dụng Ngân hàng và Ví điện tử" FontSize="24" Foreground="#7f8c8d" Margin="0,0,0,40" HorizontalAlignment="Center"/>
+                <TextBlock Text="Hỗ trợ tất cả ứng dụng Ngân hàng và Ví điện tử" FontSize="24" Foreground="#7f8c8d" Margin="0,0,0,20" HorizontalAlignment="Center"/>
+
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="#e74c3c" FontSize="20" FontWeight="Bold" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,20" Visibility="{Binding ErrorMessage, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}" />
                 
-                <!-- Hình vuông mô phỏng QR Code thật to -->
+                <!-- Hình vuông hiển thị QR Code -->
                 <Border Width="500" Height="500" BorderBrush="#3498db" BorderThickness="4" CornerRadius="20" Background="#f8f9fa">
                     <Grid>
-                        <!-- Ảnh QR Placeholder -->
-                        <TextBlock Text="[QR CODE SEPAY GIẢ LẬP]" FontSize="32" FontWeight="Bold" Foreground="#bdc3c7" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
+                        <!-- Fallback Text -->
+                        <TextBlock x:Name="QrFallbackText" Text="Đang tải mã QR..." FontSize="32" FontWeight="Bold" Foreground="#bdc3c7" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Panel.ZIndex="0"/>
+                        
+                        <!-- Ảnh QR -->
+                        <Image Source="{Binding SepayQrCodeUrl}" Stretch="Uniform" Margin="20" Panel.ZIndex="1" ImageFailed="QrImage_ImageFailed"/>
+                        
                         <!-- Biểu tượng góc QR -->
-                        <Border Width="60" Height="60" BorderBrush="#2c3e50" BorderThickness="8,8,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"/>
-                        <Border Width="60" Height="60" BorderBrush="#2c3e50" BorderThickness="0,8,8,0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="20"/>
-                        <Border Width="60" Height="60" BorderBrush="#2c3e50" BorderThickness="8,0,0,8" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="20"/>
-                        <Border Width="60" Height="60" BorderBrush="#2c3e50" BorderThickness="0,0,8,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="20"/>
+                        <Border Width="60" Height="60" BorderBrush="#2c3e50" BorderThickness="8,8,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20" Panel.ZIndex="2"/>
+                        <Border Width="60" Height="60" BorderBrush="#2c3e50" BorderThickness="0,8,8,0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="20" Panel.ZIndex="2"/>
+                        <Border Width="60" Height="60" BorderBrush="#2c3e50" BorderThickness="8,0,0,8" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="20" Panel.ZIndex="2"/>
+                        <Border Width="60" Height="60" BorderBrush="#2c3e50" BorderThickness="0,0,8,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="20" Panel.ZIndex="2"/>
                     </Grid>
                 </Border>
                 

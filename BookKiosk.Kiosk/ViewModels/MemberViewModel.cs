@@ -168,10 +168,14 @@ namespace BookKiosk.Kiosk.ViewModels
                 {
                     _navigationService.Navigate<CheckoutPage>(new CheckoutParameter 
                     { 
-                        TotalAmount = TotalAmount, 
+                        TotalAmount = response.Data.TotalAmount,
+                        DiscountAmount = response.Data.DiscountAmount,
+                        PointsUsedAmount = response.Data.PointsUsedAmount,
                         PointsUsed = PointsUsed,
                         MemberId = this.MemberId,
-                        OrderId = response.Data.OrderId
+                        OrderId = response.Data.OrderId,
+                        OrderCode = response.Data.OrderCode,
+                        SepayQrCodeUrl = response.Data.SepayQrCodeUrl
                     });
                 }
                 else
@@ -210,8 +214,12 @@ namespace BookKiosk.Kiosk.ViewModels
     public class CheckoutParameter
     {
         public decimal TotalAmount { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal PointsUsedAmount { get; set; }
         public int PointsUsed { get; set; }
         public int? MemberId { get; set; }
         public int OrderId { get; set; }
+        public string OrderCode { get; set; } = string.Empty;
+        public string SepayQrCodeUrl { get; set; } = string.Empty;
     }
 }
