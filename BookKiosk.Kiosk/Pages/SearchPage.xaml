@@ -1,0 +1,180 @@
+<Page x:Class="BookKiosk.Kiosk.Pages.SearchPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:controls="clr-namespace:BookKiosk.Kiosk.Controls"
+      Title="SearchPage" Background="#f0f2f5"
+      d:DesignHeight="1080" d:DesignWidth="1920"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      Unloaded="Page_Unloaded">
+    <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </Page.Resources>
+    <Grid Background="#f0f2f5" PreviewMouseDown="Page_PreviewMouseDown">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="7*"/>
+            <ColumnDefinition Width="3*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- CỘT TRÁI: Tìm kiếm và Kết quả -->
+        <Grid Grid.Column="0">
+            <Grid Margin="40">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Thanh công cụ tìm kiếm -->
+                <Grid Grid.Row="0" Margin="0,0,0,20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <Border Grid.Column="0" x:Name="SearchContainer" Background="White" BorderBrush="#bdc3c7" BorderThickness="2" CornerRadius="10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <Grid Grid.Column="0">
+                                <TextBlock Text="Nhập tên sách cần tìm..." FontSize="32" Foreground="#95a5a6" VerticalAlignment="Center" Margin="20,0,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Text, ElementName=SearchTextBox}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Text, ElementName=SearchTextBox}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBox x:Name="SearchTextBox" 
+                                         Text="{Binding Keyword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                         FontSize="32" Padding="20,15" Background="Transparent" BorderThickness="0" 
+                                         VerticalContentAlignment="Center" IsReadOnly="False" GotFocus="SearchTextBox_GotFocus">
+                                    <TextBox.InputBindings>
+                                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                                    </TextBox.InputBindings>
+                                </TextBox>
+                            </Grid>
+
+                            <!-- Nút Xóa nhanh -->
+                            <Button Grid.Column="1" Content="✖" FontSize="28" Foreground="#7f8c8d" Background="Transparent" BorderThickness="0" Margin="10,0,10,0" Cursor="Hand" Click="ClearButton_Click">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=SearchTextBox}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Text, ElementName=SearchTextBox}" Value="{x:Null}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Nút Quét Mã Vạch -->
+                    <Button Grid.Column="1" Content="📷 QUÉT MÃ" FontSize="24" FontWeight="Bold" Foreground="White" Background="#e67e22" 
+                            Padding="30,0" Margin="20,0,0,0" Cursor="Hand" Command="{Binding OpenScannerCommand}">
+                        <Button.Resources>
+                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="10"/></Style>
+                        </Button.Resources>
+                    </Button>
+                </Grid>
+
+            <!-- Bộ lọc thể loại (Dropdown) -->
+            <ComboBox Grid.Row="1" ItemsSource="{Binding Categories}" 
+                      SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
+                      DisplayMemberPath="Name"
+                      FontSize="28" Padding="15" Margin="0,0,0,20"
+                      Background="White" Foreground="#2c3e50"
+                      BorderBrush="#bdc3c7" BorderThickness="2">
+                <ComboBox.Resources>
+                    <!-- Tùy chỉnh bo góc cho ComboBox -->
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="10"/>
+                    </Style>
+                </ComboBox.Resources>
+            </ComboBox>
+
+            <!-- Text báo không tìm thấy kết quả -->
+            <TextBlock Grid.Row="2" Text="Không tìm thấy sách nào phù hợp..." 
+                       FontSize="32" Foreground="#95a5a6" HorizontalAlignment="Center" Margin="0,50,0,0">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SearchResults.Count}" Value="0">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
+            <!-- Lưới kết quả (Card Sách) -->
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" PanningMode="VerticalOnly">
+                <ItemsControl ItemsSource="{Binding SearchResults}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" ItemWidth="420"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Command="{Binding DataContext.BookClickCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding BookId}" Background="White" BorderBrush="Transparent" Margin="0,0,40,40" Cursor="Hand" Focusable="False">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="White" CornerRadius="15" Padding="20">
+                                            <Border.Effect>
+                                                <DropShadowEffect Color="#cccccc" BlurRadius="20" ShadowDepth="5" Opacity="0.5"/>
+                                            </Border.Effect>
+                                            <StackPanel>
+                                                <Image Source="{Binding ImageUrl}" Height="400" Stretch="UniformToFill" Margin="0,0,0,15"/>
+                                                <TextBlock Text="{Binding Title}" FontSize="28" FontWeight="Bold" TextWrapping="Wrap" MaxHeight="80" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding SellingPrice, StringFormat={}{0:N0} đ}" FontSize="24" Foreground="#e74c3c" FontWeight="Bold" Margin="0,10,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+
+            <!-- Bàn phím ảo Overlay -->
+            <controls:VirtualKeyboardQWERTYControl 
+                x:Name="VirtualKeyboard"
+                TargetText="{Binding Keyword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                VerticalAlignment="Bottom" 
+                Panel.ZIndex="999" 
+                Visibility="Collapsed" 
+                Margin="0,0,0,20"
+                EnterClicked="VirtualKeyboard_EnterClicked"/>
+        </Grid>
+
+        <!-- CỘT PHẢI: Giỏ Hàng -->
+        <controls:CartView Grid.Column="1" />
+
+        <!-- Lớp Overlay: Popup Camera (Nằm trên cùng) -->
+        <controls:CustomScannerPopupControl Grid.ColumnSpan="2" Panel.ZIndex="1000" 
+            Visibility="{Binding IsScannerOpen, Converter={StaticResource BooleanToVisibilityConverter}}" />
+    </Grid>
+</Page>

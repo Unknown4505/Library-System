@@ -1,0 +1,18 @@
+<Page x:Class="BookKiosk.Kiosk.Pages.MaintenancePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="MaintenancePage" Background="#e74c3c">
+    <Grid>
+        <!-- Backdoor tàng hình cho Kỹ thuật viên (Góc trên bên phải) -->
+        <Button Command="{Binding ExitMaintenanceCommand}" 
+                Width="100" Height="100" 
+                HorizontalAlignment="Right" VerticalAlignment="Top" 
+                Background="Transparent" BorderBrush="Transparent" Focusable="False"/>
+
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock Text="⚠️" FontSize="150" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+            <TextBlock Text="HỆ THỐNG ĐANG BẢO TRÌ" FontSize="70" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+            <TextBlock Text="Xin lỗi quý khách, hệ thống đang gặp sự cố. Vui lòng quay lại sau." FontSize="36" Foreground="White" HorizontalAlignment="Center"/>
+        </StackPanel>
+    </Grid>
+</Page>

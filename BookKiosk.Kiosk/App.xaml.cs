@@ -1,9 +1,14 @@
+using System;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using BookKiosk.Kiosk.Services.Api;
 using BookKiosk.Kiosk.Services.Hardware;
+using BookKiosk.Kiosk.Services;
+using BookKiosk.Kiosk.ViewModels;
+using BookKiosk.Kiosk.Pages;
+using QuestPDF.Infrastructure;
 
 namespace BookKiosk.Kiosk;
 
@@ -32,23 +37,55 @@ public partial class App : System.Windows.Application
                 });
 
                 // Đăng ký Hardware Mock Services (Dùng cho Laptop Dev)
-                // Khi lên máy Kiosk thật, chỉ cần đổi thành <IBarcodeScanner, RealScanner>()
                 services.AddSingleton<IBarcodeScanner, MockBarcodeScanner>();
                 services.AddSingleton<IReceiptPrinter, MockReceiptPrinter>();
 
-                // Đăng ký UI Windows/Pages
+                // Đăng ký Core Services cho Kiosk
+                services.AddSingleton<NavigationService>();
+                services.AddSingleton<IdleTimerService>();
+                services.AddSingleton<IDialogService, DialogService>();
+                services.AddSingleton<CartService>();
+                services.AddSingleton<CartViewModel>();
+                services.AddSingleton<HeartbeatWorker>();
+                services.AddSingleton<IReceiptService, ReceiptPdfService>();
+
+                // Đăng ký Windows/Pages
                 services.AddSingleton<MainWindow>();
+                services.AddTransient<IdlePage>();
+                services.AddTransient<SearchPage>();
+                services.AddTransient<BookDetailPage>();
+                services.AddTransient<MemberPage>();
+                services.AddTransient<CheckoutPage>();
+                services.AddTransient<ReceiptPage>();
+
+                // Đăng ký ViewModels
+                services.AddTransient<IdleViewModel>();
+                services.AddTransient<SearchViewModel>();
+                services.AddTransient<BookDetailViewModel>();
+                services.AddTransient<MemberViewModel>();
+                services.AddTransient<CheckoutViewModel>();
+                services.AddTransient<ReceiptViewModel>();
             })
             .Build();
     }
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        QuestPDF.Settings.License = LicenseType.Community;
+
         await AppHost!.StartAsync();
 
         var mainWindow = AppHost.Services.GetRequiredService<MainWindow>();
         mainWindow.Show();
         
+        // Điều hướng trang ban đầu sau khi load MainWindow
+        var navigationService = AppHost.Services.GetRequiredService<NavigationService>();
+        navigationService.Navigate<IdlePage>();
+
+        // Khởi động Heartbeat Worker
+        var heartbeatWorker = AppHost.Services.GetRequiredService<HeartbeatWorker>();
+        heartbeatWorker.Start();
+
         base.OnStartup(e);
     }
 
@@ -60,4 +97,3 @@ public partial class App : System.Windows.Application
         base.OnExit(e);
     }
 }
-

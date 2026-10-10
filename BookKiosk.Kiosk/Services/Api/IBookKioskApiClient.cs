@@ -67,4 +67,9 @@ public interface IBookKioskApiClient
     /// không phải mã hiển thị như KIOSK-01.
     /// </summary>
     Task<ApiResponseDto<object>?> SendHeartbeatAsync(string kioskId);
+
+    /// <summary>
+    /// Gửi giả lập Webhook SePay (chỉ dùng cho nút DEV F3)
+    /// </summary>
+    Task<ApiResponseDto<object>?> SimulatePaymentWebhookAsync(string orderCode, decimal amount);
 }
