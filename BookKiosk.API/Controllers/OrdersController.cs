@@ -1,3 +1,4 @@
+using BookKiosk.Application.DTOs.Common;
 using BookKiosk.Application.DTOs.Order;
 using BookKiosk.Application.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -22,17 +23,17 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> CheckoutKiosk([FromBody] CheckoutRequestDto request)
     {
         if (request.Items == null || !request.Items.Any())
-            return BadRequest("Giỏ hàng rỗng.");
+            return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", "Giỏ hàng rỗng."));
 
         try
         {
             var response = await _orderService.CheckoutKioskAsync(request);
-            return Ok(response);
+            return Ok(ApiResponseDto<CheckoutResponseDto>.Ok(response));
         }
         catch (Exception ex)
         {
             // Trả về 409 Conflict nếu hết hàng hoặc lỗi Logic
-            return Conflict(new { Message = ex.Message });
+            return Conflict(ApiResponseDto<object>.Error("CONFLICT", ex.Message));
         }
     }
 
@@ -45,11 +46,11 @@ public class OrdersController : ControllerBase
         try
         {
             await _orderService.CancelOrderAsync(orderId);
-            return Ok(new { Message = "Đã hủy đơn hàng và hoàn trả số lượng sách về kho." });
+            return Ok(ApiResponseDto<object>.Ok(null, "Đã hủy đơn hàng và hoàn trả số lượng sách về kho."));
         }
         catch (Exception ex)
         {
-            return BadRequest(new { Message = ex.Message });
+            return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", ex.Message));
         }
     }
 
@@ -62,11 +63,11 @@ public class OrdersController : ControllerBase
         try
         {
             var status = await _orderService.GetPaymentStatusAsync(orderId);
-            return Ok(new { status });
+            return Ok(ApiResponseDto<PaymentStatusDto>.Ok(new PaymentStatusDto { Status = status }));
         }
         catch (Exception ex)
         {
-            return NotFound(new { Message = ex.Message });
+            return NotFound(ApiResponseDto<object>.Error("NOT_FOUND", ex.Message));
         }
     }
 }

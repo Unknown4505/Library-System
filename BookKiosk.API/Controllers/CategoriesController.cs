@@ -1,3 +1,5 @@
+using BookKiosk.Application.DTOs.Books;
+using BookKiosk.Application.DTOs.Common;
 using BookKiosk.Domain.Entities;
 using BookKiosk.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
@@ -24,14 +26,14 @@ public class CategoriesController : ControllerBase
     {
         var categories = await _context.Categories
             .OrderBy(c => c.Name)
-            .Select(c => new 
+            .Select(c => new CategoryDto
             {
-                c.CategoryId,
-                c.Name,
-                c.Description
+                CategoryId = c.CategoryId,
+                Name = c.Name,
+                Description = c.Description
             })
             .ToListAsync();
             
-        return Ok(categories);
+        return Ok(ApiResponseDto<IEnumerable<CategoryDto>>.Ok(categories));
     }
 }
