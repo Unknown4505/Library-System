@@ -29,9 +29,12 @@ namespace BookKiosk.Kiosk.ViewModels
                 {
                     _errorMessage = value;
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(HasError));
                 }
             }
         }
+
+        public bool HasError => !string.IsNullOrWhiteSpace(_errorMessage);
 
         public event PropertyChangedEventHandler PropertyChanged;
 

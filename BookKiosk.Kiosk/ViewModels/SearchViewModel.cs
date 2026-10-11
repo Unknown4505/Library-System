@@ -21,7 +21,7 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private int _skip = 0;
         private const int Take = 10;
-        private DispatcherTimer _debounceTimer;
+        private DispatcherTimer? _debounceTimer;
 
         public ObservableCollection<BookModel> SearchResults { get; } = new ObservableCollection<BookModel>();
         public ObservableCollection<CategoryModel> Categories { get; } = new ObservableCollection<CategoryModel>();
@@ -100,11 +100,7 @@ namespace BookKiosk.Kiosk.ViewModels
             SimulateScanCommand = new RelayCommand(p => ExecuteScan(p as string));
 
             _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            _debounceTimer.Tick += (s, e) => 
-            {
-                _debounceTimer.Stop();
-                ExecuteSearch(true);
-            };
+            _debounceTimer.Tick += DebounceTimer_Tick;
 
             // Lắng nghe sự kiện quét từ máy quét (phần cứng hoặc Mock)
             _scanner.BarcodeScanned += Scanner_BarcodeScanned;
@@ -274,10 +270,22 @@ namespace BookKiosk.Kiosk.ViewModels
             }
         }
 
+        private void DebounceTimer_Tick(object? sender, EventArgs e)
+        {
+            _debounceTimer?.Stop();
+            ExecuteSearch(true);
+        }
+
         public void Dispose()
         {
             // Giải phóng bộ nhớ, chống memory leak khi Navigate đi
             _scanner.BarcodeScanned -= Scanner_BarcodeScanned;
+            if (_debounceTimer != null)
+            {
+                _debounceTimer.Stop();
+                _debounceTimer.Tick -= DebounceTimer_Tick;
+                _debounceTimer = null;
+            }
         }
     }
 }

@@ -6,6 +6,12 @@ namespace BookKiosk.Kiosk.Services
 {
     public interface IReceiptService
     {
-        Task<string> GenerateReceiptPdfAsync(IEnumerable<CartItemModel> cartItems, decimal totalAmount, int orderId = 0);
+        Task<string> GenerateReceiptPdfAsync(
+            IEnumerable<CartItemModel> cartItems,
+            decimal totalAmount,
+            int orderId = 0,
+            string orderCode = "",
+            decimal promotionDiscount = 0,
+            decimal pointsDiscount = 0);
     }
 }

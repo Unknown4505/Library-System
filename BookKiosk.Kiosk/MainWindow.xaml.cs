@@ -62,6 +62,7 @@ namespace BookKiosk.Kiosk
             // Reset Idle timer khi có thao tác phím (bao gồm quét mã)
             _idleTimerService?.ResetTimer();
 
+#if DEBUG
             // DEV-ONLY: Bật/Tắt ô nhập Barcode thủ công bằng phím F2
             if (e.Key == Key.F2)
             {
@@ -81,6 +82,7 @@ namespace BookKiosk.Kiosk
 
             // Nếu TextBox dev đang mở và có focus, bỏ qua xử lý buffer tự động để gõ tay bình thường
             if (DevBarcodeTextBox.IsFocused) return;
+#endif
 
             // Xử lý gom phím (Buffer) từ Barcode Scanner
             _barcodeTimer.Stop(); // Tạm dừng timer
@@ -122,6 +124,7 @@ namespace BookKiosk.Kiosk
 
         private void DevBarcodeTextBox_KeyDown(object sender, KeyEventArgs e)
         {
+#if DEBUG
             if (e.Key == Key.Enter)
             {
                 string barcode = DevBarcodeTextBox.Text.Trim();
@@ -137,6 +140,7 @@ namespace BookKiosk.Kiosk
                 }
                 e.Handled = true;
             }
+#endif
         }
 
         private void DevExitButton_Click(object sender, RoutedEventArgs e)

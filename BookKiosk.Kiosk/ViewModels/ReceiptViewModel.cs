@@ -7,6 +7,8 @@ using BookKiosk.Kiosk.Controls;
 using System.Diagnostics;
 using System.Windows;
 
+using BookKiosk.Kiosk.Models;
+
 namespace BookKiosk.Kiosk.ViewModels
 {
     public class ReceiptViewModel : BaseViewModel
@@ -30,7 +32,24 @@ namespace BookKiosk.Kiosk.ViewModels
             
             // Kích hoạt UI Giả lập in hóa đơn đè giữa màn hình
             var cartItems = _cartService.Items.ToList(); // clone danh sách phòng khi clear
-            decimal totalAmount = parameter is decimal amt ? amt : _cartService.GetTotalAmount();
+            decimal totalAmount = _cartService.GetTotalAmount();
+            int orderId = 0;
+            string orderCode = string.Empty;
+            decimal promoDiscount = 0;
+            decimal pointsDiscount = 0;
+
+            if (parameter is ReceiptParameter rp)
+            {
+                orderId = rp.OrderId;
+                orderCode = rp.OrderCode;
+                totalAmount = rp.TotalAmount;
+                promoDiscount = rp.PromotionDiscount;
+                pointsDiscount = rp.PointsDiscount;
+            }
+            else if (parameter is decimal amt)
+            {
+                totalAmount = amt;
+            }
             
             _mockDialog = new MockReceiptDialog(cartItems, totalAmount);
             _mockDialog.Show();
@@ -38,7 +57,7 @@ namespace BookKiosk.Kiosk.ViewModels
             // In Hóa Đơn PDF (Task 8.2)
             try
             {
-                var pdfPath = await _receiptService.GenerateReceiptPdfAsync(cartItems, totalAmount);
+                var pdfPath = await _receiptService.GenerateReceiptPdfAsync(cartItems, totalAmount, orderId, orderCode, promoDiscount, pointsDiscount);
                 Process.Start(new ProcessStartInfo(pdfPath) { UseShellExecute = true });
             }
             catch (Exception ex)

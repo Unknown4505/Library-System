@@ -4,6 +4,7 @@ using System.Windows.Threading;
 using BookKiosk.Kiosk.Services;
 using BookKiosk.Kiosk.Pages;
 using BookKiosk.Kiosk.Services.Api;
+using BookKiosk.Kiosk.Models;
 
 namespace BookKiosk.Kiosk.ViewModels
 {
@@ -14,11 +15,12 @@ namespace BookKiosk.Kiosk.ViewModels
         private readonly IBookKioskApiClient _apiClient;
         private readonly IdleTimerService _idleTimerService;
 
-        private DispatcherTimer _countdownTimer;
-        private DispatcherTimer _pollingTimer;
+        private DispatcherTimer? _countdownTimer;
+        private DispatcherTimer? _pollingTimer;
         private int _timeRemainingSeconds = 180; // 3 phút
         private int _orderId;
-        private string _orderCode;
+        private string _orderCode = string.Empty;
+        private bool _isProcessingFinalState = false;
 
         private decimal _totalAmount;
         public decimal TotalAmount
@@ -27,16 +29,35 @@ namespace BookKiosk.Kiosk.ViewModels
             set { _totalAmount = value; OnPropertyChanged(); }
         }
 
-        public System.Collections.ObjectModel.ObservableCollection<Models.CartItemModel> CartItems => _cartService.Items;
+        public System.Collections.ObjectModel.ObservableCollection<CartItemModel> CartItems => _cartService.Items;
         
         public decimal SubTotal => _cartService.GetTotalAmount();
         
-        private decimal _discount;
-        public decimal Discount
+        private decimal _promotionDiscount;
+        public decimal PromotionDiscount
         {
-            get => _discount;
-            set { _discount = value; OnPropertyChanged(); }
+            get => _promotionDiscount;
+            set
+            {
+                _promotionDiscount = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(Discount));
+            }
         }
+
+        private decimal _pointsDiscount;
+        public decimal PointsDiscount
+        {
+            get => _pointsDiscount;
+            set
+            {
+                _pointsDiscount = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(Discount));
+            }
+        }
+
+        public decimal Discount => PromotionDiscount + PointsDiscount;
 
         private string _timeRemainingText = "03:00";
         public string TimeRemainingText
@@ -45,7 +66,7 @@ namespace BookKiosk.Kiosk.ViewModels
             set { _timeRemainingText = value; OnPropertyChanged(); }
         }
 
-        private string _sepayQrCodeUrl;
+        private string _sepayQrCodeUrl = string.Empty;
         public string SepayQrCodeUrl
         {
             get => _sepayQrCodeUrl;
@@ -59,7 +80,7 @@ namespace BookKiosk.Kiosk.ViewModels
             false;
 #endif
 
-        public ICommand SimulatePaymentSuccessCommand { get; }
+        public ICommand? SimulatePaymentSuccessCommand { get; }
         public ICommand CancelCommand { get; }
 
         public CheckoutViewModel(CartService cartService, NavigationService navigationService, IBookKioskApiClient apiClient, IdleTimerService idleTimerService)
@@ -69,24 +90,29 @@ namespace BookKiosk.Kiosk.ViewModels
             _apiClient = apiClient;
             _idleTimerService = idleTimerService;
 
-            SimulatePaymentSuccessCommand = new RelayCommand(_ => SimulatePaymentWebhook());
+#if DEBUG
+            SimulatePaymentSuccessCommand = new RelayCommand(_ => SimulatePaymentSuccess());
+#else
+            SimulatePaymentSuccessCommand = null;
+#endif
             CancelCommand = new RelayCommand(_ => ExecuteCancel());
         }
 
-        private async void SimulatePaymentWebhook()
+#if DEBUG
+        private async void SimulatePaymentSuccess()
         {
-            if (IsLoading) return;
+            if (IsLoading || _isProcessingFinalState) return;
             IsLoading = true;
             try
             {
-                var response = await _apiClient.SimulatePaymentWebhookAsync(_orderCode, TotalAmount);
+                var response = await _apiClient.DevSimulatePaymentSuccessAsync(_orderCode);
                 if (response == null || !response.Success)
                 {
-                    ErrorMessage = "Lỗi khi gọi Webhook giả lập: " + (response?.Message ?? "Mất mạng");
+                    ErrorMessage = "Lỗi khi gọi mô phỏng DEV: " + (response?.Message ?? "Mất kết nối máy chủ");
                 }
                 else
                 {
-                    ErrorMessage = "Đã gửi Webhook giả lập, đang chờ phản hồi...";
+                    ErrorMessage = "Đã gửi yêu cầu mô phỏng DEV thành công, đang chờ phản hồi...";
                 }
             }
             finally
@@ -94,24 +120,34 @@ namespace BookKiosk.Kiosk.ViewModels
                 IsLoading = false;
             }
         }
+#endif
 
         private async void ExecuteCancel()
         {
-            if (IsLoading) return;
+            if (IsLoading || _isProcessingFinalState) return;
             IsLoading = true;
-            StopTimers();
             
             try
             {
-                // Hủy đơn hàng an toàn (nhả tồn kho)
+                // 1. Reconcile trạng thái trước khi hủy: kiểm tra xem khách vừa thanh toán thành công hay chưa
+                var statusCheck = await _apiClient.GetPaymentStatusAsync(_orderId);
+                if (statusCheck != null && statusCheck.Success && statusCheck.Data != null && statusCheck.Data.Status == "Paid")
+                {
+                    HandlePaymentSuccess();
+                    return;
+                }
+
+                // 2. Hủy đơn hàng an toàn (nhả tồn kho)
                 var result = await _apiClient.CancelOrderAsync(_orderId);
                 if (result == null || !result.Success)
                 {
                     ErrorMessage = result?.Message ?? "Hủy đơn hàng thất bại do lỗi mạng. Vui lòng thử lại.";
-                    return; // Không chuyển trang nếu hủy thất bại
+                    return; // KHÔNG StopTimers(), để timers tiếp tục hoạt động cho phép thử lại hoặc polling
                 }
                 
-                // Đưa khách về Trang chủ, reset lại luồng mua sắm
+                // 3. Đã hủy thành công từ BE
+                _isProcessingFinalState = true;
+                StopTimers();
                 _navigationService.Navigate<SearchPage>();
             }
             finally
@@ -124,11 +160,13 @@ namespace BookKiosk.Kiosk.ViewModels
         {
             base.Initialize(parameter);
             _idleTimerService.Stop(); // Tạm dừng Idle Timer toàn cục để không đá văng người dùng khi đang thanh toán
+            _isProcessingFinalState = false;
 
             if (parameter is CheckoutParameter p)
             {
                 TotalAmount = p.TotalAmount;
-                Discount = p.PointsUsedAmount > 0 ? p.PointsUsedAmount : p.DiscountAmount;
+                PromotionDiscount = p.DiscountAmount;
+                PointsDiscount = p.PointsUsedAmount;
                 _orderId = p.OrderId;
                 _orderCode = p.OrderCode;
                 SepayQrCodeUrl = p.SepayQrCodeUrl;
@@ -148,27 +186,36 @@ namespace BookKiosk.Kiosk.ViewModels
             _pollingTimer.Start();
         }
 
-        private async void CountdownTimer_Tick(object sender, EventArgs e)
+        private async void CountdownTimer_Tick(object? sender, EventArgs e)
         {
             _timeRemainingSeconds--;
             UpdateTimeText();
 
             if (_timeRemainingSeconds <= 0)
             {
-                if (IsLoading) return;
+                if (IsLoading || _isProcessingFinalState) return;
                 IsLoading = true;
-                StopTimers();
                 
                 try
                 {
-                    // Hủy đơn hàng an toàn do hết giờ (nhả tồn kho)
+                    // 1. Kiểm tra trạng thái xem khách vừa thanh toán hay chưa
+                    var statusCheck = await _apiClient.GetPaymentStatusAsync(_orderId);
+                    if (statusCheck != null && statusCheck.Success && statusCheck.Data != null && statusCheck.Data.Status == "Paid")
+                    {
+                        HandlePaymentSuccess();
+                        return;
+                    }
+
+                    // 2. Hủy đơn hàng do hết giờ (nhả tồn kho)
                     var result = await _apiClient.CancelOrderAsync(_orderId);
                     if (result == null || !result.Success)
                     {
-                        ErrorMessage = "Hết giờ nhưng hủy đơn thất bại. Vui lòng thử lại.";
-                        return; // Khách có thể ấn nút hủy thủ công lại
+                        ErrorMessage = "Hết giờ nhưng hủy đơn thất bại do lỗi mạng. Vui lòng ấn HỦY BỎ để thử lại.";
+                        return; // KHÔNG StopTimers() để khách có thể thao tác lại
                     }
 
+                    _isProcessingFinalState = true;
+                    StopTimers();
                     _cartService.ClearCart();
                     _navigationService.Navigate<IdlePage>();
                 }
@@ -179,15 +226,28 @@ namespace BookKiosk.Kiosk.ViewModels
             }
         }
 
-        private async void PollingTimer_Tick(object sender, EventArgs e)
+        private async void PollingTimer_Tick(object? sender, EventArgs e)
         {
+            if (_isProcessingFinalState) return;
+
             try
             {
                 // Gọi API lấy trạng thái đơn hàng
                 var response = await _apiClient.GetPaymentStatusAsync(_orderId);
-                if (response != null && response.Success && response.Data != null && response.Data.Status == "Paid")
+                if (response != null && response.Success && response.Data != null)
                 {
-                    HandlePaymentSuccess();
+                    if (response.Data.Status == "Paid")
+                    {
+                        HandlePaymentSuccess();
+                    }
+                    else if (response.Data.Status == "Cancelled")
+                    {
+                        _isProcessingFinalState = true;
+                        StopTimers();
+                        ErrorMessage = "Đơn hàng đã bị hủy trên hệ thống.";
+                        _cartService.ClearCart();
+                        _navigationService.Navigate<SearchPage>();
+                    }
                 }
             }
             catch
@@ -204,9 +264,23 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private void HandlePaymentSuccess()
         {
+            if (_isProcessingFinalState) return;
+            _isProcessingFinalState = true;
+
             StopTimers();
-            // Điều hướng sang màn hình In Hóa đơn
-            _navigationService.Navigate<ReceiptPage>(TotalAmount);
+
+            var receiptParam = new ReceiptParameter
+            {
+                OrderId = _orderId,
+                OrderCode = _orderCode,
+                TotalAmount = TotalAmount,
+                PromotionDiscount = PromotionDiscount,
+                PointsDiscount = PointsDiscount,
+                SubTotal = SubTotal
+            };
+
+            // Điều hướng sang màn hình In Hóa đơn mang đầy đủ Order metadata
+            _navigationService.Navigate<ReceiptPage>(receiptParam);
         }
 
         // Hàm này sẽ được gọi từ Code-behind Page_Unloaded để dọn dẹp bộ nhớ (Tránh rò rỉ Memory Leak)

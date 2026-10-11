@@ -34,6 +34,7 @@ namespace BookKiosk.Kiosk.ViewModels
                     AvailablePoints = 0;
                     PointsUsed = 0;
                     MemberId = null;
+                    ErrorMessage = "";
                 }
             }
         }
@@ -47,12 +48,14 @@ namespace BookKiosk.Kiosk.ViewModels
                 {
                     AvailablePoints = response.Data.Points;
                     MemberId = response.Data.MemberId;
+                    ErrorMessage = "";
                 }
                 else
                 {
                     AvailablePoints = 0;
                     MemberId = null;
                     PointsUsed = 0;
+                    ErrorMessage = response?.Message ?? "Số điện thoại chưa được đăng ký thành viên. Vui lòng đăng ký ở quầy.";
                 }
             }
             catch
@@ -60,6 +63,7 @@ namespace BookKiosk.Kiosk.ViewModels
                 AvailablePoints = 0;
                 MemberId = null;
                 PointsUsed = 0;
+                ErrorMessage = "Số điện thoại chưa được đăng ký thành viên. Vui lòng đăng ký ở quầy.";
             }
         }
 
@@ -140,6 +144,7 @@ namespace BookKiosk.Kiosk.ViewModels
             base.Initialize(parameter);
             PhoneNumber = "";
             PointsUsed = 0;
+            ErrorMessage = "";
             OnPropertyChanged(nameof(SubTotal));
             OnPropertyChanged(nameof(Discount));
             OnPropertyChanged(nameof(TotalAmount));

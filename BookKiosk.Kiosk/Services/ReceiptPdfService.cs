@@ -11,7 +11,13 @@ namespace BookKiosk.Kiosk.Services
 {
     public class ReceiptPdfService : IReceiptService
     {
-        public Task<string> GenerateReceiptPdfAsync(IEnumerable<CartItemModel> cartItems, decimal totalAmount, int orderId = 0)
+        public Task<string> GenerateReceiptPdfAsync(
+            IEnumerable<CartItemModel> cartItems,
+            decimal totalAmount,
+            int orderId = 0,
+            string orderCode = "",
+            decimal promotionDiscount = 0,
+            decimal pointsDiscount = 0)
         {
             // Thay đổi thư mục lưu file thành thư mục nội bộ của App
             var receiptsFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Receipts");
@@ -20,7 +26,8 @@ namespace BookKiosk.Kiosk.Services
                 Directory.CreateDirectory(receiptsFolder);
             }
 
-            var fileName = $"Receipt_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+            var safeCode = !string.IsNullOrWhiteSpace(orderCode) ? orderCode : (orderId > 0 ? orderId.ToString() : DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            var fileName = $"Receipt_{safeCode}.pdf";
             var filePath = Path.Combine(receiptsFolder, fileName);
 
             Document.Create(container =>
@@ -37,9 +44,9 @@ namespace BookKiosk.Kiosk.Services
                         .FontFamily(Fonts.Arial)
                         .Fallback(f => f.FontFamily(Fonts.Tahoma).FontFamily(Fonts.TimesNewRoman)));
 
-                    page.Header().Element(c => ComposeHeader(c, orderId));
+                    page.Header().Element(c => ComposeHeader(c, orderId, orderCode));
                     page.Content().Element(c => ComposeContent(c, cartItems));
-                    page.Footer().Element(f => ComposeFooter(f, totalAmount));
+                    page.Footer().Element(f => ComposeFooter(f, totalAmount, promotionDiscount, pointsDiscount));
                 });
             })
             .GeneratePdf(filePath);
@@ -47,7 +54,7 @@ namespace BookKiosk.Kiosk.Services
             return Task.FromResult(filePath);
         }
 
-        private void ComposeHeader(IContainer container, int orderId)
+        private void ComposeHeader(IContainer container, int orderId, string orderCode)
         {
             container.Column(column =>
             {
@@ -58,9 +65,9 @@ namespace BookKiosk.Kiosk.Services
                 
                 column.Item().AlignCenter().Text("HÓA ĐƠN THANH TOÁN").Bold().FontSize(11);
                 
-                // Đổi định dạng chống trùng lặp mã đơn
-                var orderCode = orderId > 0 ? orderId.ToString() : DateTime.Now.ToString("yyMMddHHmmss");
-                column.Item().Text($"Mã ĐH: #{orderCode}");
+                // Hiển thị mã đơn thật từ backend
+                var displayCode = !string.IsNullOrWhiteSpace(orderCode) ? orderCode : (orderId > 0 ? orderId.ToString() : DateTime.Now.ToString("yyMMddHHmmss"));
+                column.Item().Text($"Mã ĐH: #{displayCode}");
                 column.Item().Text($"Ngày: {DateTime.Now:dd/MM/yyyy HH:mm}");
                 
                 column.Item().PaddingVertical(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
@@ -94,13 +101,22 @@ namespace BookKiosk.Kiosk.Services
             });
         }
 
-        private void ComposeFooter(IContainer container, decimal totalAmount)
+        private void ComposeFooter(IContainer container, decimal totalAmount, decimal promotionDiscount, decimal pointsDiscount)
         {
             container.Column(column =>
             {
                 column.Item().PaddingVertical(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
                 
-                column.Item().AlignRight().Text($"Tổng tiền: {totalAmount:N0} đ").Bold().FontSize(11);
+                if (promotionDiscount > 0)
+                {
+                    column.Item().AlignRight().Text($"Khuyến mãi: -{promotionDiscount:N0} đ").FontSize(9);
+                }
+                if (pointsDiscount > 0)
+                {
+                    column.Item().AlignRight().Text($"Giảm giá (Điểm): -{pointsDiscount:N0} đ").FontSize(9);
+                }
+
+                column.Item().AlignRight().Text($"Tổng thanh toán: {totalAmount:N0} đ").Bold().FontSize(11);
                 
                 column.Item().PaddingVertical(8).AlignCenter().Text("Cảm ơn quý khách!").Italic().FontSize(9);
             });

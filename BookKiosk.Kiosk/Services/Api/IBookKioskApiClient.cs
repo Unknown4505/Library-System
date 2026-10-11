@@ -72,4 +72,9 @@ public interface IBookKioskApiClient
     /// Gửi giả lập Webhook SePay (chỉ dùng cho nút DEV F3)
     /// </summary>
     Task<ApiResponseDto<object>?> SimulatePaymentWebhookAsync(string orderCode, decimal amount);
+
+    /// <summary>
+    /// Giả lập thanh toán thành công an toàn dành riêng cho môi trường DEV (endpoint nội bộ do BE cung cấp)
+    /// </summary>
+    Task<ApiResponseDto<object>?> DevSimulatePaymentSuccessAsync(string orderCode);
 }

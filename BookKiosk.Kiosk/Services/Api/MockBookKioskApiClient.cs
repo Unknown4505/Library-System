@@ -137,4 +137,10 @@ public class MockBookKioskApiClient : IBookKioskApiClient
         return Task.FromResult<ApiResponseDto<object>?>(
             ApiResponseDto<object>.Ok(new object(), "Đã gửi Webhook giả lập (Mock)"));
     }
+
+    public Task<ApiResponseDto<object>?> DevSimulatePaymentSuccessAsync(string orderCode)
+    {
+        return Task.FromResult<ApiResponseDto<object>?>(
+            ApiResponseDto<object>.Ok(new object(), "Đã mô phỏng thanh toán thành công (DEV Mock)"));
+    }
 }
