@@ -13,7 +13,7 @@ public interface IOrderService
 {
     Task<CheckoutResponseDto> CheckoutKioskAsync(CheckoutRequestDto request);
     Task<bool> CancelOrderAsync(int orderId);
-    Task<string> GetPaymentStatusAsync(int orderId);
+    Task<PaymentStatusDto> GetPaymentStatusAsync(int orderId);
 }
 
 public class OrderService : IOrderService
@@ -46,11 +46,11 @@ public class OrderService : IOrderService
             foreach (var item in sortedItems)
             {
                 if (!books.TryGetValue(item.BookId, out var book))
-                    throw new Exception($"Không tìm thấy sách ID: {item.BookId}");
+                    throw new System.Collections.Generic.KeyNotFoundException($"Không tìm thấy sách ID: {item.BookId}");
 
                 var availableStock = book.StockQuantity - book.ReservedQuantity;
                 if (availableStock < item.Quantity)
-                    throw new Exception($"Sách '{book.Title}' đã hết hàng hoặc không đủ số lượng (Chỉ còn {availableStock}).");
+                    throw new InvalidOperationException($"Sách '{book.Title}' đã hết hàng hoặc không đủ số lượng (Chỉ còn {availableStock}).");
 
                 subTotal += book.SellingPrice * item.Quantity;
                 
@@ -156,10 +156,10 @@ public class OrderService : IOrderService
     public async Task<bool> CancelOrderAsync(int orderId)
     {
         var order = await _orderRepository.GetOrderByIdAsync(orderId);
-        if (order == null) throw new Exception("Không tìm thấy đơn hàng.");
+        if (order == null) throw new System.Collections.Generic.KeyNotFoundException("Không tìm thấy đơn hàng.");
         
         if (order.OrderStatus != OrderStatus.Pending)
-            throw new Exception("Đơn hàng không ở trạng thái chờ thanh toán để hủy.");
+            throw new InvalidOperationException("Đơn hàng không ở trạng thái chờ thanh toán để hủy.");
 
         await _unitOfWork.BeginTransactionAsync();
         try
@@ -183,10 +183,16 @@ public class OrderService : IOrderService
         }
     }
 
-    public async Task<string> GetPaymentStatusAsync(int orderId)
+    public async Task<PaymentStatusDto> GetPaymentStatusAsync(int orderId)
     {
         var order = await _orderRepository.GetOrderByIdAsync(orderId);
-        if (order == null) throw new Exception("Không tìm thấy đơn hàng.");
-        return order.OrderStatus.ToString();
+        if (order == null) throw new System.Collections.Generic.KeyNotFoundException("Không tìm thấy đơn hàng.");
+        
+        return new PaymentStatusDto
+        {
+            OrderId = order.OrderId,
+            OrderCode = order.OrderCode,
+            Status = order.OrderStatus.ToString()
+        };
     }
 }

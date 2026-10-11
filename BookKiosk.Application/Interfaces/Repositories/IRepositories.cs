@@ -57,3 +57,10 @@ public interface IPaymentRepository
     Task<bool> CheckTransactionExistsAsync(string referenceCode);
     Task AddTransactionAsync(PaymentTransaction transaction);
 }
+
+public interface IKioskRepository
+{
+    Task<Kiosk?> GetByIdAsync(int id);
+    Task AddIncidentAsync(KioskIncident incident);
+    Task<KioskIncident?> GetOpenIncidentAsync(int kioskId, string errorCode);
+}
