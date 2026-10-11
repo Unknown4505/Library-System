@@ -9,6 +9,10 @@ public class PaymentTransactionConfiguration : IEntityTypeConfiguration<PaymentT
     public void Configure(EntityTypeBuilder<PaymentTransaction> builder)
     {
         builder.HasKey(p => p.TransactionId);
+        builder.Property(p => p.ReferenceCode)
+            .HasMaxLength(50)
+            .IsUnicode(false)
+            .IsRequired();
         builder.HasIndex(p => p.ReferenceCode).IsUnique();
     }
 }

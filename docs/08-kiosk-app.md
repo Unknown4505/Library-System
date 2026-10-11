@@ -61,12 +61,15 @@ Dự án Kiosk bắt buộc tuân theo mô hình **MVVM (Model - View - ViewMode
 ### Nhịp gọi và thời gian chuẩn
 
 - `HttpClient` của Kiosk timeout sau 30 giây cho một request.
-- `HeartbeatWorker` trong PR #11 gửi mỗi 60 giây; endpoint/worker chưa có trên `main`.
+- Backend heartbeat đã có trên `main` qua PR #17. `HeartbeatWorker` trong PR #11 gửi mỗi 60 giây nhưng chưa được runtime-test cùng Backend.
+- `KioskSettings:KioskId` là bắt buộc, phải là số nguyên dương và phải tồn tại trong bảng `Kiosks`. Thiếu/sai config phải dừng worker với lỗi cấu hình rõ ràng; không fallback về `1`, không gửi chuỗi hiển thị như `KIOSK-01`.
 - Timestamp Backend/database phải dùng UTC (`DateTime.UtcNow`); chỉ chuyển sang giờ địa phương khi hiển thị. Các chỗ còn dùng `DateTime.Now` là drift cần owner Backend xử lý, không phải contract mới.
 
 ### 5. Màn hình Hoàn tất & In Hóa Đơn (Success Screen)
 - **Giao diện:** Báo "Thanh toán thành công. Đang in hóa đơn...".
 - **Logic:**
+  - Chỉ chuyển sang Success khi polling Backend trả `Paid`; lỗi mạng không được diễn giải thành `Cancelled` hay `Paid`.
+  - Gọi `GET /api/orders/kiosk/{orderId}/receipt` và dựng bản in từ response Backend. Không dùng cart local làm nguồn hóa đơn.
   - Gửi lệnh in (ESC/POS) xuống máy in nhiệt.
   - Sau 5 giây tự động xóa sạch Giỏ hàng và chuyển về Màn hình Chờ đón khách tiếp theo.
 
@@ -102,4 +105,16 @@ Máy Kiosk đặt nơi công cộng cần tránh việc khách hàng thoát ra n
 ```
 - `WindowStyle="None" & WindowState="Maximized"`: Che toàn bộ thanh Taskbar của Windows.
 - **Bắt phím tắt:** Cần override hàm xử lý phím (Hook) để chặn các tổ hợp phím như `Alt + F4`, `Ctrl + Alt + Del`, `Windows Key`.
-- **Nút thoát ẩn [DEV-ONLY]:** Nên tạo một góc nhỏ trên màn hình (vô hình), bấm liên tục 5 lần sẽ hiện ra ô nhập Password để tắt Kiosk, phục vụ lúc nhân viên bảo trì cần thoát ra Windows.
+- **Nút thoát ẩn [DEV-ONLY]:** Có thể dùng thao tác 5 lần chạm để mở entry point trong Development, nhưng không được xem đây là xác thực.
+
+### Chính sách bảo trì theo môi trường
+
+- Release/Production không dùng password hardcode hoặc default credential. Phải xác thực nhân viên qua Backend/JWT với quyền phù hợp; nếu dịch vụ này chưa sẵn sàng thì fail closed và chỉ bảo trì bằng quy trình vận hành ngoài ứng dụng.
+- Development có thể bật dialog thử nghiệm qua config/secret cục bộ không commit. Build Release phải loại bỏ hoặc vô hiệu hóa đường tắt Development.
+- PR #11 hiện còn password hardcode trong `PasswordDialog`; đây là blocker Production giao Khang.
+
+### F3 thanh toán mô phỏng
+
+- F3 chỉ hiển thị trong Development và gọi `POST /api/payments/dev-simulate-success/{orderCode}` không body; `ApiClient` tiếp tục gửi `X-Api-Key`.
+- Không gọi `sepay-webhook` bằng payload giả. Khi API trả lỗi/404, UI báo Development simulation không khả dụng và giữ nguyên order; không tự chuyển Paid.
+- Release không đăng ký phím F3 và Backend Production không map endpoint.
