@@ -20,6 +20,8 @@ public interface IMemberRepository
     Task AddAsync(Member member);
     Task<IEnumerable<PointTransaction>> GetPointHistoryAsync(int memberId);
     Task AddPointTransactionAsync(PointTransaction transaction);
+    Task<bool> TryDeductPointsAsync(int memberId, int points);
+    Task AddPointsAsync(int memberId, int points);
 }
 
 public interface IPromotionRepository
@@ -51,12 +53,14 @@ public interface IOrderRepository
     Task<bool> TryIncreaseReservedQuantityAsync(int bookId, int quantity);
     Task<bool> TryTransitionOrderStatusAsync(int orderId, BookKiosk.Domain.Enums.OrderStatus fromStatus, BookKiosk.Domain.Enums.OrderStatus toStatus, System.DateTime? completedAt = null);
     Task<Order?> GetPendingOrderByCodeAsync(string orderCode);
+    Task<Order?> GetOrderByCodeAsync(string orderCode);
     Task<Order?> GetOrderByIdAsync(int orderId);
 }
 
 public interface IPaymentRepository
 {
     Task<bool> CheckTransactionExistsAsync(string referenceCode);
+    Task<PaymentTransaction?> GetByReferenceCodeAsync(string referenceCode);
     Task AddTransactionAsync(PaymentTransaction transaction);
 }
 

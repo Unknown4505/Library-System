@@ -101,7 +101,15 @@ public class OrderService : IOrderService
                     int maxPointsAllowed = Math.Min(100, Math.Min(member.Points, maxPointsByAmount));
 
                     request.PointsToUse = Math.Max(0, Math.Min(request.PointsToUse, maxPointsAllowed));
-                    pointsUsedAmount = request.PointsToUse * 1000m;
+                    if (request.PointsToUse > 0)
+                    {
+                        // Giữ điểm nguyên tử tại DB chống race condition 2 đơn cùng member
+                        var pointsDeducted = await _memberRepository.TryDeductPointsAsync(request.MemberId.Value, request.PointsToUse);
+                        if (!pointsDeducted)
+                            throw new InvalidOperationException("Thành viên không đủ điểm khả dụng để sử dụng.");
+
+                        pointsUsedAmount = request.PointsToUse * 1000m;
+                    }
                 }
                 else
                 {
@@ -116,10 +124,10 @@ public class OrderService : IOrderService
             decimal totalAmount = totalAmountWithoutPoints - pointsUsedAmount;
             if (totalAmount < 0) totalAmount = 0;
 
-            var orderCode = $"ORD{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(1000, 9999)}";
+            var tempOrderCode = $"ORD-{DateTime.UtcNow:yyyyMMdd}-TEMP-{Guid.NewGuid():N}";
             var order = new Order
             {
-                OrderCode = orderCode,
+                OrderCode = tempOrderCode,
                 SaleChannel = SaleChannel.Kiosk,
                 OrderStatus = OrderStatus.Pending,
                 PaymentMethod = PaymentMethod.QR,
@@ -143,10 +151,28 @@ public class OrderService : IOrderService
             }
 
             await _orderRepository.AddOrderAsync(order);
+            await _unitOfWork.SaveChangesAsync(); // SQL Server tự sinh OrderId duy nhất
+
+            // Định dạng OrderCode chuẩn ORD-yyyyMMdd-XXXX dựa trên OrderId để triệt tiêu collision 100%
+            order.OrderCode = $"ORD-{DateTime.UtcNow:yyyyMMdd}-{order.OrderId:D4}";
+
+            // Ghi nhận giao dịch trừ điểm (Points > 0 tuân thủ Check Constraint CK_PointTransactions_Points)
+            if (request.MemberId.HasValue && request.PointsToUse > 0)
+            {
+                await _memberRepository.AddPointTransactionAsync(new PointTransaction
+                {
+                    MemberId = request.MemberId.Value,
+                    OrderId = order.OrderId,
+                    Points = request.PointsToUse,
+                    Type = PointTransactionType.Redeemed,
+                    Description = $"Sử dụng {request.PointsToUse} điểm cho đơn {order.OrderCode}"
+                });
+            }
+
             await _unitOfWork.SaveChangesAsync();
             await _unitOfWork.CommitAsync();
 
-            var sepayQrCodeUrl = $"https://qr.sepay.vn/img?acc=0366994409&bank=MB&amount={(int)totalAmount}&des={orderCode}";
+            var sepayQrCodeUrl = $"https://qr.sepay.vn/img?acc=0366994409&bank=MB&amount={(int)totalAmount}&des={order.OrderCode}";
 
             return new CheckoutResponseDto
             {
@@ -185,6 +211,20 @@ public class OrderService : IOrderService
             foreach (var detail in order.OrderDetails)
             {
                 await _orderRepository.IncreaseReservedQuantityAsync(detail.BookId, -detail.Quantity);
+            }
+
+            // Hoàn lại điểm thành viên nếu đơn hàng có sử dụng điểm
+            if (order.MemberId.HasValue && order.PointsUsed > 0)
+            {
+                await _memberRepository.AddPointsAsync(order.MemberId.Value, order.PointsUsed);
+                await _memberRepository.AddPointTransactionAsync(new PointTransaction
+                {
+                    MemberId = order.MemberId.Value,
+                    OrderId = order.OrderId,
+                    Points = order.PointsUsed, // Luôn dương theo constraint
+                    Type = PointTransactionType.Earned,
+                    Description = $"Hoàn {order.PointsUsed} điểm do đơn hàng {order.OrderCode} bị hủy"
+                });
             }
 
             await _unitOfWork.SaveChangesAsync();

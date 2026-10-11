@@ -1,156 +1,84 @@
-# BÁO CÁO CHI TIẾT KẾT QUẢ SỬA LỖI & KIỂM TRA TOÀN DIỆN BACKEND
-## TÍNH TOÀN VẸN GIAO DỊCH (TRANSACTION SAFETY) & TÍCH HỢP SEPAY THẬT (BE-NEW-01 ĐẾN BE-NEW-09)
+# BÁO CÁO KẾT QUẢ SỬA LỖI BACKEND (ĐỢT SỬA LỖI THEO REVIEW PR #26)
 
-> **Người thực hiện:** Thiện (`@thien33`)  
+> **Người thực hiện:** `@thien33`  
 > **Nhánh thực hiện:** `thien`  
-> **Cơ sở:** Mã nguồn mới nhất sau khi merge `origin/main` (commit `f62a2bb`).  
-> **Trạng thái:** Đã code hoàn tất tại local, Build cả Debug và Release **0 Lỗi**, sẵn sàng nghiệm thu và tích hợp.  
+> **Cơ sở:** Sửa lỗi theo phản hồi của Leader (`@Unknown4505`) trên PR #26 và đồng bộ PR [#11](https://github.com/Unknown4505/Library-System/pull/11) của Khang  
 > **Liên kết Issue:** Closes #19 (https://github.com/Unknown4505/Library-System/issues/19)  
+> **Trạng thái:** Đã hoàn tất sửa lỗi tại local, Build Release thành công **0 Lỗi**, sẵn sàng nghiệm thu  
 
 ---
 
-## I. TỔNG QUAN FILE ĐÃ SỬA ĐỔI
+## 1. DANH SÁCH BUG ID ĐÃ XỬ LÝ TRONG LẦN NÀY
 
-| STT | File thay đổi | Trách nhiệm | Mục đích sửa đổi |
+| Bug ID | Mức độ | Mô tả tóm tắt | Giải pháp kỹ thuật đã áp dụng |
 |---|---|---|---|
-| 1 | `BookKiosk.Application/Interfaces/Repositories/IRepositories.cs` | Thiện (phối hợp Leader) | Khai báo 2 phương thức atomic: `TryIncreaseReservedQuantityAsync` và `TryTransitionOrderStatusAsync`. |
-| 2 | `BookKiosk.Infrastructure/Repositories/Repositories.cs` | Thiện (phối hợp Leader) | Triển khai atomic conditional UPDATE trực tiếp tại DB để chống race condition và overselling. |
-| 3 | `BookKiosk.Application/Services/OrderService.cs` | Thiện | Sửa checkout: conditional reserve, validate `Quantity > 0`, chặn sách inactive, sửa rule điểm (0..100, `Math.Floor`), sinh `OrderCode` duy nhất; sửa cancel: atomic state transition. |
-| 4 | `BookKiosk.Application/Services/PaymentService.cs` | Thiện | Nâng cấp DTO `PaymentWebhookPayload` chuẩn SePay; trích xuất OrderCode linh hoạt; xử lý idempotent an toàn trong transaction; atomic transition sang `Paid`; ghi nhận đối soát khi lệch tiền. |
-| 5 | `BookKiosk.API/Controllers/PaymentsController.cs` | Thiện | Xác thực webhook chuẩn HMAC-SHA256 (`X-SePay-Signature`, `X-SePay-Timestamp`); anti-replay ±300s; so sánh constant-time; **Fail-Closed ở Production**. |
-| 6 | `BookKiosk.API/HostedServices/ExpiredOrderCleanupService.cs` | Thiện | Đọc `OrderTimeoutMinutes` từ config; tính ngưỡng UTC đồng bộ với `CreatedAt`; atomic state transition Pending ➔ Cancelled chống race với Webhook Paid. |
-| 7 | `BookKiosk.Application/Services/BookService.cs` | Thiện | Lọc sách inactive khi Kiosk quét Barcode (`GetBookByBarcodeAsync`); giữ nguyên `GetBookByIdAsync` cho CMS Admin. |
-| 8 | `BookKiosk.API/appsettings.Development.json` | Thiện | Bổ sung cấu hình mẫu `OrderSettings:OrderTimeoutMinutes = 4` và `SePay:WebhookSecret = "sepay_dev_secret_test"`. |
+| **BE-NEW-10** | **P0** | Validate giao dịch tiền vào & đối chiếu tài khoản nhận | - Chỉ xác nhận thanh toán khi `transferType == "in"`. Giao dịch tiền ra (`"out"`) bị từ chối chuyển `Paid`.<br>- Đối chiếu số tài khoản thụ hưởng `accountNumber` và `subAccount` với cấu hình trong `appsettings.json`. Khác tài khoản thụ hưởng sẽ bị từ chối chuyển `Paid`. |
+| **BE-NEW-11** | **P0** | Xử lý DbUpdateException an toàn (không nuốt lỗi DB) | - Triệt tiêu việc bắt chuỗi `DbUpdateException` chung chung.<br>- Sau khi rollback, query lại DB bằng `CheckTransactionExistsAsync(refCode)`: Chỉ trả `true` (Idempotent) nếu transaction thực sự đã tồn tại trong DB do tiến trình song song commit thành công.<br>- Nếu chưa tồn tại trong DB: Đây là lỗi DB thật sự (FK, Check Constraint, dữ liệu sai định dạng) ➔ `throw;` lại lỗi, tuyệt đối không nuốt lỗi. |
+| **BE-NEW-12** | **P0** | Webhook thanh toán đến sau khi Order đã Cancelled | - Bổ sung `GetOrderByCodeAsync` để tra cứu đơn hàng ở mọi trạng thái.<br>- Nếu đơn đã `Cancelled`: Vẫn lưu `PaymentTransaction` vào DB để lưu vết đối soát cho nhân viên kế toán hoàn tiền/tạo đơn bù.<br>- Không chuyển lại thành `Paid`, không trừ kho thật, không nhả kho lần 2 và không đụng điểm thành viên. Trả 200 cho SePay để tránh spam retry. |
+| **BE-NEW-13** | **P1** | Concurrent member points & sửa vi phạm Check Constraint | - Sửa lỗi vi phạm `CONSTRAINT [CK_PointTransactions_Points] CHECK ([Points] > 0)`: Luôn lưu giá trị `Points` dương (> 0) khi lưu giao dịch loại `Redeemed`.<br>- Triển khai mô hình Hold & Release nguyên tử tại DB:<br>  + Lúc Checkout: Trừ giữ điểm nguyên tử bằng `TryDeductPointsAsync` (`UPDATE Members SET Points = Points - @used WHERE MemberId = @id AND Points >= @used`). Không đủ điểm sẽ bị chặn ngay lúc checkout, triệt tiêu race condition 2 đơn cùng xài chung 1 số điểm.<br>  + Lúc Cancel (Kiosk cancel hoặc Expired cleanup): Hoàn lại điểm nguyên tử qua `AddPointsAsync` và ghi nhận `PointTransaction` hoàn điểm.<br>  + Lúc Payment: Điểm đã giữ an toàn lúc checkout, chỉ cộng thêm điểm thưởng tích lũy mới (`TotalAmount / 10000`). |
+| **BE-NEW-14** | **P1** | Tuyệt đối duy nhất cho OrderCode (chống collision 100%) | - Đồng bộ 100% định dạng `docs/03-database.md` (§3.2, dòng 140): `ORD-yyyyMMdd-XXXX` (trong đó `XXXX` là `OrderId` toàn hệ thống padding 4 chữ số).<br>- Sinh mã dựa trên khóa chính `OrderId` tự tăng (Identity) của SQL Server, bảo đảm tính duy nhất tuyệt đối về mặt toán học (100% không thể trùng lặp). |
+| **ENDPOINT F3** | **Dev** | Endpoint F3 Kiosk Dev Simulate Success | - Triển khai `POST /api/payments/dev-simulate-success/{orderCode}` theo đúng `docs/04-api-reference.md` (§3.4) cho FE của Khang (PR #11):<br>  + Chỉ bật trong Development (`IHostEnvironment.IsDevelopment()`), Production trả `404`.<br>  + Bắt buộc xác thực qua header `X-Api-Key` của Kiosk.<br>  + Dùng chung luồng hoàn tất giao dịch an toàn với Webhook thật: chuyển `Paid` nguyên tử, trừ kho thật, tích điểm thưởng, trả về `ApiResponseDto<PaymentStatusDto>`.<br>  + Đơn không tồn tại trả `404`; Đơn đã hủy trả `409 Conflict`; Đơn đã thanh toán trả `200 OK`. |
 
 ---
 
-## II. KẾT QUẢ BUILD HỆ THỐNG
+## 2. DANH SÁCH FILE THAY ĐỔI
 
-Lệnh thực thi:
+```text
+BookKiosk.API/Controllers/PaymentsController.cs
+BookKiosk.API/HostedServices/ExpiredOrderCleanupService.cs
+BookKiosk.API/appsettings.Development.json
+BookKiosk.Application/Interfaces/Repositories/IRepositories.cs
+BookKiosk.Application/Services/OrderService.cs
+BookKiosk.Application/Services/PaymentService.cs
+BookKiosk.Infrastructure/Repositories/Repositories.cs
+docs/report-kiem-tra-sua-loi-backend.md
+docs/thong-nhat-leader-va-team.md
+```
+
+*(Cam kết: Không sửa đổi bất kỳ file nào thuộc `BookKiosk.Kiosk/**`, `BookKiosk.CMS/**` hoặc file FE của Khang).*
+
+---
+
+## 3. LỆNH BUILD & KẾT QUẢ KIỂM THỬ (TEST COMMAND & OUTPUT)
+
+### Lệnh biên dịch Release:
 ```powershell
 & "C:\Users\pnt19\AppData\Local\Microsoft\dotnet\dotnet.exe" build BookKiosk.API/BookKiosk.API.csproj -c Release
 ```
-Kết quả:
+
+### Kết quả Output thực tế:
 ```text
-  BookKiosk.Domain -> ...\BookKiosk.Domain.dll
-  BookKiosk.Application -> ...\BookKiosk.Application.dll
-  BookKiosk.Infrastructure -> ...\BookKiosk.Infrastructure.dll
-  BookKiosk.API -> ...\BookKiosk.API.dll
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  BookKiosk.Domain -> D:\Downloads\CNPM\Library-System\BookKiosk.Domain\bin\Release\net10.0\BookKiosk.Domain.dll
+  BookKiosk.Application -> D:\Downloads\CNPM\Library-System\BookKiosk.Application\bin\Release\net10.0\BookKiosk.Application.dll
+  BookKiosk.Infrastructure -> D:\Downloads\CNPM\Library-System\BookKiosk.Infrastructure\bin\Release\net10.0\BookKiosk.Infrastructure.dll
+  BookKiosk.API -> D:\Downloads\CNPM\Library-System\BookKiosk.API\bin\Release\net10.0\BookKiosk.API.dll
 
 Build succeeded.
-    12 Warning(s)  (chỉ có cảnh báo AutoMapper cũ và using thừa đã có từ main)
+    11 Warning(s)  (chỉ có cảnh báo AutoMapper cũ từ main; code mới không phát sinh warning nào)
     0 Error(s)
-Time Elapsed: 00:00:25.31
+
+Time Elapsed 00:00:11.02
 ```
-**Kết luận:** Hệ thống build thành công mỹ mãn, cấu trúc kiến trúc sạch (Clean Architecture) được bảo toàn tuyệt đối, không phát sinh lỗi biên dịch.
 
 ---
 
-## III. BÁO CÁO CHI TIẾT TỪNG MÃ MỤC CHECKLIST
-
-### 1. BE-NEW-01 | P0 — Atomic reserve / Chống overselling
-- **Vấn đề đã khắc phục:** Mã cũ đọc `StockQuantity - ReservedQuantity` trong RAM rồi mới gọi update (read-then-update). 2 request đồng thời sẽ cùng thấy còn hàng và cùng mua cuốn sách cuối cùng, làm vi phạm check constraint `CK_Books_ReservedQuantity`.
-- **Giải pháp:**
-  - Kiểm tra `Quantity <= 0` ➔ Ném `ArgumentException`.
-  - Kiểm tra `!book.IsActive` ➔ Ném `InvalidOperationException`.
-  - Giữ thứ tự sắp xếp `OrderBy(i => i.BookId)` để chống deadlock.
-  - Gọi `TryIncreaseReservedQuantityAsync`:
-    ```sql
-    UPDATE Books SET ReservedQuantity = ReservedQuantity + @qty
-    WHERE BookId = @id AND IsActive = 1 AND (StockQuantity - ReservedQuantity) >= @qty
-    ```
-  - Nếu affected rows == 0 ➔ Ném ngoại lệ hết hàng ➔ Rollback toàn bộ checkout.
-- **Trạng thái:** **PASS (Code Review & Static Verification)**.
-
-### 2. BE-NEW-02 | P0 — Race condition giữa Webhook Paid, Cancel và Cleanup
-- **Vấn đề đã khắc phục:** 3 tiến trình có thể cùng đọc trạng thái `Pending` tại một thời điểm, dẫn tới đơn vừa bị hủy nhả kho lại vừa được thanh toán trừ kho.
-- **Giải pháp:**
-  - Mọi thao tác đổi trạng thái đều dùng điều kiện nguyên tử:
-    - Khi Cancel: `WHERE OrderId = @id AND OrderStatus = Pending` ➔ Chỉ khi update thành công mới nhả `ReservedQuantity`.
-    - Khi Cleanup: `WHERE OrderId = @id AND OrderStatus = Pending` ➔ Chỉ khi update thành công mới nhả `ReservedQuantity`. Nếu Webhook đã đổi sang `Paid`, cleanup bỏ qua.
-    - Khi Webhook Paid: `WHERE OrderId = @id AND OrderStatus = Pending` ➔ Chỉ khi chuyển thành công sang `Paid` mới trừ kho thật. Nếu đơn đã bị hủy, giao dịch chỉ lưu vết đối soát, không trừ kho.
-- **Trạng thái:** **PASS (Code Review & Static Verification)**.
-
-### 3. BE-NEW-03 | P0 — Chuẩn hóa SePay Webhook Payload & Xác thực HMAC-SHA256
-- **Vấn đề đã khắc phục:** DTO cũ chỉ có 3 trường, không khớp với tài liệu SePay và Test Mode (`transferAmount`, `content`, `id`, `referenceCode`, `code`...). Xác thực cũ đọc sai tên header (`SePay-Signature`), băm thiếu timestamp, không kiểm tra replay, và bypass xác thực khi secret rỗng.
-- **Giải pháp:**
-  - Chuẩn hóa DTO `PaymentWebhookPayload` đầy đủ 12 trường của SePay, bổ sung helper `EffectiveAmount`, `EffectiveContent`, `EffectiveReferenceCode` để tương thích cả mock test cũ.
-  - Đọc `X-SePay-Signature` (định dạng `sha256={hex}`) và `X-SePay-Timestamp`.
-  - Kiểm tra timestamp chống replay: dung sai ±300 giây (5 phút). Quá hạn trả `401 Unauthorized` (`Request expired`).
-  - Ký chuỗi `{timestamp}.{raw_body}` bằng HMAC-SHA256 và so khớp constant-time (`CryptographicOperations.FixedTimeEquals`).
-  - **Production Fail-Closed:** Khi `SePay:WebhookSecret` chưa được cấu hình, hệ thống trả HTTP 500/401 và từ chối request, tuyệt đối không bypass.
-- **Trạng thái:** **PASS (Code Review & Static Verification)**.
-
-### 4. BE-NEW-04 | P0 — Webhook Idempotency dưới concurrency
-- **Vấn đề đã khắc phục:** Kiểm tra trùng trước transaction dẫn tới 2 webhook đồng thời cùng vượt qua kiểm tra.
-- **Giải pháp:**
-  - Đưa thao tác kiểm tra và thêm `PaymentTransaction` vào trong transaction.
-  - Tận dụng Unique Index trên cột `ReferenceCode`. Nếu gặp xung đột do 2 request chạy đồng thời (DbUpdateException), hệ thống rollback an toàn và trả HTTP 200 `{ success = true }` (Idempotent thành công), không trừ kho hay điểm lần 2.
-  - Lệch số tiền (`EffectiveAmount != order.TotalAmount`): Lưu vết `PaymentTransaction` đối soát, giữ nguyên `OrderStatus = Pending`, không đổi sang Paid, không trừ kho.
-- **Trạng thái:** **PASS (Code Review & Static Verification)**.
-
-### 5. BE-NEW-05 | P1 — Cơ chế sinh `OrderCode` duy nhất
-- **Vấn đề đã khắc phục:** Định dạng cũ `ORD + yyyyMMddHHmmss` dễ bị collision khi có 2 đơn trong cùng 1 giây.
-- **Giải pháp:**
-  - Sinh mã duy nhất: `$"ORD{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(1000, 9999)}"`.
-  - Cập nhật regex parser trong `PaymentService`: Hỗ trợ cả `ORD\d{14..18}` và `ORD-yyyyMMdd-XXXX` (`ORD[-\w\d]+`).
-- **Trạng thái:** **PASS (Code Review & Static Verification)**.
-
-### 6. BE-NEW-06 | P1 — Business Rule Điểm thành viên (0..100)
-- **Vấn đề đã khắc phục:** Cho phép dùng > 100 điểm; dùng `Math.Ceiling` làm tròn lên làm điểm quy đổi vượt quá số tiền đơn hàng dẫn tới tiền đơn hàng bị âm.
-- **Giải pháp:**
-  - Giới hạn cứng `0 <= PointsToUse <= 100`.
-  - Dùng `Math.Floor(totalAmountWithoutPoints / 1000m)` để điểm quy đổi không bao giờ vượt quá tiền đơn hàng.
-  - Điểm dùng không vượt quá số dư hiện có của thành viên.
-  - Tỷ giá giữ nguyên 1 điểm = 1.000 VNĐ.
-- **Trạng thái:** **PASS (Code Review & Static Verification)**.
-
-### 7. BE-NEW-07a | P1 — Validation Rollback toàn diện
-- **Giải pháp:** Toàn bộ chuỗi thao tác trong `CheckoutKioskAsync` và `HandleSePayWebhookAsync` được bao bọc trong `using var transaction = await _unitOfWork.BeginTransactionAsync()`. Nếu bất kỳ bước nào thất bại, khối catch gọi `_unitOfWork.RollbackAsync()` bảo đảm không để lại dữ liệu dở dang (Order, OrderDetails, ReservedQuantity, PointTransaction).
-- **Trạng thái:** **PASS (Code Review & Static Verification)**.
-
-### 8. BE-NEW-07b | P1 — Expired Cleanup UTC & Config
-- **Vấn đề đã khắc phục:** Hardcode 4 phút; so sánh `DateTime.Now` (UTC+7) với `Order.CreatedAt` (UTC) bị lệch 7 tiếng.
-- **Giải pháp:**
-  - Đọc `OrderSettings:OrderTimeoutMinutes` từ `IConfiguration` (mặc định 4).
-  - So sánh ngưỡng theo UTC: `DateTime.UtcNow.AddMinutes(-timeoutMinutes)`.
-- **Trạng thái:** **PASS (Code Review & Static Verification)**.
-
-### 9. BE-NEW-08 | P1 — Lọc sách Inactive cho Kiosk & Giữ CMS Admin
-- **Vấn đề đã khắc phục:** Kiosk có thể quét barcode sách inactive; checkout chưa chặn sách inactive.
-- **Giải pháp:**
-  - `CheckoutKioskAsync`: Kiểm tra `if (!book.IsActive)` ➔ Chặn tạo đơn.
-  - `GetBookByBarcodeAsync`: Kiểm tra `if (book == null || !book.IsActive)` ➔ Trả 404 NOT_FOUND.
-  - `GetBookByIdAsync`: Giữ nguyên trả thông tin sách để Admin CMS quản lý và sửa sách bình thường.
-- **Trạng thái:** **PASS (Code Review & Static Verification)**.
-
-### 10. BE-NEW-09 | P1 — Runtime Regression Evidence (PR #17 Endpoints)
-- **Kiểm tra các endpoint đã sửa ở PR #17:**
-  - `POST /api/kiosk/heartbeat`: Contract heartbeat đã sửa ở PR #17 và nâng cấp kiểm tra `kioskId <= 0` (400), `kioskId` không tồn tại (404), status 1/2/3 hợp lệ (200 wrapper `ApiResponseDto`).
-  - `GET /api/orders/{id}/status`: Trả đúng wrapper `ApiResponseDto<PaymentStatusDto>` gồm `orderId`, `orderCode`, `status`.
-  - `POST /api/orders/checkout`: Trả đúng `CheckoutResponseDto` với `orderId`, `orderCode`, link QR SePay.
-  - `POST /api/orders/{id}/cancel`: Hủy đơn Pending nguyên tử, nhả reserve.
-  - `GET /api/categories` & `GET /api/areas`: Trả 200 kèm wrapper `ApiResponseDto`.
-- **Trạng thái:** **PASS (Static & Build Verification)**.
-
----
-
-## IV. BẢNG TỔNG KẾT KẾ HOẠCH NGHIỆM THU
+## 4. BẢNG TRẠNG THÁI NGHIỆM THU (PASS / FAIL / NOT RUNTIME TESTED)
 
 - **Database Provider:** SQL Server (`Microsoft.EntityFrameworkCore.SqlServer` — Target: `Server=.\\SQLEXPRESS02;Database=BookKiosk_Dev;...`).
 
-| Hạng mục kiểm tra | Phương thức | Kết quả | Ghi chú |
+| Test ID / Kịch bản kiểm tra | Môi trường / Provider | Trạng thái | Chi tiết / Bằng chứng |
 |---|---|---|---|
-| Biên dịch Build .NET 10 | `dotnet build -c Release` | **PASS (0 Errors)** | Sạch hoàn toàn, không có lỗi cú pháp/reference |
-| Atomic Reserve & Validation (BE-NEW-01) | Static Audit / Code Review | **PASS** | Sử dụng conditional update DB, không read-then-update |
-| State Transition Racing (BE-NEW-02) | Static Audit / Code Review | **PASS** | Chỉ chuyển Pending ➔ Paid/Cancelled nếu pending |
-| SePay Payload & HMAC Auth (BE-NEW-03) | Static Audit / Code Review | **PASS** | Chữ ký HMAC-SHA256, replay ±300s, Fail-Closed |
-| Webhook Idempotency (BE-NEW-04) | Static Audit / Code Review | **PASS** | Xử lý duplicate an toàn trong transaction |
-| OrderCode Collision (BE-NEW-05) | Static Audit / Code Review | **PASS** | Mã ngẫu nhiên duy nhất, regex linh hoạt |
-| Business Rule Điểm (BE-NEW-06) | Static Audit / Code Review | **PASS** | Enforce 0..100, Math.Floor, không âm |
-| Rollback Safety (BE-NEW-07a) | Static Audit / Code Review | **PASS** | Try/catch rollback bao bọc trọn vẹn |
-| Cleanup UTC & Config (BE-NEW-07b) | Static Audit / Code Review | **PASS** | Ngưỡng UTC đồng bộ CreatedAt, config minutes |
-| Inactive Book Filtering (BE-NEW-08) | Static Audit / Code Review | **PASS** | Chặn Kiosk Barcode & Checkout, giữ CMS Admin |
-| Endpoint Regression (BE-NEW-09) | Static Audit / Code Review | **PASS** | Không ảnh hưởng hợp đồng API đã pass PR #17 |
-| Concurrency Stress Test trên SQL Server thật | SQL Server Environment | **NOT RUNTIME TESTED** | Chờ môi trường SQL Server test chuyên biệt theo docs 11 |
-| SePay Test Mode Sandbox Live Webhook | SePay Sandbox / Tunnel Ngrok | **NOT RUNTIME TESTED** | Chờ cấu hình webhook URL thực tế từ cổng SePay |
+| **Build & Compilation** | .NET 10 (Release) | **PASS** | Biên dịch thành công 0 lỗi, 11 cảnh báo cũ. |
+| **BE-NEW-10: Inbound Transfer & Account Check** | Code Logic / Security Filter | **PASS (Static Verified)** | Chỉ nhận `transferType == "in"`, kiểm tra `accountNumber` cấu hình. |
+| **BE-NEW-11: Safe DbUpdateException** | Code Logic / Repository Query | **PASS (Static Verified)** | Kiểm tra tồn tại trong DB sau rollback; không nuốt lỗi DB thật. |
+| **BE-NEW-12: Late Webhook after Cancelled** | Code Logic / Audit Log | **PASS (Static Verified)** | Lưu `PaymentTransaction`, giữ `Cancelled`, không trừ kho hay điểm. |
+| **BE-NEW-13: Concurrent Member Points & Positive Points** | Code Logic / Atomic DB Update | **PASS (Static Verified)** | Hold điểm lúc checkout, hoàn điểm lúc cancel, Points > 0. |
+| **BE-NEW-14: Absolute Unique OrderCode** | Code Logic / DB Identity | **PASS (Static Verified)** | Sinh mã theo `OrderId:D4` (`ORD-yyyyMMdd-XXXX`), 100% không trùng. |
+| **ENDPOINT F3: Kiosk Dev Simulation** | Controller & Service | **PASS (Static Verified)** | Dev-only, `X-Api-Key`, hoàn tất giao dịch an toàn, trả `200 Paid`. |
+| **Concurrency Stress Test trên SQL Server thật** | SQL Server Integration DB | **NOT RUNTIME TESTED** | Chưa chạy trên môi trường test SQL Server riêng biệt theo `docs/11` (chờ Leader kích hoạt DB test riêng). |
+| **SePay Sandbox Live Webhook** | SePay Sandbox / Tunnel Ngrok | **NOT RUNTIME TESTED** | Cần tunnel Ngrok và webhook dashboard SePay sandbox để kích hoạt từ bên ngoài. |
+
+> [!NOTE]
+> Tuân thủ nghiêm ngặt quy định: **Không tự nhận Task 5.5 hay E2E PASS khi chưa có bằng chứng runtime log trên SQL Server test và SePay sandbox thật.** Các kịch bản concurrency phức tạp và sandbox webhook được ghi rõ ràng là `NOT RUNTIME TESTED`.

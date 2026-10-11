@@ -81,6 +81,24 @@ public class ExpiredOrderCleanupService : BackgroundService
                             .Where(b => b.BookId == detail.BookId)
                             .ExecuteUpdateAsync(s => s.SetProperty(b => b.ReservedQuantity, b => b.ReservedQuantity - detail.Quantity), stoppingToken);
                     }
+
+                    // Hoàn lại điểm thành viên nếu đơn hàng có sử dụng điểm
+                    if (order.MemberId.HasValue && order.PointsUsed > 0)
+                    {
+                        await context.Members
+                            .Where(m => m.MemberId == order.MemberId.Value)
+                            .ExecuteUpdateAsync(s => s.SetProperty(m => m.Points, m => m.Points + order.PointsUsed), stoppingToken);
+
+                        await context.PointTransactions.AddAsync(new BookKiosk.Domain.Entities.PointTransaction
+                        {
+                            MemberId = order.MemberId.Value,
+                            OrderId = order.OrderId,
+                            Points = order.PointsUsed,
+                            Type = PointTransactionType.Earned,
+                            Description = $"Hoàn {order.PointsUsed} điểm do đơn hàng {order.OrderCode} hết hạn bị hủy"
+                        }, stoppingToken);
+                        await context.SaveChangesAsync(stoppingToken);
+                    }
                 }
                 else
                 {

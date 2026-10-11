@@ -34,6 +34,19 @@ public class MemberRepository : IMemberRepository
     public async Task AddAsync(Member member) => await _context.Members.AddAsync(member);
     public async Task<IEnumerable<PointTransaction>> GetPointHistoryAsync(int memberId) => await _context.PointTransactions.Where(p => p.MemberId == memberId).OrderByDescending(p => p.CreatedAt).ToListAsync();
     public async Task AddPointTransactionAsync(PointTransaction transaction) => await _context.PointTransactions.AddAsync(transaction);
+    public async Task<bool> TryDeductPointsAsync(int memberId, int points)
+    {
+        var affected = await _context.Members
+            .Where(m => m.MemberId == memberId && m.Points >= points)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.Points, m => m.Points - points));
+        return affected > 0;
+    }
+    public async Task AddPointsAsync(int memberId, int points)
+    {
+        await _context.Members
+            .Where(m => m.MemberId == memberId)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.Points, m => m.Points + points));
+    }
 }
 
 public class PromotionRepository : IPromotionRepository
@@ -99,6 +112,7 @@ public class OrderRepository : IOrderRepository
         return affected > 0;
     }
     public async Task<Order?> GetPendingOrderByCodeAsync(string orderCode) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode && o.OrderStatus == OrderStatus.Pending);
+    public async Task<Order?> GetOrderByCodeAsync(string orderCode) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode);
     public async Task<Order?> GetOrderByIdAsync(int orderId) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderId == orderId);
 }
 
@@ -107,6 +121,7 @@ public class PaymentRepository : IPaymentRepository
     private readonly ApplicationDbContext _context;
     public PaymentRepository(ApplicationDbContext context) => _context = context;
     public async Task<bool> CheckTransactionExistsAsync(string referenceCode) => await _context.PaymentTransactions.AnyAsync(pt => pt.ReferenceCode == referenceCode);
+    public async Task<PaymentTransaction?> GetByReferenceCodeAsync(string referenceCode) => await _context.PaymentTransactions.FirstOrDefaultAsync(pt => pt.ReferenceCode == referenceCode);
     public async Task AddTransactionAsync(PaymentTransaction transaction) => await _context.PaymentTransactions.AddAsync(transaction);
 }
 

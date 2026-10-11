@@ -32,7 +32,8 @@ public class PaymentWebhookPayload
 
 public interface IPaymentService
 {
-    Task<bool> HandleSePayWebhookAsync(PaymentWebhookPayload payload);
+    Task<bool> HandleSePayWebhookAsync(PaymentWebhookPayload payload, string? expectedAccountNumber = null, string? expectedSubAccount = null);
+    Task<(bool Success, string Status, string? Message, Order? Order)> SimulateDevSuccessAsync(string orderCode);
 }
 
 public class PaymentService : IPaymentService
@@ -50,13 +51,35 @@ public class PaymentService : IPaymentService
         _memberRepository = memberRepository;
     }
 
-    public async Task<bool> HandleSePayWebhookAsync(PaymentWebhookPayload payload)
+    public async Task<bool> HandleSePayWebhookAsync(PaymentWebhookPayload payload, string? expectedAccountNumber = null, string? expectedSubAccount = null)
     {
         var refCode = payload.EffectiveReferenceCode;
         if (string.IsNullOrWhiteSpace(refCode))
             return false;
 
-        // Trích xuất OrderCode
+        // BE-NEW-10: Chỉ xác nhận thanh toán cho giao dịch tiền vào (transferType = "in")
+        if (!string.IsNullOrWhiteSpace(payload.transferType) && 
+            !string.Equals(payload.transferType, "in", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // BE-NEW-10: Đối chiếu tài khoản ngân hàng thụ hưởng nếu có cấu hình
+        if (!string.IsNullOrWhiteSpace(expectedAccountNumber) && 
+            !string.IsNullOrWhiteSpace(payload.accountNumber) &&
+            !string.Equals(payload.accountNumber.Trim(), expectedAccountNumber.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(expectedSubAccount) && 
+            !string.IsNullOrWhiteSpace(payload.subAccount) &&
+            !string.Equals(payload.subAccount.Trim(), expectedSubAccount.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // Trích xuất OrderCode linh hoạt
         string? extractedOrderCode = null;
         if (!string.IsNullOrWhiteSpace(payload.code) && payload.code.StartsWith("ORD", StringComparison.OrdinalIgnoreCase))
         {
@@ -79,14 +102,60 @@ public class PaymentService : IPaymentService
 
         if (string.IsNullOrWhiteSpace(extractedOrderCode)) return false;
 
-        var order = await _orderRepository.GetPendingOrderByCodeAsync(extractedOrderCode);
+        // BE-NEW-12: Lấy thông tin đơn hàng bất kể trạng thái để không bỏ sót late webhook
+        var order = await _orderRepository.GetOrderByCodeAsync(extractedOrderCode);
         if (order == null)
         {
-            // Kiểm tra xem đơn đã được xử lý Paid trước đó chưa (idempotent replay)
+            // Kiểm tra xem giao dịch đã được xử lý trước đó chưa (idempotent replay)
             bool exists = await _paymentRepository.CheckTransactionExistsAsync(refCode);
             return exists;
         }
 
+        // BE-NEW-12: Trường hợp webhook đến sau khi đơn hàng đã bị hủy (Cancelled)
+        if (order.OrderStatus == OrderStatus.Cancelled)
+        {
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                bool isDuplicate = await _paymentRepository.CheckTransactionExistsAsync(refCode);
+                if (!isDuplicate)
+                {
+                    // Lưu vết giao dịch để đối soát và xử lý hoàn tiền thủ công
+                    var latePaymentTx = new PaymentTransaction
+                    {
+                        OrderId = order.OrderId,
+                        ReferenceCode = refCode,
+                        Amount = payload.EffectiveAmount,
+                        Gateway = payload.gateway ?? "SePay"
+                    };
+                    await _paymentRepository.AddTransactionAsync(latePaymentTx);
+                    await _unitOfWork.SaveChangesAsync();
+                    await _unitOfWork.CommitAsync();
+                }
+                else
+                {
+                    await _unitOfWork.RollbackAsync();
+                }
+
+                // Không chuyển lại sang Paid, không trừ kho, không đụng điểm
+                return true;
+            }
+            catch (Exception)
+            {
+                await _unitOfWork.RollbackAsync();
+                bool exists = await _paymentRepository.CheckTransactionExistsAsync(refCode);
+                if (exists) return true;
+                throw;
+            }
+        }
+
+        // Nếu đơn đã Paid trước đó -> Idempotent check
+        if (order.OrderStatus == OrderStatus.Paid)
+        {
+            return true;
+        }
+
+        // Đơn hàng đang Pending -> Hoàn tất thanh toán an toàn
         await _unitOfWork.BeginTransactionAsync();
         try
         {
@@ -134,33 +203,22 @@ public class PaymentService : IPaymentService
                 await _orderRepository.DecreaseStockAndReservedQuantityAsync(item.BookId, item.Quantity);
             }
 
+            // Điểm sử dụng đã được trừ nguyên tử lúc Checkout (BE-NEW-13)
+            // Tại đây tích điểm thưởng từ giá trị đơn hàng thực tế: TotalAmount / 10000
             if (order.MemberId.HasValue)
             {
-                var member = await _memberRepository.GetByIdAsync(order.MemberId.Value);
-                if (member != null)
+                int pointsEarned = (int)(order.TotalAmount / 10000);
+                if (pointsEarned > 0)
                 {
-                    if (order.PointsUsed > 0)
+                    await _memberRepository.AddPointsAsync(order.MemberId.Value, pointsEarned);
+                    await _memberRepository.AddPointTransactionAsync(new PointTransaction
                     {
-                        member.Points -= order.PointsUsed;
-                        await _memberRepository.AddPointTransactionAsync(new PointTransaction
-                        {
-                            MemberId = member.MemberId,
-                            Points = -order.PointsUsed,
-                            Type = PointTransactionType.Redeemed
-                        });
-                    }
-                    
-                    int pointsEarned = (int)(order.TotalAmount / 10000);
-                    if (pointsEarned > 0)
-                    {
-                        member.Points += pointsEarned;
-                        await _memberRepository.AddPointTransactionAsync(new PointTransaction
-                        {
-                            MemberId = member.MemberId,
-                            Points = pointsEarned,
-                            Type = PointTransactionType.Earned
-                        });
-                    }
+                        MemberId = order.MemberId.Value,
+                        OrderId = order.OrderId,
+                        Points = pointsEarned, // Luôn dương theo Check Constraint
+                        Type = PointTransactionType.Earned,
+                        Description = $"Tích {pointsEarned} điểm từ đơn hàng {order.OrderCode}"
+                    });
                 }
             }
 
@@ -168,17 +226,88 @@ public class PaymentService : IPaymentService
             await _unitOfWork.CommitAsync();
             return true;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             await _unitOfWork.RollbackAsync();
-            // Xung đột unique index referenceCode dưới concurrency -> xử lý idempotent thành công
-            if (ex.GetType().Name.Contains("DbUpdateException") || 
-                (ex.InnerException != null && ex.InnerException.GetType().Name.Contains("DbUpdateException")) ||
-                ex.Message.Contains("ReferenceCode", StringComparison.OrdinalIgnoreCase) ||
-                (ex.InnerException != null && ex.InnerException.Message.Contains("ReferenceCode", StringComparison.OrdinalIgnoreCase)))
+            // BE-NEW-11: Sau rollback, chỉ coi là duplicate khi transaction thực sự tồn tại trong DB
+            bool exists = await _paymentRepository.CheckTransactionExistsAsync(refCode);
+            if (exists)
             {
                 return true;
             }
+            // Lỗi database thực sự (FK, Check Constraint, data invalid) -> tuyệt đối không nuốt lỗi
+            throw;
+        }
+    }
+
+    public async Task<(bool Success, string Status, string? Message, Order? Order)> SimulateDevSuccessAsync(string orderCode)
+    {
+        var order = await _orderRepository.GetOrderByCodeAsync(orderCode);
+        if (order == null)
+            return (false, "NotFound", "Không tìm thấy đơn hàng.", null);
+
+        if (order.OrderStatus == OrderStatus.Cancelled)
+            return (false, "Conflict", "Đơn hàng đã bị hủy, không thể mô phỏng thanh toán.", order);
+
+        if (order.OrderStatus == OrderStatus.Paid)
+            return (true, "Paid", "Đơn hàng đã được thanh toán trước đó.", order);
+
+        // Đơn đang Pending -> Hoàn tất đúng theo luồng giao dịch an toàn
+        var devRefCode = $"DEV_{order.OrderId}_{DateTime.UtcNow.Ticks}";
+        await _unitOfWork.BeginTransactionAsync();
+        try
+        {
+            var completedAt = DateTime.UtcNow;
+            var transitioned = await _orderRepository.TryTransitionOrderStatusAsync(order.OrderId, OrderStatus.Pending, OrderStatus.Paid, completedAt);
+            if (!transitioned)
+            {
+                await _unitOfWork.RollbackAsync();
+                var currentOrder = await _orderRepository.GetOrderByCodeAsync(orderCode);
+                return (true, currentOrder?.OrderStatus.ToString() ?? "Paid", "Đơn hàng đã được xử lý bởi tiến trình khác.", currentOrder);
+            }
+
+            var paymentTx = new PaymentTransaction
+            {
+                OrderId = order.OrderId,
+                ReferenceCode = devRefCode,
+                Amount = order.TotalAmount,
+                Gateway = "DEV_SIMULATION"
+            };
+            await _paymentRepository.AddTransactionAsync(paymentTx);
+
+            foreach (var item in order.OrderDetails)
+            {
+                await _orderRepository.DecreaseStockAndReservedQuantityAsync(item.BookId, item.Quantity);
+            }
+
+            if (order.MemberId.HasValue)
+            {
+                int pointsEarned = (int)(order.TotalAmount / 10000);
+                if (pointsEarned > 0)
+                {
+                    await _memberRepository.AddPointsAsync(order.MemberId.Value, pointsEarned);
+                    await _memberRepository.AddPointTransactionAsync(new PointTransaction
+                    {
+                        MemberId = order.MemberId.Value,
+                        OrderId = order.OrderId,
+                        Points = pointsEarned,
+                        Type = PointTransactionType.Earned,
+                        Description = $"Tích {pointsEarned} điểm từ đơn hàng {order.OrderCode} (DEV)"
+                    });
+                }
+            }
+
+            order.OrderStatus = OrderStatus.Paid;
+            order.CompletedAt = completedAt;
+
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
+
+            return (true, "Paid", "Thanh toán mô phỏng thành công.", order);
+        }
+        catch (Exception)
+        {
+            await _unitOfWork.RollbackAsync();
             throw;
         }
     }

@@ -1,3 +1,5 @@
+using BookKiosk.Application.DTOs.Common;
+using BookKiosk.Application.DTOs.Order;
 using BookKiosk.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
@@ -98,17 +100,89 @@ public class PaymentsController : ControllerBase
                 return BadRequest(new { success = false, message = "Invalid payload" });
             }
 
-            var result = await _paymentService.HandleSePayWebhookAsync(payload);
+            var expectedAcc = _configuration["SePay:AccountNumber"];
+            var expectedSub = _configuration["SePay:SubAccount"];
+
+            var result = await _paymentService.HandleSePayWebhookAsync(payload, expectedAcc, expectedSub);
             if (result)
             {
                 return Ok(new { success = true });
             }
-            return BadRequest(new { success = false, message = "Không tìm thấy Order hợp lệ." });
+            return BadRequest(new { success = false, message = "Không tìm thấy Order hợp lệ hoặc giao dịch không hợp lệ." });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Lỗi khi xử lý SePay Webhook.");
             return StatusCode(500, new { success = false });
+        }
+    }
+
+    /// <summary>
+    /// F3 mô phỏng thanh toán thành công trong môi trường Development (dành riêng cho Kiosk test luồng)
+    /// </summary>
+    [HttpPost("dev-simulate-success/{orderCode}")]
+    public async Task<IActionResult> DevSimulateSuccess([FromRoute] string orderCode)
+    {
+        // Chỉ hỗ trợ trong Development, Production luôn trả 404
+        if (!_environment.IsDevelopment())
+        {
+            return NotFound();
+        }
+
+        // Xác thực X-Api-Key của Kiosk
+        var apiKey = Request.Headers["X-Api-Key"].FirstOrDefault();
+        var expectedApiKey = _configuration["ApiSettings:ApiKey"];
+        if (string.IsNullOrEmpty(apiKey) || apiKey != expectedApiKey)
+        {
+            _logger.LogWarning("X-Api-Key không hợp lệ khi gọi dev-simulate-success.");
+            return Unauthorized(new ApiResponseDto<object>
+            {
+                Success = false,
+                Message = "X-Api-Key không hợp lệ hoặc bị thiếu."
+            });
+        }
+
+        try
+        {
+            var (success, status, message, order) = await _paymentService.SimulateDevSuccessAsync(orderCode);
+            if (status == "NotFound")
+            {
+                return NotFound(new ApiResponseDto<object>
+                {
+                    Success = false,
+                    Message = message ?? "Không tìm thấy đơn hàng."
+                });
+            }
+
+            if (status == "Conflict")
+            {
+                return StatusCode(StatusCodes.Status409Conflict, new ApiResponseDto<object>
+                {
+                    Success = false,
+                    Message = message ?? "Đơn hàng đã bị hủy, không thể mô phỏng thanh toán."
+                });
+            }
+
+            return Ok(new ApiResponseDto<PaymentStatusDto>
+            {
+                Success = true,
+                Message = message ?? "Thanh toán mô phỏng thành công.",
+                Data = new PaymentStatusDto
+                {
+                    OrderId = order?.OrderId ?? 0,
+                    OrderCode = order?.OrderCode ?? orderCode,
+                    Status = "Paid"
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi thực hiện mô phỏng thanh toán F3.");
+            return StatusCode(500, new ApiResponseDto<object>
+            {
+                Success = false,
+                Message = "Đã xảy ra lỗi nội bộ khi mô phỏng thanh toán."
+            });
         }
     }
 }
