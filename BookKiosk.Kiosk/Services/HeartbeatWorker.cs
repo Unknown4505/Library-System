@@ -43,8 +43,15 @@ namespace BookKiosk.Kiosk.Services
         {
             try
             {
-                int kioskId = _configuration.GetValue<int>("KioskSettings:KioskId", 1);
-                if (kioskId <= 0) kioskId = 1;
+                // FE-18: Bỏ fallback KioskId = 1. Thiếu/sai ID phải báo lỗi cấu hình, không nhận nhầm danh tính máy.
+                int? kioskIdConfig = _configuration.GetValue<int?>("KioskSettings:KioskId");
+                if (!kioskIdConfig.HasValue || kioskIdConfig.Value <= 0)
+                {
+                    Debug.WriteLine("[Heartbeat] LỖI CẤU HÌNH: 'KioskSettings:KioskId' bị thiếu hoặc không hợp lệ trong appsettings.json. Ngừng gửi Heartbeat để tránh nhận nhầm danh tính máy.");
+                    return;
+                }
+
+                int kioskId = kioskIdConfig.Value;
 
                 var result = await _apiClient.SendHeartbeatAsync(kioskId);
                 if (result != null && !result.Success)

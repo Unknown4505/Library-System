@@ -22,6 +22,19 @@ namespace BookKiosk.Kiosk.ViewModels
         private int _skip = 0;
         private const int Take = 10;
         private DispatcherTimer? _debounceTimer;
+        private int _searchVersion = 0;
+
+        private bool _hasNextPage = true;
+        public bool HasNextPage
+        {
+            get => _hasNextPage;
+            private set
+            {
+                _hasNextPage = value;
+                OnPropertyChanged();
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+            }
+        }
 
         public ObservableCollection<BookModel> SearchResults { get; } = new ObservableCollection<BookModel>();
         public ObservableCollection<CategoryModel> Categories { get; } = new ObservableCollection<CategoryModel>();
@@ -92,7 +105,7 @@ namespace BookKiosk.Kiosk.ViewModels
 
             SearchCommand = new RelayCommand(_ => ExecuteSearch(true));
             FilterCommand = new RelayCommand(cat => ExecuteFilter(cat as CategoryModel));
-            LoadMoreCommand = new RelayCommand(_ => ExecuteSearch(false));
+            LoadMoreCommand = new RelayCommand(_ => ExecuteSearch(false), _ => !IsLoading && HasNextPage);
             BookClickCommand = new RelayCommand(ExecuteBookClick);
             
             OpenScannerCommand = new RelayCommand(_ => OpenScanner());
@@ -216,21 +229,36 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private async void ExecuteSearch(bool reset)
         {
+            // FE-13: Chống Load More đồng thời và dừng khi đã hết trang
+            if (!reset)
+            {
+                if (IsLoading || !HasNextPage) return;
+            }
+
+            int currentVersion = ++_searchVersion;
+
             if (reset)
             {
                 _skip = 0;
+                HasNextPage = true;
                 SearchResults.Clear();
             }
 
             IsLoading = true;
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+
             try
             {
                 int? categoryId = SelectedCategory?.Id == 0 ? null : SelectedCategory?.Id;
                 int page = (_skip / Take) + 1;
                 var result = await _apiClient.GetBooksAsync(page, Take, Keyword, categoryId);
                 
+                // FE-13: Bỏ qua nếu có yêu cầu tìm kiếm mới hơn đã được khởi chạy
+                if (currentVersion != _searchVersion) return;
+
                 if (result != null && result.Success && result.Data != null)
                 {
+                    HasNextPage = result.Data.HasNextPage;
                     foreach (var b in result.Data.Items)
                     {
                         SearchResults.Add(new BookModel 
@@ -247,11 +275,34 @@ namespace BookKiosk.Kiosk.ViewModels
                         });
                     }
                     _skip += Take;
+                    ErrorMessage = "";
+                }
+                else
+                {
+                    // FE-13: Hiển thị lỗi API khi truy vấn thất bại
+                    ErrorMessage = result?.Message ?? "Không thể tải danh sách sách từ máy chủ.";
+                    if (reset)
+                    {
+                        HasNextPage = false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                if (currentVersion != _searchVersion) return;
+                ErrorMessage = "Lỗi kết nối khi tải danh sách sách: " + ex.Message;
+                if (reset)
+                {
+                    HasNextPage = false;
                 }
             }
             finally
             {
-                IsLoading = false;
+                if (currentVersion == _searchVersion)
+                {
+                    IsLoading = false;
+                    System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+                }
             }
         }
 

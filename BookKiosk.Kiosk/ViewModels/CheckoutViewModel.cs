@@ -141,14 +141,27 @@ namespace BookKiosk.Kiosk.ViewModels
                 var result = await _apiClient.CancelOrderAsync(_orderId);
                 if (result == null || !result.Success)
                 {
-                    ErrorMessage = result?.Message ?? "Hủy đơn hàng thất bại do lỗi mạng. Vui lòng thử lại.";
+                    // Reconcile lại server status: nếu đơn hàng vừa chuyển sang Paid đúng lúc gọi cancel thì server sẽ từ chối cancel
+                    var reconcileAfterFail = await _apiClient.GetPaymentStatusAsync(_orderId);
+                    if (reconcileAfterFail != null && reconcileAfterFail.Success && reconcileAfterFail.Data != null && reconcileAfterFail.Data.Status == "Paid")
+                    {
+                        HandlePaymentSuccess();
+                        return;
+                    }
+
+                    ErrorMessage = result?.Message ?? "Hủy đơn hàng thất bại do lỗi kết nối. Vui lòng thử lại.";
                     return; // KHÔNG StopTimers(), để timers tiếp tục hoạt động cho phép thử lại hoặc polling
                 }
                 
                 // 3. Đã hủy thành công từ BE
                 _isProcessingFinalState = true;
                 StopTimers();
+                _cartService.ClearCart();
                 _navigationService.Navigate<SearchPage>();
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = "Có lỗi xảy ra khi hủy đơn hàng: " + ex.Message;
             }
             finally
             {
@@ -188,12 +201,14 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private async void CountdownTimer_Tick(object? sender, EventArgs e)
         {
+            if (_isProcessingFinalState) return;
+
             _timeRemainingSeconds--;
             UpdateTimeText();
 
             if (_timeRemainingSeconds <= 0)
             {
-                if (IsLoading || _isProcessingFinalState) return;
+                if (IsLoading) return;
                 IsLoading = true;
                 
                 try
@@ -210,14 +225,28 @@ namespace BookKiosk.Kiosk.ViewModels
                     var result = await _apiClient.CancelOrderAsync(_orderId);
                     if (result == null || !result.Success)
                     {
-                        ErrorMessage = "Hết giờ nhưng hủy đơn thất bại do lỗi mạng. Vui lòng ấn HỦY BỎ để thử lại.";
-                        return; // KHÔNG StopTimers() để khách có thể thao tác lại
+                        // Reconcile server status sau khi cancel thất bại
+                        var reconcileAfterFail = await _apiClient.GetPaymentStatusAsync(_orderId);
+                        if (reconcileAfterFail != null && reconcileAfterFail.Success && reconcileAfterFail.Data != null && reconcileAfterFail.Data.Status == "Paid")
+                        {
+                            HandlePaymentSuccess();
+                            return;
+                        }
+
+                        ErrorMessage = "Hết giờ nhưng hủy đơn thất bại do lỗi mạng. Đang tiếp tục thử lại...";
+                        _timeRemainingSeconds = 5; // Trì hoãn 5s để không spam request mỗi giây
+                        return; // KHÔNG StopTimers() để khách có thể thao tác lại hoặc polling tiếp
                     }
 
                     _isProcessingFinalState = true;
                     StopTimers();
                     _cartService.ClearCart();
                     _navigationService.Navigate<IdlePage>();
+                }
+                catch (Exception ex)
+                {
+                    ErrorMessage = "Lỗi khi xử lý hết giờ thanh toán: " + ex.Message;
+                    _timeRemainingSeconds = 5;
                 }
                 finally
                 {

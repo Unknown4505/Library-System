@@ -6,6 +6,7 @@ using System.Windows.Threading;
 using BookKiosk.Kiosk.Services;
 using BookKiosk.Kiosk.Services.Hardware;
 using BookKiosk.Kiosk.Controls;
+using Microsoft.Extensions.Configuration;
 
 namespace BookKiosk.Kiosk
 {
@@ -14,6 +15,7 @@ namespace BookKiosk.Kiosk
         private readonly NavigationService _navigationService;
         private readonly IdleTimerService _idleTimerService;
         private readonly IBarcodeScanner _barcodeScanner;
+        private readonly IConfiguration? _configuration;
 
         private int _clickCount = 0;
         private DateTime _lastClickTime = DateTime.MinValue;
@@ -29,13 +31,14 @@ namespace BookKiosk.Kiosk
         }
 
         // Constructor tiêm Dependency Injection
-        public MainWindow(NavigationService navigationService, IdleTimerService idleTimerService, IBarcodeScanner barcodeScanner, IDialogService dialogService)
+        public MainWindow(NavigationService navigationService, IdleTimerService idleTimerService, IBarcodeScanner barcodeScanner, IDialogService dialogService, IConfiguration? configuration = null)
         {
             InitializeComponent();
             
             _navigationService = navigationService ?? throw new ArgumentNullException(nameof(navigationService));
             _idleTimerService = idleTimerService ?? throw new ArgumentNullException(nameof(idleTimerService));
             _barcodeScanner = barcodeScanner ?? throw new ArgumentNullException(nameof(barcodeScanner));
+            _configuration = configuration;
             
             dialogService.RegisterDialogHandler(OverlayDialog.ShowDialogAsync);
 
@@ -161,7 +164,18 @@ namespace BookKiosk.Kiosk
             {
                 _clickCount = 0; // Reset
                 
-                var passwordDialog = new PasswordDialog
+                string? configuredPin = _configuration?["KioskSettings:MaintenancePin"];
+
+#if !DEBUG
+                // Production/Release: Fail closed nếu chưa cấu hình mã PIN an toàn
+                if (string.IsNullOrWhiteSpace(configuredPin))
+                {
+                    System.Diagnostics.Debug.WriteLine("[Security] Chức năng thoát bảo trì bị vô hiệu hóa vì thiếu cấu hình MaintenancePin an toàn (Fail-closed).");
+                    return;
+                }
+#endif
+
+                var passwordDialog = new PasswordDialog(configuredPin)
                 {
                     Owner = this
                 };
