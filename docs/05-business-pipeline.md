@@ -44,6 +44,7 @@ Nếu bạn là AI agent đọc file này:
 - Nếu có nhiều CTKM thỏa mãn, **tự động chọn CTKM có `DiscountAmount` lớn nhất** để có lợi nhất cho khách.
 
 ### Bước 4: Trừ Điểm & Tính Tổng Tiền
+- Backend phải validate `0 <= pointsToUse <= 100` cho mỗi đơn, không chỉ dựa vào kiểm tra ở Frontend.
 - Đảm bảo `pointsToUse` <= Số điểm hiện có của Member.
 - Quy đổi: 1 điểm = 1.000 VNĐ.
 - Tính toán: `TotalAmount = SubTotal - DiscountAmount - (pointsToUse * 1000)`.
