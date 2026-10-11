@@ -77,6 +77,27 @@ public class OrderRepository : IOrderRepository
     public async Task IncreaseReservedQuantityAsync(int bookId, int quantity) => await _context.Books.Where(b => b.BookId == bookId).ExecuteUpdateAsync(s => s.SetProperty(b => b.ReservedQuantity, b => b.ReservedQuantity + quantity));
     public async Task DecreaseStockAndReservedQuantityAsync(int bookId, int quantity) => await _context.Books.Where(b => b.BookId == bookId).ExecuteUpdateAsync(s => s.SetProperty(b => b.StockQuantity, b => b.StockQuantity - quantity).SetProperty(b => b.ReservedQuantity, b => b.ReservedQuantity - quantity));
     public async Task AddOrderAsync(Order order) => await _context.Orders.AddAsync(order);
+    public async Task<bool> TryIncreaseReservedQuantityAsync(int bookId, int quantity)
+    {
+        var affected = await _context.Books
+            .Where(b => b.BookId == bookId && b.IsActive && (b.StockQuantity - b.ReservedQuantity) >= quantity)
+            .ExecuteUpdateAsync(s => s.SetProperty(b => b.ReservedQuantity, b => b.ReservedQuantity + quantity));
+        return affected > 0;
+    }
+    public async Task<bool> TryTransitionOrderStatusAsync(int orderId, OrderStatus fromStatus, OrderStatus toStatus, DateTime? completedAt = null)
+    {
+        var query = _context.Orders.Where(o => o.OrderId == orderId && o.OrderStatus == fromStatus);
+        int affected;
+        if (completedAt.HasValue)
+        {
+            affected = await query.ExecuteUpdateAsync(s => s.SetProperty(o => o.OrderStatus, toStatus).SetProperty(o => o.CompletedAt, completedAt.Value));
+        }
+        else
+        {
+            affected = await query.ExecuteUpdateAsync(s => s.SetProperty(o => o.OrderStatus, toStatus));
+        }
+        return affected > 0;
+    }
     public async Task<Order?> GetPendingOrderByCodeAsync(string orderCode) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode && o.OrderStatus == OrderStatus.Pending);
     public async Task<Order?> GetOrderByIdAsync(int orderId) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderId == orderId);
 }

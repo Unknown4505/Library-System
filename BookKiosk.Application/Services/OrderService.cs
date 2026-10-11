@@ -33,6 +33,15 @@ public class OrderService : IOrderService
 
     public async Task<CheckoutResponseDto> CheckoutKioskAsync(CheckoutRequestDto request)
     {
+        if (request.Items == null || !request.Items.Any())
+            throw new ArgumentException("Danh sách sản phẩm không được để trống.");
+
+        foreach (var item in request.Items)
+        {
+            if (item.Quantity <= 0)
+                throw new ArgumentException($"Số lượng sách (ID: {item.BookId}) phải lớn hơn 0.");
+        }
+
         var sortedItems = request.Items.OrderBy(i => i.BookId).ToList();
         var bookIds = sortedItems.Select(i => i.BookId).ToList();
 
@@ -48,13 +57,15 @@ public class OrderService : IOrderService
                 if (!books.TryGetValue(item.BookId, out var book))
                     throw new System.Collections.Generic.KeyNotFoundException($"Không tìm thấy sách ID: {item.BookId}");
 
-                var availableStock = book.StockQuantity - book.ReservedQuantity;
-                if (availableStock < item.Quantity)
-                    throw new InvalidOperationException($"Sách '{book.Title}' đã hết hàng hoặc không đủ số lượng (Chỉ còn {availableStock}).");
+                if (!book.IsActive)
+                    throw new InvalidOperationException($"Sách '{book.Title}' đã ngừng kinh doanh.");
+
+                // Conditional atomic reserve ngay tại DB
+                var reserved = await _orderRepository.TryIncreaseReservedQuantityAsync(item.BookId, item.Quantity);
+                if (!reserved)
+                    throw new InvalidOperationException($"Sách '{book.Title}' đã hết hàng hoặc không đủ số lượng tồn kho khả dụng.");
 
                 subTotal += book.SellingPrice * item.Quantity;
-                
-                await _orderRepository.IncreaseReservedQuantityAsync(item.BookId, item.Quantity);
             }
 
             var activePromotions = await _promotionRepository.GetAllActiveAsync();
@@ -80,30 +91,32 @@ public class OrderService : IOrderService
             decimal pointsUsedAmount = 0m;
             if (request.MemberId.HasValue && request.PointsToUse > 0)
             {
+                if (request.PointsToUse > 100)
+                    request.PointsToUse = 100;
+
                 var member = await _memberRepository.GetByIdAsync(request.MemberId.Value);
-                if (member != null && member.Points >= request.PointsToUse)
+                if (member != null && member.Points > 0)
                 {
-                    decimal requestedPointsValue = request.PointsToUse * 1000m;
-                    if (requestedPointsValue > totalAmountWithoutPoints)
-                    {
-                        request.PointsToUse = (int)Math.Ceiling(totalAmountWithoutPoints / 1000m);
-                        pointsUsedAmount = request.PointsToUse * 1000m;
-                    }
-                    else
-                    {
-                        pointsUsedAmount = requestedPointsValue;
-                    }
+                    int maxPointsByAmount = (int)Math.Floor(totalAmountWithoutPoints / 1000m);
+                    int maxPointsAllowed = Math.Min(100, Math.Min(member.Points, maxPointsByAmount));
+
+                    request.PointsToUse = Math.Max(0, Math.Min(request.PointsToUse, maxPointsAllowed));
+                    pointsUsedAmount = request.PointsToUse * 1000m;
                 }
                 else
                 {
                     request.PointsToUse = 0;
                 }
             }
+            else
+            {
+                request.PointsToUse = 0;
+            }
 
             decimal totalAmount = totalAmountWithoutPoints - pointsUsedAmount;
             if (totalAmount < 0) totalAmount = 0;
 
-            var orderCode = "ORD" + DateTime.Now.ToString("yyyyMMddHHmmss");
+            var orderCode = $"ORD{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(1000, 9999)}";
             var order = new Order
             {
                 OrderCode = orderCode,
@@ -164,8 +177,10 @@ public class OrderService : IOrderService
         await _unitOfWork.BeginTransactionAsync();
         try
         {
-            order.OrderStatus = OrderStatus.Cancelled;
-            
+            var transitioned = await _orderRepository.TryTransitionOrderStatusAsync(orderId, OrderStatus.Pending, OrderStatus.Cancelled);
+            if (!transitioned)
+                throw new InvalidOperationException("Đơn hàng đã được thanh toán hoặc đã bị hủy bởi tiến trình khác.");
+
             // Nhả lại sách (trừ đi phần đã Reserved)
             foreach (var detail in order.OrderDetails)
             {

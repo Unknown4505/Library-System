@@ -11,11 +11,16 @@ public class ExpiredOrderCleanupService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ExpiredOrderCleanupService> _logger;
+    private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
-    public ExpiredOrderCleanupService(IServiceProvider serviceProvider, ILogger<ExpiredOrderCleanupService> logger)
+    public ExpiredOrderCleanupService(
+        IServiceProvider serviceProvider, 
+        ILogger<ExpiredOrderCleanupService> logger,
+        Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
+        _configuration = configuration;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -43,10 +48,11 @@ public class ExpiredOrderCleanupService : BackgroundService
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        // Lấy thời điểm cách đây 4 phút
-        var timeoutThreshold = DateTime.Now.AddMinutes(-4);
+        // Đọc số phút timeout từ cấu hình (mặc định 4 phút)
+        var timeoutMinutes = _configuration.GetValue<int>("OrderSettings:OrderTimeoutMinutes", 4);
+        var timeoutThreshold = DateTime.UtcNow.AddMinutes(-timeoutMinutes);
 
-        // Tìm các đơn hàng Pending quá 4 phút
+        // Tìm các đơn hàng Pending quá thời gian quy định (so khớp UTC với CreatedAt)
         var expiredOrders = await context.Orders
             .Include(o => o.OrderDetails)
             .Where(o => o.OrderStatus == OrderStatus.Pending && o.CreatedAt < timeoutThreshold)
@@ -59,19 +65,29 @@ public class ExpiredOrderCleanupService : BackgroundService
         {
             foreach (var order in expiredOrders)
             {
-                order.OrderStatus = OrderStatus.Cancelled;
-                _logger.LogInformation($"Cancelling expired order: {order.OrderCode}");
+                // Atomic transition từ Pending sang Cancelled
+                var affected = await context.Orders
+                    .Where(o => o.OrderId == order.OrderId && o.OrderStatus == OrderStatus.Pending)
+                    .ExecuteUpdateAsync(s => s.SetProperty(o => o.OrderStatus, OrderStatus.Cancelled), stoppingToken);
 
-                foreach (var detail in order.OrderDetails)
+                if (affected > 0)
                 {
-                    // Nhả tồn kho tạm giữ (Trừ đi số lượng trong ReservedQuantity)
-                    await context.Books
-                        .Where(b => b.BookId == detail.BookId)
-                        .ExecuteUpdateAsync(s => s.SetProperty(b => b.ReservedQuantity, b => b.ReservedQuantity - detail.Quantity), stoppingToken);
+                    _logger.LogInformation("Cancelled expired order: {OrderCode}", order.OrderCode);
+
+                    foreach (var detail in order.OrderDetails)
+                    {
+                        // Nhả tồn kho tạm giữ (Trừ đi số lượng trong ReservedQuantity)
+                        await context.Books
+                            .Where(b => b.BookId == detail.BookId)
+                            .ExecuteUpdateAsync(s => s.SetProperty(b => b.ReservedQuantity, b => b.ReservedQuantity - detail.Quantity), stoppingToken);
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("Order {OrderCode} is no longer Pending (likely Paid). Skipping cleanup.", order.OrderCode);
                 }
             }
 
-            await context.SaveChangesAsync(stoppingToken);
             await transaction.CommitAsync(stoppingToken);
         }
         catch (Exception ex)

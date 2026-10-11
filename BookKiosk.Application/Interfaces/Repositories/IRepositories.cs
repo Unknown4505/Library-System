@@ -48,6 +48,8 @@ public interface IOrderRepository
     Task IncreaseReservedQuantityAsync(int bookId, int quantity);
     Task DecreaseStockAndReservedQuantityAsync(int bookId, int quantity);
     Task AddOrderAsync(Order order);
+    Task<bool> TryIncreaseReservedQuantityAsync(int bookId, int quantity);
+    Task<bool> TryTransitionOrderStatusAsync(int orderId, BookKiosk.Domain.Enums.OrderStatus fromStatus, BookKiosk.Domain.Enums.OrderStatus toStatus, System.DateTime? completedAt = null);
     Task<Order?> GetPendingOrderByCodeAsync(string orderCode);
     Task<Order?> GetOrderByIdAsync(int orderId);
 }
