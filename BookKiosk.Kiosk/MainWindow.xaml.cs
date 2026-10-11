@@ -164,13 +164,21 @@ namespace BookKiosk.Kiosk
             {
                 _clickCount = 0; // Reset
                 
-                string? configuredPin = _configuration?["KioskSettings:MaintenancePin"];
+                string? configuredPin = Environment.GetEnvironmentVariable("KIOSK_MAINTENANCE_PIN")
+                    ?? _configuration?["KioskSettings:MaintenancePin"];
 
-#if !DEBUG
+#if DEBUG
+                // Ở môi trường DEV, nếu chưa cấu hình biến môi trường thì dùng mã PIN dev "123456"
+                if (string.IsNullOrWhiteSpace(configuredPin))
+                {
+                    configuredPin = "123456";
+                }
+#else
                 // Production/Release: Fail closed nếu chưa cấu hình mã PIN an toàn
                 if (string.IsNullOrWhiteSpace(configuredPin))
                 {
                     System.Diagnostics.Debug.WriteLine("[Security] Chức năng thoát bảo trì bị vô hiệu hóa vì thiếu cấu hình MaintenancePin an toàn (Fail-closed).");
+                    MessageBox.Show("Chức năng bảo trì bị vô hiệu hóa: Chưa cấu hình mã PIN an toàn trên thiết bị (Fail-closed).", "Bảo mật", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 #endif

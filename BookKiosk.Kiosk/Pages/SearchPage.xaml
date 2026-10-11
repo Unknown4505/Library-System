@@ -128,34 +128,49 @@
             </TextBlock>
 
             <!-- Lưới kết quả (Card Sách) -->
-            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" PanningMode="VerticalOnly">
-                <ItemsControl ItemsSource="{Binding SearchResults}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel Orientation="Horizontal" ItemWidth="420"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Button Command="{Binding DataContext.BookClickCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding BookId}" Background="White" BorderBrush="Transparent" Margin="0,0,40,40" Cursor="Hand" Focusable="False">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="White" CornerRadius="15" Padding="20">
-                                            <Border.Effect>
-                                                <DropShadowEffect Color="#cccccc" BlurRadius="20" ShadowDepth="5" Opacity="0.5"/>
-                                            </Border.Effect>
-                                            <StackPanel>
-                                                <Image Source="{Binding ImageUrl}" Height="400" Stretch="UniformToFill" Margin="0,0,0,15"/>
-                                                <TextBlock Text="{Binding Title}" FontSize="28" FontWeight="Bold" TextWrapping="Wrap" MaxHeight="80" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding SellingPrice, StringFormat={}{0:N0} đ}" FontSize="24" Foreground="#e74c3c" FontWeight="Bold" Margin="0,10,0,0"/>
-                                            </StackPanel>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" PanningMode="VerticalOnly" ScrollChanged="ScrollViewer_ScrollChanged">
+                <StackPanel>
+                    <ItemsControl ItemsSource="{Binding SearchResults}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" ItemWidth="420"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Command="{Binding DataContext.BookClickCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding BookId}" Background="White" BorderBrush="Transparent" Margin="0,0,40,40" Cursor="Hand" Focusable="False">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="White" CornerRadius="15" Padding="20">
+                                                <Border.Effect>
+                                                    <DropShadowEffect Color="#cccccc" BlurRadius="20" ShadowDepth="5" Opacity="0.5"/>
+                                                </Border.Effect>
+                                                <StackPanel>
+                                                    <Image Source="{Binding ImageUrl}" Height="400" Stretch="UniformToFill" Margin="0,0,0,15"/>
+                                                    <TextBlock Text="{Binding Title}" FontSize="28" FontWeight="Bold" TextWrapping="Wrap" MaxHeight="80" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding SellingPrice, StringFormat={}{0:N0} đ}" FontSize="24" Foreground="#e74c3c" FontWeight="Bold" Margin="0,10,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- FE-13: Nút Tải thêm sách (Load More) khi còn trang tiếp theo -->
+                    <Button Content="TẢI THÊM SÁCH" 
+                            Command="{Binding LoadMoreCommand}"
+                            Visibility="{Binding HasNextPage, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            FontSize="28" FontWeight="Bold" Foreground="White" Background="#3498db"
+                            Height="80" Margin="0,10,40,40" Cursor="Hand" Focusable="False">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="15"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                </StackPanel>
             </ScrollViewer>
         </Grid>
 

@@ -24,7 +24,7 @@ namespace BookKiosk.Kiosk.ViewModels
         private DispatcherTimer? _debounceTimer;
         private int _searchVersion = 0;
 
-        private bool _hasNextPage = true;
+        private bool _hasNextPage = false;
         public bool HasNextPage
         {
             get => _hasNextPage;
@@ -240,7 +240,7 @@ namespace BookKiosk.Kiosk.ViewModels
             if (reset)
             {
                 _skip = 0;
-                HasNextPage = true;
+                HasNextPage = false;
                 SearchResults.Clear();
             }
 
@@ -261,18 +261,22 @@ namespace BookKiosk.Kiosk.ViewModels
                     HasNextPage = result.Data.HasNextPage;
                     foreach (var b in result.Data.Items)
                     {
-                        SearchResults.Add(new BookModel 
+                        // FE-13: Chống nạp trùng dữ liệu sách
+                        if (!SearchResults.Any(x => x.BookId == b.BookId))
                         {
-                            BookId = b.BookId,
-                            Barcode = b.Barcode,
-                            Title = b.Title,
-                            Author = b.Author,
-                            ImageUrl = b.ImageUrl,
-                            SellingPrice = b.SellingPrice,
-                            AvailableStock = b.AvailableStock,
-                            CategoryId = b.CategoryId,
-                            AreaName = b.AreaName
-                        });
+                            SearchResults.Add(new BookModel 
+                            {
+                                BookId = b.BookId,
+                                Barcode = b.Barcode,
+                                Title = b.Title,
+                                Author = b.Author,
+                                ImageUrl = b.ImageUrl,
+                                SellingPrice = b.SellingPrice,
+                                AvailableStock = b.AvailableStock,
+                                CategoryId = b.CategoryId,
+                                AreaName = b.AreaName
+                            });
+                        }
                     }
                     _skip += Take;
                     ErrorMessage = "";

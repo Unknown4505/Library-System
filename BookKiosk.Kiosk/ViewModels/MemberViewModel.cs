@@ -16,6 +16,18 @@ namespace BookKiosk.Kiosk.ViewModels
 
         public int? MemberId { get; private set; }
 
+        private bool _isCheckingMember = false;
+        public bool IsCheckingMember
+        {
+            get => _isCheckingMember;
+            private set
+            {
+                _isCheckingMember = value;
+                OnPropertyChanged();
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+            }
+        }
+
         private int _phoneCheckVersion = 0;
         private string _phoneNumber = "";
         public string PhoneNumber
@@ -23,27 +35,33 @@ namespace BookKiosk.Kiosk.ViewModels
             get => _phoneNumber;
             set 
             { 
+                if (_phoneNumber == value) return;
+
                 _phoneNumber = value; 
                 OnPropertyChanged();
                 
-                if (_phoneNumber != null && _phoneNumber.Length == 10)
+                // FE-14: Luôn hủy tra cứu cũ và reset ngay lập tức MemberId, điểm về trạng thái ban đầu
+                _phoneCheckVersion++;
+                MemberId = null;
+                AvailablePoints = 0;
+                PointsUsed = 0;
+                ErrorMessage = "";
+
+                if (!string.IsNullOrWhiteSpace(_phoneNumber) && _phoneNumber.Length == 10)
                 {
+                    IsCheckingMember = true;
                     CheckMemberPhoneAsync(_phoneNumber);
                 }
                 else
                 {
-                    _phoneCheckVersion++; // Hủy mọi kết quả tra cứu của SĐT cũ
-                    AvailablePoints = 0;
-                    PointsUsed = 0;
-                    MemberId = null;
-                    ErrorMessage = "";
+                    IsCheckingMember = false;
                 }
             }
         }
 
         private async void CheckMemberPhoneAsync(string phone)
         {
-            int currentVersion = ++_phoneCheckVersion;
+            int currentVersion = _phoneCheckVersion;
             try
             {
                 var response = await _api.GetMemberByPhoneAsync(phone);
@@ -81,6 +99,13 @@ namespace BookKiosk.Kiosk.ViewModels
                 MemberId = null;
                 PointsUsed = 0;
                 ErrorMessage = "Không thể kết nối máy chủ để kiểm tra thành viên. Vui lòng thử lại.";
+            }
+            finally
+            {
+                if (currentVersion == _phoneCheckVersion)
+                {
+                    IsCheckingMember = false;
+                }
             }
         }
 
@@ -189,26 +214,44 @@ namespace BookKiosk.Kiosk.ViewModels
             _navigationService = navigationService;
             _api = api;
 
-            // FE-19: Chặn re-entry / double-click thông qua CanExecute
-            ConfirmCommand = new RelayCommand(_ => ExecuteConfirm(), _ => !IsLoading);
+            // FE-14 & FE-19: Chặn re-entry / double-click và chặn confirm khi đang tra cứu SĐT
+            ConfirmCommand = new RelayCommand(_ => ExecuteConfirm(), _ => CanConfirm());
             UseMaxPointsCommand = new RelayCommand(_ => ExecuteUseMaxPoints());
+        }
+
+        private bool CanConfirm()
+        {
+            if (IsLoading || IsCheckingMember) return false;
+            // Cho phép khách vãng lai (không nhập SĐT) hoặc SĐT đã nhập đủ 10 chữ số
+            return string.IsNullOrEmpty(PhoneNumber) || PhoneNumber.Length == 10;
         }
 
         public override void Initialize(object parameter)
         {
             base.Initialize(parameter);
+            _phoneCheckVersion++;
+            IsCheckingMember = false;
             PhoneNumber = "";
             PointsUsed = 0;
             ErrorMessage = "";
             OnPropertyChanged(nameof(SubTotal));
             OnPropertyChanged(nameof(Discount));
             OnPropertyChanged(nameof(TotalAmount));
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         }
 
         private async void ExecuteConfirm()
         {
-            // FE-19: Guard clause chặn re-entry khi request đang xử lý
-            if (IsLoading) return;
+            // FE-14 & FE-19: Guard clause chặn khi đang tạo đơn hoặc đang tra cứu SĐT
+            if (IsLoading || IsCheckingMember) return;
+
+            // Nếu người dùng nhập dở dang SĐT (khác 0 và khác 10 số), chặn và thông báo
+            if (!string.IsNullOrEmpty(PhoneNumber) && PhoneNumber.Length != 10)
+            {
+                ErrorMessage = "Vui lòng nhập đủ 10 chữ số điện thoại hoặc xóa trống để tiếp tục với tư cách khách vãng lai.";
+                return;
+            }
+
             IsLoading = true;
             System.Windows.Input.CommandManager.InvalidateRequerySuggested();
 
@@ -259,6 +302,12 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private void ExecuteUseMaxPoints()
         {
+            if (IsCheckingMember)
+            {
+                ErrorMessage = "Đang kiểm tra thông tin thành viên, vui lòng đợi trong giây lát...";
+                return;
+            }
+
             if (string.IsNullOrEmpty(PhoneNumber))
             {
                 ErrorMessage = "Vui lòng nhập Số điện thoại trước khi sử dụng điểm!";

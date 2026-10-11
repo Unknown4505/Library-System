@@ -75,6 +75,18 @@ namespace BookKiosk.Kiosk.Pages
             return false;
         }
 
+        private void ScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            // FE-13: Tự động kích hoạt LoadMoreCommand khi cuộn gần chạm đáy danh sách
+            if (e.VerticalOffset > 0 && e.VerticalOffset + e.ViewportHeight >= e.ExtentHeight - 100)
+            {
+                if (this.DataContext is SearchViewModel vm && vm.LoadMoreCommand.CanExecute(null))
+                {
+                    vm.LoadMoreCommand.Execute(null);
+                }
+            }
+        }
+
         private void Page_Unloaded(object sender, System.Windows.RoutedEventArgs e)
         {
             if (this.DataContext is System.IDisposable disposableVm)
