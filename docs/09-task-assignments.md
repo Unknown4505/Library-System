@@ -84,7 +84,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 5.2 | Logic: Tự động quét và áp dụng Promotion (KM) | | @thien33 | | `[x]` |
 | 5.3 | Logic: Trừ tiền điểm (Points), tính TotalAmount | | @thien33 | | `[x]` |
 | 5.4 | Logic: Cập nhật `ReservedQuantity` & Lưu Order | | @thien33 | | `[x]` |
-| 5.5 | **[Leader]** Viết test kịch bản tính điểm và áp KM, fix bug Concurrency | @Unknown4505 | | | `[x]` |
+| 5.5 | **[Leader]** Viết test kịch bản tính điểm và áp KM, fix bug Concurrency | @Unknown4505 | | | `[ ]` |
 
 ### MODULE 6: KIOSK WPF - GIỎ HÀNG & THANH TOÁN
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
@@ -99,7 +99,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 |---|---|:---:|:---:|:---:|:---:|
 | 7.1 | API: Sinh link/ảnh QR VietQR theo chuẩn SePay | | @thien33 | | `[x]` |
 | 7.2 | API: `POST /api/payments/sepay-webhook` | | @thien33 | | `[x]` |
-| 7.3 | Logic: Xác thực HMAC Signature bảo mật | | @thien33 | | `[x]` |
+| 7.3 | Logic: Xác thực HMAC Signature bảo mật | | @thien33 | | `[ ]` |
 | 7.4 | Logic: Cập nhật Paid, trừ kho vật lý (StockQuantity)| | @thien33 | | `[x]` |
 | 7.5 | Kiosk `PaymentPage`: Polling API Status mỗi 3s | | | @lehuukhang | `[x]` |
 | 7.6 | **[Leader]** Ghép nối: Viết logic Polling cho FE để tự động chuyển trang khi BE nhận được tiền (SignalR hoặc Timer) | @Unknown4505 | | | `[ ]` |
@@ -119,7 +119,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 ### MODULE 9: CMS WEB - QUẢN LÝ SẢN PHẨM
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 9.1 | **[Leader]** Admin API: CRUD Sách, Danh mục, Khu vực | @Unknown4505 | | | `[x]` |
+| 9.1 | **[Leader]** Admin API: CRUD Sách, Danh mục, Khu vực | @Unknown4505 | | | `[ ]` |
 | 9.2 | **[Leader]** Layout Dashboard (SB Admin / Bootstrap) | @Unknown4505 | | | `[x]` |
 | 9.3 | **[Leader]** Trang Quản lý Sách (DataTables / Grid) | @Unknown4505 | | | `[x]` |
 | 9.4 | **[Leader]** Form Thêm/Sửa sách (Upload ảnh) | @Unknown4505 | | | `[x]` |
@@ -159,6 +159,18 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | **@Unknown4505** | ~27 | Base Config (Entities, DbContext, Migrations, Middleware, Swagger), CMS Sách |
 | **@thien33** | ~22 | Code Controller/Service (Logic), Điểm thưởng, Thanh toán SePay, Webhook |
 | **@lehuukhang** | ~29 | Thiết kế UI Kiosk, Xử lý giao diện CMS Quản lý tồn kho & Doanh thu |
+
+### Ghi chú nghiệm thu cập nhật 2026-10-11
+
+- **4.5 giữ chưa hoàn thành:** HTTP smoke trên merge không commit `main@fbc15a2` + `Khang@d9de651` đã PASS pagination, keyword, category, detail, barcode hợp lệ/404 và dữ liệu out-of-stock. WPF chưa chạy tương tác; FE-13 còn race pagination và Backend vẫn trả sách inactive qua detail/barcode.
+- **5.5 giữ chưa hoàn thành:** Đã chạy bộ test trên SQL Server Express local bằng database cô lập. Constraints, rollback, concurrent last-copy, cancel và promotion+100 điểm PASS; duplicate webhook, 4 validation điểm và OrderCode uniqueness FAIL. Checkout idempotency/cleanup race vẫn BLOCKED bởi Issue #19/#20.
+- **7.3 giữ chưa hoàn thành:** Contract xác thực SePay phải được đối chiếu chính xác với cấu hình/tài liệu gateway và regression theo Issue #20; static code review không phải runtime evidence.
+- **7.6 giữ chưa hoàn thành:** HTTP smoke đã PASS Checkout→Pending→QR→polling→Cancel và đối chiếu reserve 0→1→0; F3/Receipt đều trả 404, chưa có SePay Test Mode/Paid/Receipt E2E.
+- **9.1 giữ chưa hoàn thành:** Leader đã bổ sung Category/Area CRUD dùng shared DTO, wrapper và role Admin; SQL contract tests PASS. Books write endpoints hiện chưa có authorization và validation wrapper toàn cục chưa được nghiệm thu, nên chưa thể đánh dấu hoàn thành.
+- **11.5 giữ chưa hoàn thành:** Shared Reports DTO/contract đã chốt và serialization PASS; implementation vẫn trả `object`, `ReportsController` chưa giới hạn role Admin và PR #11 chưa có CMS chart/status integration.
+- **12.1 giữ chưa hoàn thành:** Kế hoạch và kết quả component SQL đã cập nhật tại docs/11-end-to-end-test-plan.md; chưa chạy E2E đầy đủ với Kiosk WPF và SePay Test Mode.
+- **12.2 giữ chưa hoàn thành:** Artifact BFD/DFD 0/1/2 tồn tại trong `diagram/`; BFD và DFD Level 1 cùng bảy nhóm chức năng, DFD Level 2 khớp luồng checkout/payment. DFD Level 1 còn thiếu data store/luồng xác thực `Users` và bộ sơ đồ chưa phân biệt rõ chức năng đã triển khai với phần Planned/BLOCKED.
+- **12.3 giữ trạng thái hoàn thành:** ERD đã được đối chiếu có đúng 17 entity, không thêm bảng ngoài model và có quan hệ nullable `Kiosks.AreaId -> Areas.AreaId` đúng cấu hình `SET NULL`.
 
 ---
 

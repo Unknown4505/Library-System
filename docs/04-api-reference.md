@@ -321,7 +321,7 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - Categories: `POST /api/categories`, `PUT /api/categories/{id}`, `DELETE /api/categories/{id}` dùng `CreateCategoryDto`/`UpdateCategoryDto` (`name` bắt buộc, tối đa 255 ký tự).
 - Areas: `POST /api/areas`, `PUT /api/areas/{id}`, `DELETE /api/areas/{id}` dùng `CreateAreaDto`/`UpdateAreaDto` (`name` bắt buộc, tối đa 255; `mapCoordinates` tối đa 500 ký tự).
 - Xóa/vô hiệu hóa phải tôn trọng FK: Category đang được Book tham chiếu không được hard-delete; Area bị xóa áp dụng quan hệ `SET NULL` theo schema. Ưu tiên deactivate nếu entity có `IsActive`.
-- Books CRUD đã có code trên `main`, nhưng Categories/Areas hiện mới có GET và việc authorization của catalog chưa đủ bằng chứng nghiệm thu. Task 9.1 vì vậy chưa hoàn thành.
+- Categories/Areas write endpoints đã được bổ sung trên nhánh `c8` với JWT role `Admin`, response wrapper, duplicate-name validation và xử lý FK khi xóa. Books write endpoints trên `main` vẫn chưa có authorization tương ứng, nên Task 9.1 chưa đủ điều kiện nghiệm thu toàn bộ.
 
 ### 3.7 Reports (contract typed response)
 
