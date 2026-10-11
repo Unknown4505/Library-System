@@ -119,7 +119,12 @@ namespace BookKiosk.Infrastructure.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("Books", (string)null);
+                    b.ToTable("Books", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Books_ReservedQuantity", "[ReservedQuantity] >= 0 AND [ReservedQuantity] <= [StockQuantity]");
+
+                            t.HasCheckConstraint("CK_Books_StockQuantity", "[StockQuantity] >= 0");
+                        });
                 });
 
             modelBuilder.Entity("BookKiosk.Domain.Entities.Category", b =>
@@ -336,6 +341,8 @@ namespace BookKiosk.Infrastructure.Migrations
 
                     b.Property<string>("OrderCode")
                         .IsRequired()
+                        .HasMaxLength(50)
+                        .IsUnicode(false)
                         .HasColumnType("varchar(50)");
 
                     b.Property<int>("OrderStatus")
@@ -426,6 +433,8 @@ namespace BookKiosk.Infrastructure.Migrations
 
                     b.Property<string>("ReferenceCode")
                         .IsRequired()
+                        .HasMaxLength(50)
+                        .IsUnicode(false)
                         .HasColumnType("varchar(50)");
 
                     b.Property<DateTime?>("UpdatedAt")

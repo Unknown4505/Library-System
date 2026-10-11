@@ -89,10 +89,17 @@ Khi tích hợp SePay, hệ thống thanh toán cung cấp **Webhook Secret** th
 1. Khi cổng thanh toán gọi API Webhook của bạn, họ lấy toàn bộ Body Data trộn với Checksum Key này và băm (hash) ra một chuỗi chữ ký (Signature) đính kèm trong Header.
 2. Tại Backend của bạn, khi nhận được body, bạn cũng dùng Checksum Key của bạn để băm y hệt. 
 3. So sánh 2 chữ ký:
-   - Nếu giống nhau: Yêu cầu **chắc chắn 100%** gửi từ hệ thống thanh toán chính chủ. (Bởi vì Hacker không thể biết được Checksum Key để giả mạo chữ ký).
+   - Nếu giống nhau và thuật toán/header đúng theo cấu hình SePay đang sử dụng: tiếp tục đối soát giao dịch. Chữ ký không thay thế kiểm tra `ReferenceCode`, `OrderCode`, số tiền và idempotency.
    - Nếu khác nhau: Request giả mạo -> Trả về `403 Forbidden` và drop request.
 
 > **Lưu ý:** Phải đối chiếu chính xác thuật toán/header trong tài liệu SePay đang dùng; không giả định contract của gateway khác tương thích.
+
+### Endpoint mô phỏng thanh toán Development
+
+- `POST /api/payments/dev-simulate-success/{orderCode}` chỉ được map trong `Development` và bắt buộc `X-Api-Key` hợp lệ.
+- `Production` phải không map route (`404`); không có feature flag Production, default secret hoặc bypass từ client.
+- Endpoint không nhận payload webhook giả, không gọi public webhook và không thực hiện giao dịch ngân hàng.
+- Việc hoàn tất order phải dùng chung transaction/idempotency path với thanh toán thật. Nút F3 hoặc điều kiện DEBUG ở WPF chỉ là UX, không phải security boundary.
 
 ---
 
@@ -107,3 +114,11 @@ Khi tích hợp SePay, hệ thống thanh toán cung cấp **Webhook Secret** th
 - JWT signing key dùng key `Jwt:Key` (environment: `Jwt__Key`). Development có fallback demo và ghi warning; Production từ chối startup nếu thiếu, không dùng fallback.
 - Swagger Development khai báo hai scheme: `Bearer` cho CMS và `ApiKey` qua header `X-API-KEY` cho Kiosk.
 - Xem `06-local-setup.md` để cấu hình bằng user-secrets/environment variables.
+
+## 6. Chính sách xác thực chế độ bảo trì Kiosk
+
+- Production không được hardcode mật khẩu, không có default credential và không dựa vào góc bấm ẩn để cấp quyền.
+- Ưu tiên xác thực nhân viên qua Backend bằng JWT role `Admin`/`Staff` với quyền bảo trì cụ thể. Nếu MVP chưa có API xác thực phù hợp, cửa sổ thoát/bảo trì phải **fail closed** trong Release: không cho thoát bằng password local.
+- Development có thể cho phép cơ chế test cục bộ chỉ khi build/config xác định rõ là Development. Secret nếu dùng phải đến từ user-secrets, environment variable hoặc Windows Credential Manager; không commit vào source/config.
+- Không log password, API key hoặc JWT. Mọi quyết định cho phép thoát Kiosk nên ghi audit tối thiểu gồm kiosk ID, actor và UTC timestamp khi Backend support.
+- `PasswordDialog` hardcode trong PR #11 không đạt contract Production; Khang phải thay trước khi nghiệm thu Release.

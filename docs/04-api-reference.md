@@ -206,6 +206,7 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 
 #### Kiểm tra trạng thái đơn (Kiosk polling sau khi hiện QR)
 - **Endpoint:** `GET /api/orders/kiosk/{orderId}/payment-status`
+- **Auth:** `X-Api-Key`
 - **Response:**
 ```json
 "data": {
@@ -214,6 +215,47 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
   "status": "Paid" // Enum: Pending, Paid, Cancelled
 }
 ```
+
+#### Lấy hóa đơn đã thanh toán (contract đã chốt, Backend chưa implement)
+- **Endpoint:** `GET /api/orders/kiosk/{orderId}/receipt`
+- **Auth:** `X-Api-Key`
+- **Nguồn dữ liệu:** Backend đọc `Orders` và `OrderDetails`; không nhận danh sách sách, giá hoặc tổng tiền từ Kiosk.
+- **Điều kiện:** Chỉ order có `OrderStatus = Paid` và `CompletedAt` hợp lệ mới được trả hóa đơn.
+- **Response (200 OK):** `ApiResponseDto<ReceiptDto>`.
+
+```json
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "Lấy hóa đơn thành công.",
+  "data": {
+    "orderId": 105,
+    "orderCode": "ORD-20261101-0105",
+    "createdAt": "2026-11-01T03:14:00Z",
+    "completedAt": "2026-11-01T03:15:00Z",
+    "items": [
+      {
+        "bookId": 1,
+        "bookTitle": "Cây Cam Ngọt Của Tôi",
+        "quantity": 2,
+        "unitPriceAtTime": 105000,
+        "lineTotal": 210000
+      }
+    ],
+    "subTotal": 210000,
+    "discountAmount": 50000,
+    "pointsUsed": 50,
+    "pointsUsedAmount": 50000,
+    "totalAmount": 110000,
+    "paymentMethod": "QR"
+  }
+}
+```
+
+- Order không tồn tại: `404 NOT_FOUND`.
+- Order còn `Pending` hoặc đã `Cancelled`: `409 CONFLICT`; không trả payload hóa đơn.
+- Không trả `CostPrice`, số điện thoại hoặc dữ liệu cá nhân thành viên.
+- `UnitPriceAtTime`, `Quantity`, `LineTotal` và các tổng tiền lấy từ snapshot hiện có. Schema hiện tại chưa có `BookTitleAtTime`; `BookTitle` tạm đọc qua quan hệ `OrderDetails.Book`. Vì vậy việc đổi tên sách sau khi bán có thể đổi phần tiêu đề khi in lại. Không thêm cột khi checkout hiện tại chưa ghi snapshot; Thiện phải ghi snapshot trong cùng transaction nếu triển khai mở rộng schema sau này.
 
 ---
 
@@ -243,11 +285,22 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
     - **Nếu ĐÚNG:** Cập nhật Order -> `Paid`. Trừ kho thật sự (`StockQuantity -= qty`, `ReservedQuantity -= qty`). Cộng điểm cho Member.
     - **Nếu LỆCH (Khách tự sửa số tiền):** Vẫn giữ Order -> `Pending`. Insert `PaymentTransactions` để lưu vết giao dịch lệch. Gửi Notification cho Staff kiểm tra và xử lý thủ công. Kiosk hiển thị màn hình "Chờ nhân viên hỗ trợ". Không nhả sách.
 
+#### F3 mô phỏng thanh toán thành công trong Development (contract đã chốt, Backend chưa implement)
+- **Endpoint:** `POST /api/payments/dev-simulate-success/{orderCode}`
+- **Auth:** `X-Api-Key` theo cùng `ApiSettings:ApiKey` của Kiosk; endpoint phải tự áp dụng xác thực nếu middleware hiện tại chưa bao phủ `/api/payments/*`.
+- **Request body:** Không có. Client không được gửi payload webhook SePay giả.
+- **Development:** Route chỉ được map khi `IHostEnvironment.IsDevelopment()` là `true`.
+- **Production/Release:** Không map route, kết quả phải là `404`; không có config/bypass để bật lại trong Production.
+- **Xử lý:** Tìm order theo `orderCode`, chỉ hoàn tất order `Pending`, rồi gọi đúng một transaction/finalization path dùng chung với webhook thật. Transaction phải ghi một reference DEV duy nhất, chuyển `Paid`, trừ `StockQuantity` và `ReservedQuantity` đúng một lần, cập nhật điểm đúng một lần và đặt `CompletedAt` UTC.
+- **Idempotency:** Gọi lại với order đã `Paid` trả `200` cùng trạng thái hiện tại, không lặp tác dụng phụ. Order `Cancelled` trả `409`. Order không tồn tại trả `404`.
+- **Response (200 OK):** `ApiResponseDto<PaymentStatusDto>` với `orderId`, `orderCode`, `status = "Paid"`.
+- **Security:** Không ghi API key vào log/source; không gọi ngược public webhook; không tạo giao dịch ngân hàng thật.
+
 ---
 
 ### 3.5 Quản lý thiết bị (Kiosk Heartbeat)
 
-- **Trạng thái:** contract đã chốt; implementation Backend đang ở PR #17, chưa có trên `main`.
+- **Trạng thái:** Backend đã có trên `main` qua PR #17; Heartbeat worker của Kiosk vẫn ở PR #11/HOLD và chưa được nghiệm thu runtime.
 - **Endpoint:** `POST /api/kiosk/heartbeat`
 - **Auth:** `X-Api-Key`
 - **Request Body:**
@@ -261,6 +314,21 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 ```
 - **Validation:** `kioskId` là số nguyên dương đã tồn tại; `status` chỉ nhận `1`, `2`, `3`. Giá trị khác phải trả `400 BAD_REQUEST`; ID không tồn tại trả `404 NOT_FOUND`.
 - **Xử lý Backend:** Update `LastPingAt` bằng UTC và tạo `KioskIncident` nếu có lỗi chưa fix. `kioskId` là khóa database được cấp ở bước đăng ký/cấu hình thiết bị và lưu trong cấu hình Kiosk; không hardcode `1` và không gửi mã hiển thị như `KIOSK-01`.
+
+### 3.6 Admin Catalog CRUD (contract nghiệm thu Task 9.1)
+
+- Tất cả endpoint ghi dữ liệu yêu cầu JWT; `Admin` được tạo/sửa/vô hiệu hóa, `Staff` chỉ có quyền được cấp trong `docs/07-security.md`.
+- Categories: `POST /api/categories`, `PUT /api/categories/{id}`, `DELETE /api/categories/{id}` dùng `CreateCategoryDto`/`UpdateCategoryDto` (`name` bắt buộc, tối đa 255 ký tự).
+- Areas: `POST /api/areas`, `PUT /api/areas/{id}`, `DELETE /api/areas/{id}` dùng `CreateAreaDto`/`UpdateAreaDto` (`name` bắt buộc, tối đa 255; `mapCoordinates` tối đa 500 ký tự).
+- Xóa/vô hiệu hóa phải tôn trọng FK: Category đang được Book tham chiếu không được hard-delete; Area bị xóa áp dụng quan hệ `SET NULL` theo schema. Ưu tiên deactivate nếu entity có `IsActive`.
+- Books CRUD đã có code trên `main`, nhưng Categories/Areas hiện mới có GET và việc authorization của catalog chưa đủ bằng chứng nghiệm thu. Task 9.1 vì vậy chưa hoàn thành.
+
+### 3.7 Reports (contract typed response)
+
+- `GET /api/reports/revenue?year={year}` → `ApiResponseDto<RevenueReportDto>` gồm `year` và `data[] { month, revenue, totalOrders }`.
+- `GET /api/reports/top-books?top={n}` → `ApiResponseDto<List<TopSellingBookDto>>` gồm `bookId`, `title`, `imageUrl`, `totalSold`, `totalRevenue`.
+- Cả hai endpoint chỉ dành cho JWT role `Admin`; tiền chỉ tính từ order `Paid`.
+- Dashboard trạng thái thiết bị dùng contract `KioskStatusSummaryDto { online, offline, error, openIncidents }`. Backend hiện chưa có endpoint tổng hợp tương ứng; không giả lập dữ liệu CMS và không tự coi contract này là endpoint đã tồn tại.
 
 ---
 
