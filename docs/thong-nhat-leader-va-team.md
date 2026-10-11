@@ -4,6 +4,7 @@
 > **Dự án:** BookKiosk Backend — Sau PR #17  
 > **Người nhận:** Leader (`@Unknown4505`), Khang (`@Khang`)  
 > **Trạng thái:** Chờ thống nhất trước khi tạo PR mới  
+> **Liên kết Issue:** Issue #19 (https://github.com/Unknown4505/Library-System/issues/19)  
 
 ---
 

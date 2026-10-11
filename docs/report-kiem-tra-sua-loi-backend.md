@@ -5,6 +5,7 @@
 > **Nhánh thực hiện:** `thien`  
 > **Cơ sở:** Mã nguồn mới nhất sau khi merge `origin/main` (commit `f62a2bb`).  
 > **Trạng thái:** Đã code hoàn tất tại local, Build cả Debug và Release **0 Lỗi**, sẵn sàng nghiệm thu và tích hợp.  
+> **Liên kết Issue:** Closes #19 (https://github.com/Unknown4505/Library-System/issues/19)  
 
 ---
 
