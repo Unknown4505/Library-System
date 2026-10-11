@@ -99,6 +99,20 @@ Mở Transaction:
 5. Gửi tín hiệu (SignalR/WebSocket hoặc Kiosk Polling) báo Kiosk hiển thị màn hình thành công và ra lệnh máy in in hóa đơn.
 6. Commit Transaction.
 
+### Nhánh mô phỏng F3 trong Development
+
+- `POST /api/payments/dev-simulate-success/{orderCode}` không mô phỏng một HTTP webhook và không nhận payload giao dịch từ client.
+- Route chỉ tồn tại trong `Development`, bắt buộc `X-Api-Key`, và phải đi vào cùng hàm hoàn tất thanh toán/transaction safety của webhook thật.
+- Reference mô phỏng phải duy nhất và được lưu để idempotent. Gọi lặp không được trừ kho, đổi điểm hoặc ghi nhận Paid lần hai.
+- `Production` không map route này; việc ẩn nút F3 trên giao diện không phải biện pháp bảo vệ Backend.
+
+### Xuất hóa đơn sau thanh toán
+
+- Kiosk chỉ gọi `GET /api/orders/kiosk/{orderId}/receipt` sau khi polling nhận `Paid`.
+- Backend dựng hóa đơn từ `Orders` và `OrderDetails`; không tin cart, giá, chiết khấu hoặc tổng tiền do client giữ cục bộ.
+- `Pending` và `Cancelled` không được nhận payload hóa đơn. Hóa đơn không chứa giá vốn hoặc dữ liệu cá nhân thành viên.
+- Schema hiện tại snapshot được giá bán, số lượng và thành tiền nhưng chưa snapshot tên sách. Cho tới khi checkout ghi `BookTitleAtTime` trong cùng transaction, tên trên bản in lại được đọc từ `Books` và có giới hạn lịch sử đã nêu trong API reference.
+
 ---
 
 ## 3. Luồng Dọn Dẹp Đơn Hàng Treo (Background Worker)

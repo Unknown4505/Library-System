@@ -349,6 +349,12 @@ modelBuilder.Entity<PromotionOrderDiscount>()
 2. **Check Constraints Tồn Kho:**
    - Tồn kho không thể âm: `ALTER TABLE Books ADD CONSTRAINT CK_Books_StockQuantity CHECK (StockQuantity >= 0)`
    - Tồn kho giữ chỗ không thể âm và không được lớn hơn tổng tồn: `CHECK (ReservedQuantity >= 0 AND ReservedQuantity <= StockQuantity)`
+   - EF configuration và migration `20261011085640_AddBookInventoryCheckConstraints` là nguồn triển khai cho database tạo/nâng cấp bằng EF. Migration kiểm tra dữ liệu vi phạm trước và `THROW` thay vì tự sửa/xóa; đồng thời kiểm tra `sys.check_constraints` để không tạo trùng database đã khởi tạo bằng `docs/init.sql`.
+   - Trước khi deploy, chạy truy vấn: `SELECT BookId, StockQuantity, ReservedQuantity FROM Books WHERE StockQuantity < 0 OR ReservedQuantity < 0 OR ReservedQuantity > StockQuantity;`. Phải xử lý thủ công mọi dòng trả về rồi mới chạy migration.
+
+3. **Tính nhất quán kiểu tiền:** Contract nghiệp vụ dùng VNĐ nguyên (`decimal(18,0)`), nhưng các migration lịch sử hiện còn một số cột `decimal(18,2)`. Migration constraint tồn kho không thay đổi precision để tránh chuyển đổi dữ liệu hàng loạt chưa có kiểm kê. Việc chuẩn hóa tiền cần migration riêng, backup và kiểm tra giá trị có phần lẻ trước khi được duyệt.
+
+4. **Snapshot hóa đơn:** `OrderDetails` hiện snapshot `UnitPriceAtTime`, `Quantity`, `LineTotal`, nhưng chưa có `BookTitleAtTime`. Receipt có thể bảo toàn số tiền lịch sử; tiêu đề sách khi in lại hiện đọc từ `Books` và có thể thay đổi nếu catalog đổi tên. Không thêm cột rỗng khi `OrderService` chưa ghi snapshot; thay đổi tương lai phải bổ sung cột/migration và ghi tiêu đề trong cùng checkout transaction.
 
 ---
 

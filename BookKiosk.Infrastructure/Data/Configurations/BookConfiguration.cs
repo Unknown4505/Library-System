@@ -8,7 +8,15 @@ public class BookConfiguration : IEntityTypeConfiguration<Book>
 {
     public void Configure(EntityTypeBuilder<Book> builder)
     {
-        builder.ToTable("Books");
+        builder.ToTable("Books", tableBuilder =>
+        {
+            tableBuilder.HasCheckConstraint(
+                "CK_Books_StockQuantity",
+                "[StockQuantity] >= 0");
+            tableBuilder.HasCheckConstraint(
+                "CK_Books_ReservedQuantity",
+                "[ReservedQuantity] >= 0 AND [ReservedQuantity] <= [StockQuantity]");
+        });
         builder.HasKey(b => b.BookId);
 
         // Barcode là varchar(50) và Unique
