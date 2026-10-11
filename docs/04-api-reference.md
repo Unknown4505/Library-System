@@ -139,7 +139,7 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 ```json
 {
   "memberId": 12,                  // Nullable, nếu khách không nhập SĐT
-  "pointsToUse": 50,               // Số điểm khách muốn trừ (tối đa bằng tổng điểm)
+  "pointsToUse": 50,               // Số điểm khách muốn trừ (tối đa 100 điểm/đơn)
   "items": [
     { "bookId": 1, "quantity": 2 }, // Lưu ý: Kiosk gọi /books/barcode/{barcode} lấy bookId trước
     { "bookId": 5, "quantity": 1 }
@@ -148,6 +148,8 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 ```
 - **Xử lý Backend:** 
   - Tự động quét Promotion (`IsActive = true`, ngày hợp lệ) và áp dụng loại ngon nhất cho đơn hàng.
+  - Validate `pointsToUse` không âm, không vượt quá **100 điểm/đơn** và không vượt quá số điểm hiện có của thành viên.
+  - Quy đổi điểm: **1 điểm = 1.000 VNĐ**.
   - Tính toán lại giá, trừ `pointsToUse * 1000` VNĐ.
   - Tăng `ReservedQuantity` cho các sách. Lưu trạng thái `Pending`.
 - **Response (Success - 200 OK):**

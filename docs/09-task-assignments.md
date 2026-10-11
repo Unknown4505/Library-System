@@ -147,7 +147,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 |---|---|:---:|:---:|:---:|:---:|
 | 12.1 | **[Leader]** Kịch bản Test End-to-End toàn luồng | @Unknown4505 | | | `[ ]` |
 | 12.2 | **[Leader]** Vẽ Sơ đồ Context Diagram, BFD, DFD | @Unknown4505 | | | `[ ]` |
-| 12.3 | **[Leader]** Vẽ ERD Database | @Unknown4505 | | | `[ ]` |
+| 12.3 | **[Leader]** Vẽ ERD Database | @Unknown4505 | | | `[x]` |
 | 12.4 | Viết Báo cáo Word Đồ án cuối kỳ | @Unknown4505 | @thien33 | @lehuukhang | `[ ]` |
 
 ---
