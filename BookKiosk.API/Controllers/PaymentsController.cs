@@ -1,6 +1,7 @@
 using BookKiosk.Application.DTOs.Common;
 using BookKiosk.Application.DTOs.Order;
 using BookKiosk.Application.Services;
+using BookKiosk.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
@@ -154,7 +155,7 @@ public class PaymentsController : ControllerBase
                 });
             }
 
-            if (status == "Conflict")
+            if (!success || status == "Conflict" || order?.OrderStatus == OrderStatus.Cancelled)
             {
                 return StatusCode(StatusCodes.Status409Conflict, new ApiResponseDto<object>
                 {
@@ -171,7 +172,7 @@ public class PaymentsController : ControllerBase
                 {
                     OrderId = order?.OrderId ?? 0,
                     OrderCode = order?.OrderCode ?? orderCode,
-                    Status = "Paid"
+                    Status = order?.OrderStatus.ToString() ?? "Paid"
                 }
             });
         }

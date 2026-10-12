@@ -30,6 +30,10 @@ public class OrdersController : ControllerBase
             var response = await _orderService.CheckoutKioskAsync(request);
             return Ok(ApiResponseDto<CheckoutResponseDto>.Ok(response));
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", ex.Message));
+        }
         catch (System.Collections.Generic.KeyNotFoundException ex)
         {
             return NotFound(ApiResponseDto<object>.Error("NOT_FOUND", ex.Message));
@@ -46,7 +50,11 @@ public class OrdersController : ControllerBase
         try
         {
             await _orderService.CancelOrderAsync(orderId);
-            return Ok(ApiResponseDto<object>.Ok(null, "Đã hủy đơn hàng và hoàn trả số lượng sách về kho."));
+            return Ok(ApiResponseDto<object?>.Ok(null, "Đã hủy đơn hàng và hoàn trả số lượng sách về kho."));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", ex.Message));
         }
         catch (System.Collections.Generic.KeyNotFoundException ex)
         {

@@ -36,10 +36,33 @@ public class OrderService : IOrderService
         if (request.Items == null || !request.Items.Any())
             throw new ArgumentException("Danh sách sản phẩm không được để trống.");
 
+        // A04: Validate BookId trùng lặp trong Items
+        var duplicateBookIds = request.Items
+            .GroupBy(i => i.BookId)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (duplicateBookIds.Any())
+        {
+            throw new ArgumentException($"Danh sách sản phẩm không được chứa các mã sách trùng lặp (BookId: {string.Join(", ", duplicateBookIds)}). Vui lòng gộp số lượng trước khi đặt hàng.");
+        }
+
         foreach (var item in request.Items)
         {
             if (item.Quantity <= 0)
                 throw new ArgumentException($"Số lượng sách (ID: {item.BookId}) phải lớn hơn 0.");
+        }
+
+        // D01: Validate điểm sử dụng theo API contract (tối đa 100 điểm, không cho phép số âm hoặc vượt quá 100)
+        if (request.PointsToUse < 0 || request.PointsToUse > 100)
+        {
+            throw new ArgumentException("Số điểm sử dụng phải từ 0 đến 100 điểm.");
+        }
+
+        if (request.PointsToUse > 0 && !request.MemberId.HasValue)
+        {
+            throw new ArgumentException("Cần cung cấp thông tin thành viên để sử dụng điểm.");
         }
 
         var sortedItems = request.Items.OrderBy(i => i.BookId).ToList();
@@ -91,30 +114,25 @@ public class OrderService : IOrderService
             decimal pointsUsedAmount = 0m;
             if (request.MemberId.HasValue && request.PointsToUse > 0)
             {
-                if (request.PointsToUse > 100)
-                    request.PointsToUse = 100;
-
                 var member = await _memberRepository.GetByIdAsync(request.MemberId.Value);
-                if (member != null && member.Points > 0)
-                {
-                    int maxPointsByAmount = (int)Math.Floor(totalAmountWithoutPoints / 1000m);
-                    int maxPointsAllowed = Math.Min(100, Math.Min(member.Points, maxPointsByAmount));
+                if (member == null)
+                    throw new System.Collections.Generic.KeyNotFoundException($"Không tìm thấy thành viên ID: {request.MemberId.Value}");
 
-                    request.PointsToUse = Math.Max(0, Math.Min(request.PointsToUse, maxPointsAllowed));
-                    if (request.PointsToUse > 0)
-                    {
-                        // Giữ điểm nguyên tử tại DB chống race condition 2 đơn cùng member
-                        var pointsDeducted = await _memberRepository.TryDeductPointsAsync(request.MemberId.Value, request.PointsToUse);
-                        if (!pointsDeducted)
-                            throw new InvalidOperationException("Thành viên không đủ điểm khả dụng để sử dụng.");
+                // D01/D03: Không âm thầm giảm điểm, nếu không đủ điểm khả dụng phải báo lỗi
+                if (member.Points < request.PointsToUse)
+                    throw new InvalidOperationException($"Thành viên không đủ điểm khả dụng. Số điểm hiện có: {member.Points}, yêu cầu: {request.PointsToUse}.");
 
-                        pointsUsedAmount = request.PointsToUse * 1000m;
-                    }
-                }
-                else
-                {
-                    request.PointsToUse = 0;
-                }
+                // Quy đổi 1 điểm = 1.000 VNĐ. Số tiền giảm từ điểm không vượt quá giá trị đơn hàng
+                decimal requestedPointsDiscount = request.PointsToUse * 1000m;
+                if (requestedPointsDiscount > totalAmountWithoutPoints)
+                    throw new InvalidOperationException("Số điểm sử dụng vượt quá giá trị thanh toán của đơn hàng.");
+
+                // Giữ điểm nguyên tử tại DB chống race condition 2 đơn cùng member
+                var pointsDeducted = await _memberRepository.TryDeductPointsAsync(request.MemberId.Value, request.PointsToUse);
+                if (!pointsDeducted)
+                    throw new InvalidOperationException("Thành viên không đủ điểm khả dụng để sử dụng.");
+
+                pointsUsedAmount = requestedPointsDiscount;
             }
             else
             {

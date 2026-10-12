@@ -57,26 +57,36 @@ public class PaymentService : IPaymentService
         if (string.IsNullOrWhiteSpace(refCode))
             return false;
 
-        // BE-NEW-10: Chỉ xác nhận thanh toán cho giao dịch tiền vào (transferType = "in")
-        if (!string.IsNullOrWhiteSpace(payload.transferType) && 
-            !string.Equals(payload.transferType, "in", StringComparison.OrdinalIgnoreCase))
+        // BE-NEW-10: Bắt buộc giao dịch tiền vào (transferType = "in") - Không cho phép null/blank
+        if (string.IsNullOrWhiteSpace(payload.transferType) || 
+            !string.Equals(payload.transferType.Trim(), "in", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        // BE-NEW-10: Đối chiếu tài khoản ngân hàng thụ hưởng nếu có cấu hình
-        if (!string.IsNullOrWhiteSpace(expectedAccountNumber) && 
-            !string.IsNullOrWhiteSpace(payload.accountNumber) &&
-            !string.Equals(payload.accountNumber.Trim(), expectedAccountNumber.Trim(), StringComparison.OrdinalIgnoreCase))
+        // BE-NEW-10: Bắt buộc phải có thông tin tài khoản nhận tiền (accountNumber hoặc subAccount)
+        if (string.IsNullOrWhiteSpace(payload.accountNumber) && string.IsNullOrWhiteSpace(payload.subAccount))
         {
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(expectedSubAccount) && 
-            !string.IsNullOrWhiteSpace(payload.subAccount) &&
-            !string.Equals(payload.subAccount.Trim(), expectedSubAccount.Trim(), StringComparison.OrdinalIgnoreCase))
+        // BE-NEW-10: Đối chiếu tài khoản ngân hàng thụ hưởng nếu có cấu hình - Không cho phép null/blank vượt qua
+        if (!string.IsNullOrWhiteSpace(expectedAccountNumber))
         {
-            return false;
+            if (string.IsNullOrWhiteSpace(payload.accountNumber) ||
+                !string.Equals(payload.accountNumber.Trim(), expectedAccountNumber.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(expectedSubAccount))
+        {
+            if (string.IsNullOrWhiteSpace(payload.subAccount) ||
+                !string.Equals(payload.subAccount.Trim(), expectedSubAccount.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
         }
 
         // Trích xuất OrderCode linh hoạt
@@ -149,10 +159,41 @@ public class PaymentService : IPaymentService
             }
         }
 
-        // Nếu đơn đã Paid trước đó -> Idempotent check
+        // B06: Đơn hàng đã Paid trước đó -> Lưu giao dịch nếu có ReferenceCode mới để đối soát, không trừ kho / cộng điểm lần hai
         if (order.OrderStatus == OrderStatus.Paid)
         {
-            return true;
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                bool isDuplicate = await _paymentRepository.CheckTransactionExistsAsync(refCode);
+                if (!isDuplicate)
+                {
+                    var additionalTx = new PaymentTransaction
+                    {
+                        OrderId = order.OrderId,
+                        ReferenceCode = refCode,
+                        Amount = payload.EffectiveAmount,
+                        Gateway = payload.gateway ?? "SePay"
+                    };
+                    await _paymentRepository.AddTransactionAsync(additionalTx);
+                    await _unitOfWork.SaveChangesAsync();
+                    await _unitOfWork.CommitAsync();
+                }
+                else
+                {
+                    await _unitOfWork.RollbackAsync();
+                }
+
+                // Không trừ kho, không cộng điểm lần hai
+                return true;
+            }
+            catch (Exception)
+            {
+                await _unitOfWork.RollbackAsync();
+                bool exists = await _paymentRepository.CheckTransactionExistsAsync(refCode);
+                if (exists) return true;
+                throw;
+            }
         }
 
         // Đơn hàng đang Pending -> Hoàn tất thanh toán an toàn
@@ -263,6 +304,10 @@ public class PaymentService : IPaymentService
             {
                 await _unitOfWork.RollbackAsync();
                 var currentOrder = await _orderRepository.GetOrderByCodeAsync(orderCode);
+                if (currentOrder?.OrderStatus == OrderStatus.Cancelled)
+                {
+                    return (false, "Conflict", "Đơn hàng đã bị hủy bởi tiến trình khác, không thể thanh toán.", currentOrder);
+                }
                 return (true, currentOrder?.OrderStatus.ToString() ?? "Paid", "Đơn hàng đã được xử lý bởi tiến trình khác.", currentOrder);
             }
 
