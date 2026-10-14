@@ -303,12 +303,19 @@ public class PaymentService : IPaymentService
             if (!transitioned)
             {
                 await _unitOfWork.RollbackAsync();
-                var currentOrder = await _orderRepository.GetOrderByCodeAsync(orderCode);
+                // F01: Dùng AsNoTracking để đọc trạng thái thật từ DB, bỏ qua EF identity map cache
+                var currentOrder = await _orderRepository.GetOrderByCodeNoTrackingAsync(orderCode);
+                if (currentOrder != null && currentOrder.OrderStatus == OrderStatus.Paid)
+                {
+                    return (true, "Paid", "Đơn hàng đã được xử lý bởi tiến trình khác.", currentOrder);
+                }
+
                 if (currentOrder?.OrderStatus == OrderStatus.Cancelled)
                 {
                     return (false, "Conflict", "Đơn hàng đã bị hủy bởi tiến trình khác, không thể thanh toán.", currentOrder);
                 }
-                return (true, currentOrder?.OrderStatus.ToString() ?? "Paid", "Đơn hàng đã được xử lý bởi tiến trình khác.", currentOrder);
+
+                return (false, "Conflict", "Đơn hàng không ở trạng thái hợp lệ để thanh toán.", currentOrder);
             }
 
             var paymentTx = new PaymentTransaction

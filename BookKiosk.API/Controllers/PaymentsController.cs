@@ -146,7 +146,7 @@ public class PaymentsController : ControllerBase
         try
         {
             var (success, status, message, order) = await _paymentService.SimulateDevSuccessAsync(orderCode);
-            if (status == "NotFound")
+            if (status == "NotFound" || order == null)
             {
                 return NotFound(new ApiResponseDto<object>
                 {
@@ -155,7 +155,7 @@ public class PaymentsController : ControllerBase
                 });
             }
 
-            if (!success || status == "Conflict" || order?.OrderStatus == OrderStatus.Cancelled)
+            if (!success || status != "Paid" || order.OrderStatus != OrderStatus.Paid)
             {
                 return StatusCode(StatusCodes.Status409Conflict, new ApiResponseDto<object>
                 {
@@ -170,9 +170,9 @@ public class PaymentsController : ControllerBase
                 Message = message ?? "Thanh toán mô phỏng thành công.",
                 Data = new PaymentStatusDto
                 {
-                    OrderId = order?.OrderId ?? 0,
-                    OrderCode = order?.OrderCode ?? orderCode,
-                    Status = order?.OrderStatus.ToString() ?? "Paid"
+                    OrderId = order.OrderId,
+                    OrderCode = order.OrderCode,
+                    Status = order.OrderStatus.ToString()
                 }
             });
         }

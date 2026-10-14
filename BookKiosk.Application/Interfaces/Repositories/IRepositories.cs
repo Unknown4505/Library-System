@@ -55,6 +55,8 @@ public interface IOrderRepository
     Task<Order?> GetPendingOrderByCodeAsync(string orderCode);
     Task<Order?> GetOrderByCodeAsync(string orderCode);
     Task<Order?> GetOrderByIdAsync(int orderId);
+    /// <summary>Đọc trạng thái order mới nhất từ DB, bỏ qua EF tracking cache. Dùng sau rollback để xác định trạng thái thật (F01).</summary>
+    Task<Order?> GetOrderByCodeNoTrackingAsync(string orderCode);
 }
 
 public interface IPaymentRepository

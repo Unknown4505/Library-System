@@ -29,7 +29,7 @@ Hệ thống đã đạt PASS tuyệt đối trên cơ sở dữ liệu SQL Serv
 | Bug ID / Test | Mức độ | Hiện trạng lỗi phát hiện | Giải pháp kỹ thuật đã áp dụng |
 |---|---|---|---|
 | **BE-NEW-10 / B03** | **P0** | Webhook thiếu `transferType` hoặc thiếu tài khoản nhận vẫn chuyển `Paid` nếu các dữ liệu khác hợp lệ. | - Bắt buộc `transferType` không được null/blank và phải bằng `"in"` (không phân biệt hoa/thường).<br>- Bắt buộc phải có thông tin tài khoản nhận tiền (`accountNumber` hoặc `subAccount`).<br>- Nếu cấu hình `expectedAccountNumber` hoặc `expectedSubAccount` có giá trị, payload gửi lên bắt buộc phải khớp chính xác. Không cho phép null/blank vượt qua.<br>- Vi phạm lập tức trả về `false`. |
-| **F01 / F3 Race** | **P0** | Khi Kiosk Cancel thắng race trước F3 simulation: Service vẫn trả `Success = true`, Controller hardcode `Status = "Paid"`, trả HTTP 200 dù DB là `Cancelled`. | - Trong `PaymentService.SimulateDevSuccessAsync`: Khi không transition được và `currentOrder.OrderStatus == OrderStatus.Cancelled`, trả về `(false, "Conflict", "Đơn hàng đã bị hủy bởi tiến trình khác...", currentOrder)`.<br>- Trong `PaymentsController.DevSimulateSuccess`: Nếu `!success || status == "Conflict" || order?.OrderStatus == OrderStatus.Cancelled` ➔ Trả về HTTP 409 Conflict.<br>- Nhánh 200 lấy trạng thái động từ DB `order?.OrderStatus.ToString()`, tuyệt đối không hardcode `"Paid"`. Đảm bảo không bao giờ trả Paid khi database đang Cancelled. |
+| **F01 / F3 Race** | **P0** | Khi luồng F3 simulation load Order Pending vào DbContext, luồng Cancel commit Cancelled trước: F3 bị EF Core ChangeTracker cache trả về Pending cũ, Service trả `Success = true`, Controller trả HTTP 200 dù DB là `Cancelled`. | - Trong `IRepositories` và `Repositories`: Bổ sung `GetOrderByCodeNoTrackingAsync` dùng `.AsNoTracking()` đọc trực tiếp trạng thái mới nhất từ SQL Server.<br>- Trong `PaymentService.SimulateDevSuccessAsync`: Tại nhánh `!transitioned`, gọi `RollbackAsync` giải phóng lock, reload DB không qua tracking. Kiểm tra nghiêm ngặt: chỉ khi `OrderStatus == Paid` mới trả `(true, "Paid")`, nếu là `Cancelled` hoặc khác `Paid` trả ngay `(false, "Conflict")`. Tuyệt đối không trả `Success = true` khi DB không phải là `Paid`.<br>- Trong `PaymentsController.DevSimulateSuccess`: Nếu `!success || status != "Paid" || order.OrderStatus != OrderStatus.Paid` ➔ Luôn trả về HTTP 409 Conflict. Chỉ trả HTTP 200 OK khi thực sự `Paid`.<br>- Kiểm thử Concurrency Race 30 vòng liên tiếp trên SQL Server Express + HTTP Integration Test via TestServer: 30/30 PASS tuyệt đối. |
 | **D01 / Point Input** | **P1** | Input `-1`, `101`, hoặc dùng điểm không có MemberId bị hệ thống âm thầm điều chỉnh thay vì reject theo contract. | - Validate chặt chẽ ngay đầu `OrderService.CheckoutKioskAsync`: Kiểm tra `0 <= PointsToUse <= 100`, nếu vi phạm ném `ArgumentException` (HTTP 400).<br>- Bắt buộc có `MemberId` nếu `PointsToUse > 0`, nếu thiếu ném `ArgumentException`.<br>- Bắt `ArgumentException` tại `OrdersController` trả về `ApiResponseDto` với HTTP 400 Bad Request rõ ràng. |
 | **D03 / Point Race** | **P1** | Thành viên có 150 điểm, 2 checkout đồng thời xin 100 điểm: Request 2 bị tự ý giảm xuống 50 điểm dẫn đến cả 2 đơn đều thành công. | - Bỏ toàn bộ logic tự ý giảm điểm xuống số dư khả dụng (`Math.Min`).<br>- Nếu `member.Points < request.PointsToUse`: Ném `InvalidOperationException` từ chối đơn hàng ngay lập tức.<br>- Giữ nguyên business rule tối đa 100 điểm/đơn, không giới hạn tổng điểm thành viên tích lũy, không bổ sung trần 50% hóa đơn, không hạ trần 100 điểm vì có khuyến mãi.<br>- Cơ chế trừ điểm nguyên tử `TryDeductPointsAsync` (`UPDATE Members SET Points = Points - @used WHERE Points >= @used`): Nếu request đồng thời vào sau thấy số dư không đủ (`affected == 0`) ➔ Ném ngoại lệ rollback toàn bộ checkout, trả về HTTP 409 Conflict. Đảm bảo đúng 1 đơn thành công, 1 đơn bị từ chối rõ ràng. |
 | **B06 / New Reference** | **P1** | Đơn hàng đã `Paid` nhận webhook với `ReferenceCode` mới (khách chuyển thêm/chuyển trùng) không được lưu lại DB. | - Trong `PaymentService.HandleSePayWebhookAsync`, khi `order.OrderStatus == OrderStatus.Paid`: Mở transaction kiểm tra `CheckTransactionExistsAsync(refCode)`.<br>- Nếu là giao dịch mới: Thêm bản ghi `PaymentTransaction` lưu vết đối soát cho kế toán kiểm tra.<br>- Tuyệt đối không trừ kho lặp lại và không cộng điểm thành viên lần hai. |
@@ -85,29 +85,44 @@ Time Elapsed 00:00:04.65
 
 ---
 
-## 5. BẢNG KẾT QUẢ TEST REGRESSION TỰ ĐỘNG
+## 5. BẢNG KẾT QUẢ TEST REGRESSION & CONCURRENCY TỰ ĐỘNG
 
-Bộ kiểm thử tự động tại `scratch/EntityGen` chạy trực tiếp trên relational database provider hỗ trợ transactions và atomic conditional updates:
+Bộ kiểm thử tự động tại `scratch/EntityGen` chạy trực tiếp trên cơ sở dữ liệu **SQL Server Express** (`Database=BookKiosk_Test`) với migrations thật, hỗ trợ transactions, locks và atomic conditional updates:
 
-| Test ID | Nội dung kịch bản | Kết quả mong đợi | Kết quả thực tế | Trạng thái |
-|---|---|---|---|---|
-| **B03.1** | Webhook với `transferType = null` | Bị từ chối (`false`), giữ trạng thái cũ | Trả về `false` | ✅ **PASS** |
-| **B03.2** | Webhook với `transferType = "out"` | Bị từ chối (`false`), không chuyển Paid | Trả về `false` | ✅ **PASS** |
-| **B03.3** | Webhook thiếu cả `accountNumber` và `subAccount` | Bị từ chối (`false`), không chuyển Paid | Trả về `false` | ✅ **PASS** |
-| **B03.4** | Webhook có `accountNumber` không khớp cấu hình | Bị từ chối (`false`), không chuyển Paid | Trả về `false` | ✅ **PASS** |
-| **F01.1** | F3 simulation trên đơn đã `Cancelled` tại Service | Trả về `Success = false, Status = "Conflict"` | Trả về `(false, "Conflict")` | ✅ **PASS** |
-| **F01.2** | F3 simulation endpoint tại Controller trên đơn `Cancelled` | Trả về HTTP 409 Conflict, không trả Paid | HTTP 409 Conflict | ✅ **PASS** |
-| **D01.1** | Checkout với `PointsToUse = -1` | Ném `ArgumentException` (HTTP 400) | `ArgumentException` | ✅ **PASS** |
-| **D01.2** | Checkout với `PointsToUse = 101` | Ném `ArgumentException` (HTTP 400) | `ArgumentException` | ✅ **PASS** |
-| **D01.3** | Checkout với `PointsToUse = 50` nhưng `MemberId = null` | Ném `ArgumentException` (HTTP 400) | `ArgumentException` | ✅ **PASS** |
-| **D03.1** | Checkout 1 của thành viên có 150 điểm xin dùng 100 điểm | Thành công, trừ 100 điểm, số dư còn 50 | Thành công, điểm dùng: 100 | ✅ **PASS** |
-| **D03.2** | Checkout 2 đồng thời cùng xin 100 điểm (khi số dư chỉ còn 50) | Ném `InvalidOperationException` (không tự ép xuống 50) | `InvalidOperationException` | ✅ **PASS** |
-| **B06.1** | Webhook 1 cho đơn hàng đã `Paid` | Xử lý bình thường, idempotent | Trả về `true` | ✅ **PASS** |
-| **B06.2** | Webhook 2 có `ReferenceCode` mới gửi tới đơn đã `Paid` | Trả về `true`, ghi nhận đối soát | Trả về `true` | ✅ **PASS** |
-| **B06.3** | Kiểm tra database bảng `PaymentTransactions` | Lưu cả 2 bản ghi giao dịch, không trừ kho lặp | 2 giao dịch được lưu | ✅ **PASS** |
-| **A04** | Checkout với `request.Items` chứa `BookId` trùng lặp | Ném `ArgumentException` trước transaction | `ArgumentException` | ✅ **PASS** |
+| Test ID | Nhóm | Nội dung kịch bản | Kết quả mong đợi | Kết quả thực tế | Trạng thái |
+|---|---|---|---|---|---|
+| **B03.1** | P0 | Webhook với `transferType = null` | Bị từ chối (`false`), giữ trạng thái cũ | Trả về `false` | ✅ **PASS** |
+| **B03.2** | P0 | Webhook với `transferType = "out"` | Bị từ chối (`false`), không chuyển Paid | Trả về `false` | ✅ **PASS** |
+| **B03.3** | P0 | Webhook thiếu cả `accountNumber` và `subAccount` | Bị từ chối (`false`), không chuyển Paid | Trả về `false` | ✅ **PASS** |
+| **B03.4** | P0 | Webhook có `accountNumber` không khớp cấu hình | Bị từ chối (`false`), không chuyển Paid | Trả về `false` | ✅ **PASS** |
+| **F01.Base1** | P0 | F3 simulation trên đơn đã `Cancelled` tại Service | Trả về `Success = false, Status = "Conflict"` | Trả về `(false, "Conflict")` | ✅ **PASS** |
+| **F01.Base2** | P0 | F3 simulation endpoint Controller trên đơn `Cancelled` | Trả về HTTP 409 Conflict, không trả Paid | HTTP 409 Conflict | ✅ **PASS** |
+| **F01.Base3** | P0 | F3 simulation endpoint Controller trên đơn `Pending` | Trả về HTTP 200 OK, `Status = "Paid"` | HTTP 200 OK | ✅ **PASS** |
+| **F01.Base4** | P0 | F3 simulation response body kiểm tra `data.status` | Khớp `Paid` | `data.status = "Paid"` | ✅ **PASS** |
+| **F01.Base5** | P0 | F3 simulation trên đơn không tồn tại | Trả về HTTP 404 NotFound | HTTP 404 NotFound | ✅ **PASS** |
+| **F01.Base6** | P0 | F3 simulation thiếu/sai `X-Api-Key` | Trả về HTTP 401 Unauthorized | HTTP 401 Unauthorized | ✅ **PASS** |
+| **F01.Base7** | P0 | F3 simulation gọi trong môi trường Production | Bị chặn, trả về HTTP 404 NotFound | HTTP 404 NotFound | ✅ **PASS** |
+| **F01.Race30** | **P0** | **True Concurrency Race F3 vs Cancel (30 iterations SQL Server)** | **30/30 vòng: F3 trả Conflict, DB chốt Cancelled** | **30/30 VÒNG PASS (100%)** | ✅ **PASS** |
+| **F01.HTTP1** | **P0** | **HTTP Integration Test: Overlap F3 simulation & Cancel (TestServer)** | **Trả về HTTP 409 Conflict** | **HTTP 409 Conflict** | ✅ **PASS** |
+| **F01.HTTP2** | **P0** | **HTTP Response Body wrapper** | **`success = false`** | **`success = false`** | ✅ **PASS** |
+| **F01.HTTP3** | **P0** | **Xác minh SQL Server Express độc lập** | **DB OrderStatus khớp 100% Cancelled** | **`Cancelled`** | ✅ **PASS** |
+| **D01.1** | P1 | Checkout với `PointsToUse = -1` | Ném `ArgumentException` (HTTP 400) | `ArgumentException` | ✅ **PASS** |
+| **D01.2** | P1 | Checkout với `PointsToUse = 101` | Ném `ArgumentException` (HTTP 400) | `ArgumentException` | ✅ **PASS** |
+| **D01.3** | P1 | Checkout với `PointsToUse = 50` nhưng `MemberId = null` | Ném `ArgumentException` (HTTP 400) | `ArgumentException` | ✅ **PASS** |
+| **D03.1** | P1 | Checkout 1 của thành viên có 150 điểm xin dùng 100 điểm | Thành công, trừ 100 điểm, số dư còn 50 | Thành công, điểm dùng: 100 | ✅ **PASS** |
+| **D03.2** | P1 | Checkout 2 đồng thời cùng xin 100 điểm (khi số dư chỉ còn 50) | Ném `InvalidOperationException` (không tự ép xuống 50) | `InvalidOperationException` | ✅ **PASS** |
+| **B06.1** | P1 | Webhook 1 cho đơn hàng đã `Paid` | Xử lý bình thường, idempotent | Trả về `true` | ✅ **PASS** |
+| **B06.2** | P1 | Webhook 2 có `ReferenceCode` mới gửi tới đơn đã `Paid` | Trả về `true`, ghi nhận đối soát | Trả về `true` | ✅ **PASS** |
+| **B06.3** | P1 | Kiểm tra database bảng `PaymentTransactions` | Lưu cả 2 bản ghi giao dịch, không trừ kho lặp | 2 giao dịch được lưu | ✅ **PASS** |
+| **A04** | P2 | Checkout với `request.Items` chứa `BookId` trùng lặp | Ném `ArgumentException` trước transaction | `ArgumentException` | ✅ **PASS** |
+| **R01** | Ref | SQL Server check constraints: `CK_Books_ReservedQuantity` | Stock >= 0, Reserved >= 0, Reserved <= Stock | Constraints thỏa mãn | ✅ **PASS** |
+| **R02** | Ref | Bảo vệ Terminal State (Paid vs Cancel) | Không thể hủy đơn đã Paid | Trả về `false` | ✅ **PASS** |
+| **R03.1** | Ref | Late webhook gửi tới đơn đã `Cancelled` | Trả về `true` báo nhận SePay | Trả về `true` | ✅ **PASS** |
+| **R03.2** | Ref | Đơn Cancelled nhận late webhook | Giữ nguyên `Cancelled`, không revive | `Cancelled` | ✅ **PASS** |
+| **R03.3** | Ref | Vết giao dịch late webhook trong SQL Server | Lưu transaction đối soát | 1 record được ghi | ✅ **PASS** |
+| **R03.4** | Ref | Kiểm tra tồn kho sách sau late webhook | Không trừ kho | Tồn kho giữ nguyên | ✅ **PASS** |
 
-**Tổng kết kiểm thử:** **15/15 Kịch bản PASS (100%)**.
+**Tổng kết kiểm thử:** **30/30 Kịch bản PASS (100%)**.
 
 ---
 
