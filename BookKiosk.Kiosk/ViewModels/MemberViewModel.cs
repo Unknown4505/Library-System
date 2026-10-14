@@ -8,6 +8,25 @@ using BookKiosk.Application.DTOs.Order;
 
 namespace BookKiosk.Kiosk.ViewModels
 {
+    /// <summary>
+    /// [MEMBER-01] Trạng thái tra cứu thành viên. Phân biệt rõ các trường hợp để CanConfirm() không tự fallback sang MemberId = null.
+    /// </summary>
+    public enum MemberLookupState
+    {
+        /// <summary>Chưa nhập số điện thoại — khách vãng lai mặc định.</summary>
+        Idle,
+        /// <summary>Đang gọi API tra cứu.</summary>
+        Checking,
+        /// <summary>Lookup thành công, MemberId != null.</summary>
+        Verified,
+        /// <summary>SĐT không tịn tại trong hệ thống (NOT_FOUND).</summary>
+        NotFound,
+        /// <summary>Lỗi mạng hoặc server 5xx.</summary>
+        Failed,
+        /// <summary>User chủ động bỏ qua thành viên — cho phép tạo đơn khách.</summary>
+        Skipped
+    }
+
     public class MemberViewModel : BaseViewModel
     {
         private readonly CartService _cartService;
@@ -16,17 +35,26 @@ namespace BookKiosk.Kiosk.ViewModels
 
         public int? MemberId { get; private set; }
 
-        private bool _isCheckingMember = false;
-        public bool IsCheckingMember
+        // [MEMBER-01] Trạng thái lookup chính xác
+        private MemberLookupState _lookupState = MemberLookupState.Idle;
+        public MemberLookupState LookupState
         {
-            get => _isCheckingMember;
+            get => _lookupState;
             private set
             {
-                _isCheckingMember = value;
+                _lookupState = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(IsCheckingMember));
+                OnPropertyChanged(nameof(ShowSkipButton));
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             }
         }
+
+        /// <summary>Backward-compat: true khi đang gọi API.</summary>
+        public bool IsCheckingMember => _lookupState == MemberLookupState.Checking;
+
+        /// <summary>[MEMBER-01] Nút Bỏ qua chỉ hiện khi lookup thất bại (NotFound hoặc Failed).</summary>
+        public bool ShowSkipButton => _lookupState == MemberLookupState.NotFound || _lookupState == MemberLookupState.Failed;
 
         private int _phoneCheckVersion = 0;
         private string _phoneNumber = "";
@@ -49,12 +77,14 @@ namespace BookKiosk.Kiosk.ViewModels
 
                 if (!string.IsNullOrWhiteSpace(_phoneNumber) && _phoneNumber.Length == 10)
                 {
-                    IsCheckingMember = true;
+                    // [MEMBER-01] Chuyển sang Checking trước khi gọi API
+                    LookupState = MemberLookupState.Checking;
                     CheckMemberPhoneAsync(_phoneNumber);
                 }
                 else
                 {
-                    IsCheckingMember = false;
+                    // [MEMBER-01] Reset về Idle khi xóa hoặc nhập dở số điện thoại
+                    LookupState = MemberLookupState.Idle;
                 }
             }
         }
@@ -83,6 +113,9 @@ namespace BookKiosk.Kiosk.ViewModels
                     {
                         PointsUsed = Math.Min(PointsUsed, GetMaxPointsAllowed());
                     }
+
+                    // [MEMBER-01] Lookup thành công
+                    LookupState = MemberLookupState.Verified;
                 }
                 else
                 {
@@ -90,6 +123,9 @@ namespace BookKiosk.Kiosk.ViewModels
                     MemberId = null;
                     PointsUsed = 0;
                     ErrorMessage = response?.Message ?? "Số điện thoại chưa được đăng ký thành viên. Vui lòng đăng ký ở quầy.";
+
+                    // [MEMBER-01] NOT_FOUND — hiện nút Bỏ qua, khóa Confirm
+                    LookupState = MemberLookupState.NotFound;
                 }
             }
             catch
@@ -98,15 +134,12 @@ namespace BookKiosk.Kiosk.ViewModels
                 AvailablePoints = 0;
                 MemberId = null;
                 PointsUsed = 0;
-                ErrorMessage = "Không thể kết nối máy chủ để kiểm tra thành viên. Vui lòng thử lại.";
+                ErrorMessage = "Không thể kết nối máy chủ để kiểm tra thành viên. Vui lòng thử lại hoặc bỏ qua.";
+
+                // [MEMBER-01] Lỗi mạng/500 — hiện nút Bỏ qua, khóa Confirm
+                LookupState = MemberLookupState.Failed;
             }
-            finally
-            {
-                if (currentVersion == _phoneCheckVersion)
-                {
-                    IsCheckingMember = false;
-                }
-            }
+            // Không có finally reset IsCheckingMember — LookupState đã thay thế.
         }
 
         private int _availablePoints = 0;
@@ -208,6 +241,9 @@ namespace BookKiosk.Kiosk.ViewModels
         public ICommand ConfirmCommand { get; }
         public ICommand UseMaxPointsCommand { get; }
 
+        /// <summary>[MEMBER-01] Cho phép user chủ động bỏ qua thành viên và tạo đơn khách.</summary>
+        public ICommand SkipMemberCommand { get; }
+
         public MemberViewModel(CartService cartService, NavigationService navigationService, IBookKioskApiClient api)
         {
             _cartService = cartService;
@@ -217,20 +253,52 @@ namespace BookKiosk.Kiosk.ViewModels
             // FE-14 & FE-19: Chặn re-entry / double-click và chặn confirm khi đang tra cứu SĐT
             ConfirmCommand = new RelayCommand(_ => ExecuteConfirm(), _ => CanConfirm());
             UseMaxPointsCommand = new RelayCommand(_ => ExecuteUseMaxPoints());
+
+            // [MEMBER-01] Nút Bỏ qua chỉ active khi lookup thất bại
+            SkipMemberCommand = new RelayCommand(_ => ExecuteSkipMember(), _ => CanSkip());
         }
 
         private bool CanConfirm()
         {
-            if (IsLoading || IsCheckingMember) return false;
-            // Cho phép khách vãng lai (không nhập SĐT) hoặc SĐT đã nhập đủ 10 chữ số
-            return string.IsNullOrEmpty(PhoneNumber) || PhoneNumber.Length == 10;
+            if (IsLoading) return false;
+
+            // [MEMBER-01] Kiểm tra LookupState thay vì chỉ kiểm tra IsCheckingMember
+            return _lookupState switch
+            {
+                // Khách vãng lai (chưa nhập SĐT)
+                MemberLookupState.Idle => string.IsNullOrEmpty(PhoneNumber),
+                // Lookup thành công
+                MemberLookupState.Verified => true,
+                // User chủ động bỏ qua
+                MemberLookupState.Skipped => true,
+                // Checking, NotFound, Failed — khóa Confirm
+                _ => false
+            };
+        }
+
+        /// <summary>[MEMBER-01] Nút Bỏ qua chỉ khả dụng khi lookup thất bại.</summary>
+        private bool CanSkip()
+        {
+            return !IsLoading && (_lookupState == MemberLookupState.NotFound || _lookupState == MemberLookupState.Failed);
+        }
+
+        /// <summary>[MEMBER-01] User chủ động chọn bỏ qua — set Skipped để mở khóa Confirm với MemberId = null.</summary>
+        private void ExecuteSkipMember()
+        {
+            if (!CanSkip()) return;
+            MemberId = null;
+            AvailablePoints = 0;
+            PointsUsed = 0;
+            LookupState = MemberLookupState.Skipped;
+            ErrorMessage = "Bạn đã chọn bỏ qua tích điểm. Đơn hàng sẽ được xử lý với tài khoản khách.";
         }
 
         public override void Initialize(object parameter)
         {
             base.Initialize(parameter);
             _phoneCheckVersion++;
-            IsCheckingMember = false;
+            // [MEMBER-01] Reset về Idle khi vào trang mới
+            LookupState = MemberLookupState.Idle;
             PhoneNumber = "";
             PointsUsed = 0;
             ErrorMessage = "";
@@ -243,13 +311,21 @@ namespace BookKiosk.Kiosk.ViewModels
         private async void ExecuteConfirm()
         {
             // FE-14 & FE-19: Guard clause chặn khi đang tạo đơn hoặc đang tra cứu SĐT
-            if (IsLoading || IsCheckingMember) return;
+            if (IsLoading) return;
 
-            // Nếu người dùng nhập dở dang SĐT (khác 0 và khác 10 số), chặn và thông báo
-            if (!string.IsNullOrEmpty(PhoneNumber) && PhoneNumber.Length != 10)
+            // [MEMBER-01] Guard dựa trên LookupState — không tự fallback sang guest
+            switch (_lookupState)
             {
-                ErrorMessage = "Vui lòng nhập đủ 10 chữ số điện thoại hoặc xóa trống để tiếp tục với tư cách khách vãng lai.";
-                return;
+                case MemberLookupState.Checking:
+                    ErrorMessage = "Đang kiểm tra thông tin thành viên, vui lòng đợi...";
+                    return;
+                case MemberLookupState.NotFound:
+                    ErrorMessage = "Số điện thoại không tìm thấy. Vui lòng nhập lại hoặc nhấn 'Bỏ qua tích điểm' để tiếp tục.";
+                    return;
+                case MemberLookupState.Failed:
+                    ErrorMessage = "Lỗi kết nối. Vui lòng thử lại hoặc nhấn 'Bỏ qua tích điểm' để tiếp tục.";
+                    return;
+                // Idle (không nhập SĐT), Verified, Skipped — được phép tiếp tục
             }
 
             IsLoading = true;

@@ -51,7 +51,8 @@
                         </TextBox.Style>
                     </TextBox>
 
-                    <TextBlock Grid.Row="3" Text="{Binding ErrorMessage}" Foreground="#e74c3c" FontSize="24" Margin="0,20,0,0" HorizontalAlignment="Center" FontWeight="Bold"/>
+                    <!-- [MEMBER-01] Thông báo lỗi lookup -->
+                    <TextBlock Grid.Row="3" Text="{Binding ErrorMessage}" Foreground="#e74c3c" FontSize="24" Margin="0,20,0,0" HorizontalAlignment="Center" FontWeight="Bold" TextWrapping="Wrap"/>
                 </Grid>
             </Border>
 
@@ -140,8 +141,29 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Nút Xác nhận -->
-                <Button Content="XÁC NHẬN" Command="{Binding ConfirmCommand}" FontSize="40" FontWeight="Bold" Background="#3498db" Foreground="White" Height="120" Focusable="False">
+                <!-- [MEMBER-01] Nút Xác nhận — chỉ active khi Idle(không nhập SĐT)/Verified/Skipped -->
+                <Button Content="XÁC NHẬN" Command="{Binding ConfirmCommand}" FontSize="40" FontWeight="Bold" Background="#3498db" Foreground="White" Height="120" Focusable="False" Margin="0,0,0,20">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="15"/></Style>
+                    </Button.Resources>
+                </Button>
+
+                <!-- [MEMBER-01] Nút Bỏ qua: chỉ hiện khi lookup thất bại (NotFound/Failed) -->
+                <Button Content="➡ Bỏ qua tích điểm &amp; Tiếp tục"
+                        Command="{Binding SkipMemberCommand}"
+                        FontSize="28" FontWeight="Bold"
+                        Background="#e67e22" Foreground="White"
+                        Height="90" Focusable="False">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ShowSkipButton}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
                     <Button.Resources>
                         <Style TargetType="Border"><Setter Property="CornerRadius" Value="15"/></Style>
                     </Button.Resources>

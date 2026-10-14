@@ -164,35 +164,41 @@ namespace BookKiosk.Kiosk
             {
                 _clickCount = 0; // Reset
                 
+#if DEBUG
+                // [MAINT-02] Debug: Đọc PIN từ config ngoài source (env var hoặc appsettings.Development.json).
+                // Không có fallback mặc định — fail closed nếu chưa cấu hình.
                 string? configuredPin = Environment.GetEnvironmentVariable("KIOSK_MAINTENANCE_PIN")
                     ?? _configuration?["KioskSettings:MaintenancePin"];
 
-#if DEBUG
-                // Ở môi trường DEV, nếu chưa cấu hình biến môi trường thì dùng mã PIN dev "123456"
                 if (string.IsNullOrWhiteSpace(configuredPin))
                 {
-                    configuredPin = "123456";
-                }
-#else
-                // Production/Release: Fail closed nếu chưa cấu hình mã PIN an toàn
-                if (string.IsNullOrWhiteSpace(configuredPin))
-                {
-                    System.Diagnostics.Debug.WriteLine("[Security] Chức năng thoát bảo trì bị vô hiệu hóa vì thiếu cấu hình MaintenancePin an toàn (Fail-closed).");
-                    MessageBox.Show("Chức năng bảo trì bị vô hiệu hóa: Chưa cấu hình mã PIN an toàn trên thiết bị (Fail-closed).", "Bảo mật", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    System.Diagnostics.Debug.WriteLine("[Security][DEBUG] Chức năng bảo trì bị vô hiệu hóa: Chưa cấu hình MaintenancePin ngoài source (Fail-closed).");
+                    MessageBox.Show(
+                        "[DEBUG] Chức năng bảo trì bị vô hiệu hóa.\n" +
+                        "Vui lòng cấu hình KIOSK_MAINTENANCE_PIN (env) hoặc KioskSettings:MaintenancePin (appsettings.Development.json) ngoài source code.",
+                        "Bảo mật — Fail Closed", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
-#endif
 
                 var passwordDialog = new PasswordDialog(configuredPin)
                 {
                     Owner = this
                 };
-                
+
                 // Mở hộp thoại modal. Chỉ tắt app nếu nhập đúng pass
                 if (passwordDialog.ShowDialog() == true && passwordDialog.IsAuthenticated)
                 {
                     System.Windows.Application.Current.Shutdown();
                 }
+#else
+                // [MAINT-01] Release: Luôn fail closed — không cho phép thoát Kiosk bằng local PIN.
+                // Backend authorization chưa được triển khai → vô hiệu hóa hoàn toàn.
+                System.Diagnostics.Debug.WriteLine("[Security][RELEASE] Chức năng thoát bảo trì bị vô hiệu hóa hoàn toàn ở Release (Fail-closed).");
+                MessageBox.Show(
+                    "Chức năng bảo trì không khả dụng trên thiết bị này.\nVui lòng liên hệ quản trị viên.",
+                    "Bảo mật", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+#endif
             }
         }
     }
