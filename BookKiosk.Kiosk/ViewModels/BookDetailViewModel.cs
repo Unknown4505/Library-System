@@ -27,7 +27,7 @@ namespace BookKiosk.Kiosk.ViewModels
             _navigationService = navigationService;
             _cartService = cartService;
 
-            AddToCartCommand = new RelayCommand(ExecuteAddToCart);
+            AddToCartCommand = new RelayCommand(ExecuteAddToCart, _ => !HasError && Book != null);
             BackCommand = new RelayCommand(_ => _navigationService.GoBack());
         }
 
@@ -36,24 +36,46 @@ namespace BookKiosk.Kiosk.ViewModels
             if (parameter is int bookId)
             {
                 IsLoading = true;
-                var result = await _apiClient.GetBookByIdAsync(bookId);
-                if (result != null && result.Success && result.Data != null)
+                ErrorMessage = "";
+                Book = null;
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+
+                try
                 {
-                    var bookDto = result.Data;
-                    Book = new BookModel 
+                    var result = await _apiClient.GetBookByIdAsync(bookId);
+
+                    if (result != null && result.Success && result.Data != null)
                     {
-                        BookId = bookDto.BookId,
-                        Barcode = bookDto.Barcode,
-                        Title = bookDto.Title,
-                        Author = bookDto.Author,
-                        ImageUrl = bookDto.ImageUrl,
-                        SellingPrice = bookDto.SellingPrice,
-                        AvailableStock = bookDto.AvailableStock,
-                        CategoryId = bookDto.CategoryId,
-                        AreaName = bookDto.AreaName
-                    };
+                        var bookDto = result.Data;
+                        Book = new BookModel
+                        {
+                            BookId = bookDto.BookId,
+                            Barcode = bookDto.Barcode,
+                            Title = bookDto.Title,
+                            Author = bookDto.Author,
+                            ImageUrl = bookDto.ImageUrl,
+                            SellingPrice = bookDto.SellingPrice,
+                            AvailableStock = bookDto.AvailableStock,
+                            CategoryId = bookDto.CategoryId,
+                            AreaName = bookDto.AreaName
+                        };
+                    }
+                    else
+                    {
+                        // FE-DETAIL-01: Gán lỗi khi API trả về thất bại hoặc 404
+                        ErrorMessage = result?.Message ?? "Không thể tải thông tin sách. Vui lòng quay lại và thử lại.";
+                    }
                 }
-                IsLoading = false;
+                catch (Exception ex)
+                {
+                    // FE-DETAIL-01: Bắt lỗi mạng/exception không mong muốn
+                    ErrorMessage = "Lỗi kết nối khi tải chi tiết sách: " + ex.Message;
+                }
+                finally
+                {
+                    IsLoading = false;
+                    System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+                }
             }
         }
 

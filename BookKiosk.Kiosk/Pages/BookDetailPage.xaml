@@ -7,6 +7,9 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       mc:Ignorable="d">
+    <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </Page.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="7*"/>
@@ -28,8 +31,60 @@
                 </Button.Resources>
             </Button>
 
-            <!-- Chi tiết sách -->
+            <!-- FE-DETAIL-01: Banner lỗi tải chi tiết (hiện khi HasError=True, ẩn khi đang tải) -->
+            <Border Grid.Row="1"
+                    Background="#fdecea"
+                    BorderBrush="#e74c3c"
+                    BorderThickness="2"
+                    CornerRadius="12"
+                    Padding="40,30"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    MinWidth="600">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasError}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="⚠" FontSize="72" Foreground="#e74c3c" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               FontSize="32" Foreground="#c0392b"
+                               TextWrapping="Wrap"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               MaxWidth="700"/>
+                    <TextBlock Text="Vui lòng nhấn nút &quot;⬅ QUAY LẠI&quot; để thử lại."
+                               FontSize="28" Foreground="#7f8c8d"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               Margin="0,15,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Chi tiết sách (FE-DETAIL-01: ẩn toàn bộ khi có lỗi) -->
             <Grid Grid.Row="1" Background="White" Margin="0,0,0,30">
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasError}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
                 <Border CornerRadius="15">
                     <Border.Effect>
                         <DropShadowEffect BlurRadius="20" Opacity="0.3"/>
@@ -153,9 +208,16 @@
                         <Setter Property="Background" Value="#e67e22"/>
                         <Setter Property="IsEnabled" Value="True"/>
                         <Style.Triggers>
+                            <!-- Hết hàng -->
                             <DataTrigger Binding="{Binding Book.AvailableStock}" Value="0">
                                 <Setter Property="Content" Value="🚫 HẾT HÀNG"/>
                                 <Setter Property="Background" Value="#95a5a6"/>
+                                <Setter Property="IsEnabled" Value="False"/>
+                            </DataTrigger>
+                            <!-- FE-DETAIL-01: Lỗi tải dữ liệu — khóa nút để tránh exception khi Book=null -->
+                            <DataTrigger Binding="{Binding HasError}" Value="True">
+                                <Setter Property="Content" Value="⚠ KHÔNG THỂ THÊM VÀO GIỎ"/>
+                                <Setter Property="Background" Value="#bdc3c7"/>
                                 <Setter Property="IsEnabled" Value="False"/>
                             </DataTrigger>
                         </Style.Triggers>

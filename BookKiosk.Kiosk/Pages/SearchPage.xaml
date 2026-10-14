@@ -109,8 +109,40 @@
                 </ComboBox.Resources>
             </ComboBox>
 
-            <!-- Text báo không tìm thấy kết quả -->
-            <TextBlock Grid.Row="2" Text="Không tìm thấy sách nào phù hợp..." 
+            <!-- FE-SEARCH-01: Banner lỗi API/mạng (chỉ hiện khi HasError = True) -->
+            <Border Grid.Row="2"
+                    Background="#fdecea"
+                    BorderBrush="#e74c3c"
+                    BorderThickness="2"
+                    CornerRadius="12"
+                    Padding="30,20"
+                    Margin="0,20,40,0"
+                    Panel.ZIndex="1"
+                    VerticalAlignment="Top">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasError}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="⚠" FontSize="36" Foreground="#c0392b" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               FontSize="30" Foreground="#c0392b"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- FE-SEARCH-01: Text báo không tìm thấy kết quả (chỉ hiện khi Count=0 VÀ không có lỗi) -->
+            <TextBlock Grid.Row="2" Text="Không tìm thấy sách nào phù hợp..."
                        FontSize="32" Foreground="#95a5a6" HorizontalAlignment="Center" Margin="0,50,0,0">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock">
@@ -119,7 +151,12 @@
                             <DataTrigger Binding="{Binding SearchResults.Count}" Value="0">
                                 <Setter Property="Visibility" Value="Visible"/>
                             </DataTrigger>
+                            <!-- Ẩn khi đang tải -->
                             <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <!-- FE-SEARCH-01: Ẩn khi có lỗi — nhường chỗ cho Error Banner -->
+                            <DataTrigger Binding="{Binding HasError}" Value="True">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                             </DataTrigger>
                         </Style.Triggers>
