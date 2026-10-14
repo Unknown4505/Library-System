@@ -85,6 +85,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 5.3 | Logic: Trừ tiền điểm (Points), tính TotalAmount | | @thien33 | | `[x]` |
 | 5.4 | Logic: Cập nhật `ReservedQuantity` & Lưu Order | | @thien33 | | `[x]` |
 | 5.5 | **[Leader]** Viết test kịch bản tính điểm và áp KM, fix bug Concurrency | @Unknown4505 | | | `[ ]` |
+| 5.6 | API: `GET /api/orders/kiosk/{orderId}/receipt` — dữ liệu hóa đơn chính thức từ Orders/OrderDetails ([Issue #28](https://github.com/Unknown4505/Library-System/issues/28)) | <br> | @thien33 | <br> | `[ ]` |
 
 ### MODULE 6: KIOSK WPF - GIỎ HÀNG & THANH TOÁN
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
@@ -109,6 +110,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 |---|---|:---:|:---:|:---:|:---:|
 | 8.1 | Kiosk: Gắn UI xử lý dữ liệu từ Camera/Máy quét | | | @lehuukhang | `[x]` |
 | 8.2 | Kiosk: Sinh file PDF Hóa đơn với QuestPDF | | | @lehuukhang | `[ ]` |
+| 8.2.1 | Tích hợp Receipt API vào màn hình hóa đơn, Mock Printer và PDF; dùng ReceiptDto từ Backend ([Issue #29](https://github.com/Unknown4505/Library-System/issues/29), phụ thuộc #28) | <br> | <br> | @lehuukhang | `[ ]` |
 | 8.3 | Kiosk: `MaintenancePage` Báo lỗi thiết bị, khóa Kiosk | | | @lehuukhang | `[ ]` |
 | 8.4 | **[Leader]** Khởi tạo Interface phần cứng (`IBarcodeScanner`, `IReceiptPrinter`) và Class Mock | @Unknown4505 | | | `[x]` |
 | 8.4.1 | **[Ghi chú Kiosk]** FE bắt buộc dùng interface `BookKiosk.Kiosk.Services.Hardware.IBarcodeScanner` đã được Leader mock sẵn, KHÔNG tự tạo service quét mã mới. | | | @lehuukhang | `[x]` |
@@ -146,6 +148,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
 | 12.1 | **[Leader]** Kịch bản Test End-to-End toàn luồng | @Unknown4505 | | | `[ ]` |
+| 12.1.1 | Kiểm thử E2E Checkout → Paid → Receipt API → Kiosk hiển thị và xuất PDF (Issues #28, #29) | @Unknown4505 | <br> | <br> | `[ ]` |
 | 12.2 | **[Leader]** Vẽ Sơ đồ Context Diagram, BFD, DFD | @Unknown4505 | | | `[ ]` |
 | 12.3 | **[Leader]** Vẽ ERD Database | @Unknown4505 | | | `[x]` |
 | 12.4 | Viết Báo cáo Word Đồ án cuối kỳ | @Unknown4505 | @thien33 | @lehuukhang | `[ ]` |
