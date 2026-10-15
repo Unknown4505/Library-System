@@ -1,0 +1,35 @@
+<UserControl x:Class="BookKiosk.Kiosk.Controls.CustomKioskDialogControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Visibility="Collapsed" Panel.ZIndex="9999">
+    <Grid Background="#99000000">
+        <!-- Nền mờ -->
+        <Border Background="White" CornerRadius="20" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="40" MinWidth="600" MaxWidth="1000">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="20" ShadowDepth="5" Opacity="0.2"/>
+            </Border.Effect>
+            <StackPanel>
+                <TextBlock x:Name="MessageText" Text="Thông báo..." FontSize="36" FontWeight="Bold" TextWrapping="Wrap" Foreground="#2c3e50" TextAlignment="Center" Margin="0,0,0,40"/>
+                
+                <Grid x:Name="ButtonsGrid">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <Button x:Name="CancelButton" Grid.Column="0" Content="QUAY LẠI" Click="CancelButton_Click" FontSize="28" FontWeight="Bold" Background="#95a5a6" Foreground="White" Height="80" Margin="0,0,10,0" Focusable="False">
+                        <Button.Resources>
+                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="15"/></Style>
+                        </Button.Resources>
+                    </Button>
+                    
+                    <Button x:Name="OkButton" Grid.Column="1" Content="OK" Click="OkButton_Click" FontSize="28" FontWeight="Bold" Background="#3498db" Foreground="White" Height="80" Margin="10,0,0,0" Focusable="False">
+                        <Button.Resources>
+                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="15"/></Style>
+                        </Button.Resources>
+                    </Button>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

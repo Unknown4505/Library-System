@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 using BookKiosk.Application.DTOs.Books;
 using BookKiosk.Application.DTOs.Common;
 using BookKiosk.Application.DTOs.Members;
@@ -66,44 +67,109 @@ public class BookKioskApiClient : IBookKioskApiClient
     }
 
     public async Task<ApiResponseDto<BookDto>?> GetBookByBarcodeAsync(string barcode)
-        => await SendAsync<BookDto>(() => _httpClient.GetAsync($"api/books/barcode/{Uri.EscapeDataString(barcode)}"));
+    {
+        return await SendAsync<BookDto>(() => _httpClient.GetAsync($"api/books/barcode/{Uri.EscapeDataString(barcode)}"));
+    }
 
     public async Task<ApiResponseDto<BookDto>?> GetBookByIdAsync(int bookId)
-        => await SendAsync<BookDto>(() => _httpClient.GetAsync($"api/books/{bookId}"));
+    {
+        return await SendAsync<BookDto>(() => _httpClient.GetAsync($"api/books/{bookId}"));
+    }
 
-    // ── CATEGORIES & AREAS ────────────────────────────────────────────────────
+    // ── CATEGORIES & AREAS ───────────────────────────────────────────────────
 
     public async Task<ApiResponseDto<List<CategoryDto>>?> GetCategoriesAsync()
-        => await SendAsync<List<CategoryDto>>(() => _httpClient.GetAsync("api/categories"));
+    {
+        return await SendAsync<List<CategoryDto>>(() => _httpClient.GetAsync("api/categories"));
+    }
 
     public async Task<ApiResponseDto<List<AreaDto>>?> GetAreasAsync()
-        => await SendAsync<List<AreaDto>>(() => _httpClient.GetAsync("api/areas"));
+    {
+        return await SendAsync<List<AreaDto>>(() => _httpClient.GetAsync("api/areas"));
+    }
 
     // ── MEMBERS ───────────────────────────────────────────────────────────────
 
     public async Task<ApiResponseDto<MemberDto>?> GetMemberByPhoneAsync(string phoneNumber)
-        => await SendAsync<MemberDto>(() => _httpClient.GetAsync($"api/members/{Uri.EscapeDataString(phoneNumber)}"));
+    {
+        return await SendAsync<MemberDto>(() => _httpClient.GetAsync($"api/members/{Uri.EscapeDataString(phoneNumber)}"));
+    }
 
     public async Task<ApiResponseDto<MemberDto>?> CreateMemberAsync(CreateMemberDto request)
-        => await SendAsync<MemberDto>(() => _httpClient.PostAsJsonAsync("api/members", request));
+    {
+        return await SendAsync<MemberDto>(() => _httpClient.PostAsJsonAsync("api/members", request));
+    }
 
-    // ── ORDERS & CHECKOUT ─────────────────────────────────────────────────────
+    // ── ORDERS & CHECKOUT (Bypass SendAsync) ──────────────────────────────────
 
     public async Task<ApiResponseDto<CheckoutResponseDto>?> CheckoutAsync(CheckoutRequestDto request)
-        => await SendAsync<CheckoutResponseDto>(() => _httpClient.PostAsJsonAsync("api/orders/kiosk/checkout", request));
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/orders/kiosk/checkout", request);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponseDto<CheckoutResponseDto>>(
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                
+            return result ?? ApiResponseDto<CheckoutResponseDto>.Error("PARSE_ERROR", "Lỗi parse JSON");
+        }
+        catch (HttpRequestException ex)
+        {
+            return ApiResponseDto<CheckoutResponseDto>.Error("NETWORK_ERROR", $"Lỗi kết nối tới máy chủ: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponseDto<CheckoutResponseDto>.Error("ERROR", ex.Message);
+        }
+    }
 
     public async Task<ApiResponseDto<object>?> CancelOrderAsync(int orderId)
-        => await SendAsync<object>(() => _httpClient.PostAsync($"api/orders/kiosk/{orderId}/cancel", null));
+    {
+        try
+        {
+            var response = await _httpClient.PostAsync($"api/orders/kiosk/{orderId}/cancel", null);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponseDto<object>>(
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                
+            return result ?? ApiResponseDto<object>.Error("PARSE_ERROR", "Lỗi parse JSON");
+        }
+        catch (HttpRequestException ex)
+        {
+            return ApiResponseDto<object>.Error("NETWORK_ERROR", $"Lỗi kết nối tới máy chủ: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponseDto<object>.Error("ERROR", ex.Message);
+        }
+    }
 
     // ── PAYMENT POLLING ───────────────────────────────────────────────────────
 
     public async Task<ApiResponseDto<PaymentStatusDto>?> GetPaymentStatusAsync(int orderId)
-        => await SendAsync<PaymentStatusDto>(() => _httpClient.GetAsync($"api/orders/kiosk/{orderId}/payment-status"));
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"api/orders/kiosk/{orderId}/payment-status");
+            var result = await response.Content.ReadFromJsonAsync<ApiResponseDto<PaymentStatusDto>>(
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            
+            return result ?? ApiResponseDto<PaymentStatusDto>.Error("PARSE_ERROR", "Lỗi parse JSON");
+        }
+        catch (HttpRequestException ex)
+        {
+            return ApiResponseDto<PaymentStatusDto>.Error("NETWORK_ERROR", $"Lỗi kết nối tới máy chủ: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponseDto<PaymentStatusDto>.Error("ERROR", ex.Message);
+        }
+    }
 
     // ── KIOSK HEARTBEAT ───────────────────────────────────────────────────────
 
     public async Task<ApiResponseDto<object>?> SendHeartbeatAsync(int kioskId, int status = 1, string? errorCode = null, string? errorMessage = null)
-        => await SendAsync<object>(() => _httpClient.PostAsJsonAsync("api/kiosk/heartbeat", new { kioskId, status, errorCode, errorMessage }));
+    {
+        return await SendAsync<object>(() => _httpClient.PostAsJsonAsync("api/kiosk/heartbeat", new { kioskId, status, errorCode, errorMessage }));
+    }
 
     public Task<ApiResponseDto<object>?> SendHeartbeatAsync(string kioskId)
     {
@@ -111,5 +177,22 @@ public class BookKioskApiClient : IBookKioskApiClient
             ? SendHeartbeatAsync(databaseId)
             : Task.FromResult<ApiResponseDto<object>?>(
                 ApiResponseDto<object>.Error("INVALID_KIOSK_ID", "Kiosk ID must be the numeric ID assigned by the database."));
+    }
+
+    public async Task<ApiResponseDto<object>?> SimulatePaymentWebhookAsync(string orderCode, decimal amount)
+    {
+        var payload = new
+        {
+            referenceCode = "DEV-" + DateTime.Now.Ticks.ToString(),
+            amountIn = amount,
+            transactionContent = orderCode
+        };
+
+        return await SendAsync<object>(() => _httpClient.PostAsJsonAsync("api/payments/sepay-webhook", payload));
+    }
+
+    public async Task<ApiResponseDto<object>?> DevSimulatePaymentSuccessAsync(string orderCode)
+    {
+        return await SendAsync<object>(() => _httpClient.PostAsync($"api/payments/dev-simulate-success/{Uri.EscapeDataString(orderCode)}", null));
     }
 }
