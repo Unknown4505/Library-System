@@ -2,8 +2,6 @@ using BookKiosk.Application.DTOs.Books;
 using BookKiosk.Application.DTOs.Common;
 using BookKiosk.Domain.Entities;
 using BookKiosk.Infrastructure.Data;
-using BookKiosk.Application.DTOs.Books;
-using BookKiosk.Application.DTOs.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
