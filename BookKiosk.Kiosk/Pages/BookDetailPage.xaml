@@ -70,6 +70,27 @@
                 </StackPanel>
             </Border>
 
+            <!-- FE-DETAIL-02: Banner thành công khi thêm vào giỏ hàng -->
+            <Border Grid.Row="1"
+                    Background="#eafaf1"
+                    BorderBrush="#27ae60"
+                    BorderThickness="2"
+                    CornerRadius="12"
+                    Padding="25,18"
+                    VerticalAlignment="Top"
+                    HorizontalAlignment="Stretch"
+                    Margin="0,0,0,15"
+                    Panel.ZIndex="10"
+                    Visibility="{Binding HasSuccess, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="✅" FontSize="36" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    <TextBlock Text="{Binding SuccessMessage}"
+                               FontSize="32" FontWeight="Bold"
+                               Foreground="#1e8449"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
             <!-- Chi tiết sách (FE-DETAIL-01: ẩn toàn bộ khi có lỗi) -->
             <Grid Grid.Row="1" Background="White" Margin="0,0,0,30">
                 <Grid.Style>

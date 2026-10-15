@@ -37,6 +37,7 @@ namespace BookKiosk.Kiosk.ViewModels
             {
                 IsLoading = true;
                 ErrorMessage = "";
+                SuccessMessage = "";
                 Book = null;
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
 
@@ -81,15 +82,19 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private void ExecuteAddToCart(object parameter)
         {
+            // Reset cả 2 trạng thái trước mỗi lần thực thi
+            ErrorMessage = string.Empty;
+            SuccessMessage = string.Empty;
+
             if (Book == null) return;
             if (Book.AvailableStock <= 0)
             {
                 ErrorMessage = "Sách đã hết hàng!";
                 return;
             }
-            
+
             _cartService.AddItem(Book);
-            ErrorMessage = "Đã thêm vào giỏ hàng!"; // Hiển thị popup tạm
+            SuccessMessage = "Đã thêm vào giỏ hàng!";
         }
     }
 }
