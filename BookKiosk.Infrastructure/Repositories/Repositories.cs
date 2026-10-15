@@ -65,7 +65,7 @@ public class ReportRepository : IReportRepository
     public ReportRepository(ApplicationDbContext context) => _context = context;
     public async Task<object> GetRevenueByMonthAsync(int year)
     {
-        var rawData = await _context.Orders.Where(o => o.OrderStatus == OrderStatus.Paid && o.CompletedAt.HasValue && o.CompletedAt.Value.Year == year).GroupBy(o => o.CompletedAt.Value.Month).Select(g => new { Month = g.Key, Revenue = g.Sum(o => o.TotalAmount), TotalOrders = g.Count() }).ToListAsync();
+        var rawData = await _context.Orders.Where(o => o.OrderStatus == OrderStatus.Paid && o.CompletedAt.HasValue && o.CompletedAt.Value.Year == year).GroupBy(o => o.CompletedAt!.Value.Month).Select(g => new { Month = g.Key, Revenue = g.Sum(o => o.TotalAmount), TotalOrders = g.Count() }).ToListAsync();
         return Enumerable.Range(1, 12).Select(m => new { Month = m, Revenue = rawData.FirstOrDefault(d => d.Month == m)?.Revenue ?? 0, TotalOrders = rawData.FirstOrDefault(d => d.Month == m)?.TotalOrders ?? 0 }).ToList();
     }
     public async Task<object> GetTopSellingBooksAsync(int top)
