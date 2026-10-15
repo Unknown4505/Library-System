@@ -58,7 +58,7 @@ public class BookService : IBookService
     public async Task<ApiResponseDto<BookDto>> GetBookByBarcodeAsync(string barcode)
     {
         var book = await _bookRepository.GetByBarcodeAsync(barcode);
-        if (book == null)
+        if (book == null || !book.IsActive)
         {
             return ApiResponseDto<BookDto>.Error("NOT_FOUND", $"Không tìm thấy sách với mã vạch = {barcode}");
         }

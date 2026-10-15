@@ -20,6 +20,8 @@ public interface IMemberRepository
     Task AddAsync(Member member);
     Task<IEnumerable<PointTransaction>> GetPointHistoryAsync(int memberId);
     Task AddPointTransactionAsync(PointTransaction transaction);
+    Task<bool> TryDeductPointsAsync(int memberId, int points);
+    Task AddPointsAsync(int memberId, int points);
 }
 
 public interface IPromotionRepository
@@ -48,13 +50,19 @@ public interface IOrderRepository
     Task IncreaseReservedQuantityAsync(int bookId, int quantity);
     Task DecreaseStockAndReservedQuantityAsync(int bookId, int quantity);
     Task AddOrderAsync(Order order);
+    Task<bool> TryIncreaseReservedQuantityAsync(int bookId, int quantity);
+    Task<bool> TryTransitionOrderStatusAsync(int orderId, BookKiosk.Domain.Enums.OrderStatus fromStatus, BookKiosk.Domain.Enums.OrderStatus toStatus, System.DateTime? completedAt = null);
     Task<Order?> GetPendingOrderByCodeAsync(string orderCode);
+    Task<Order?> GetOrderByCodeAsync(string orderCode);
     Task<Order?> GetOrderByIdAsync(int orderId);
+    /// <summary>Đọc trạng thái order mới nhất từ DB, bỏ qua EF tracking cache. Dùng sau rollback để xác định trạng thái thật (F01).</summary>
+    Task<Order?> GetOrderByCodeNoTrackingAsync(string orderCode);
 }
 
 public interface IPaymentRepository
 {
     Task<bool> CheckTransactionExistsAsync(string referenceCode);
+    Task<PaymentTransaction?> GetByReferenceCodeAsync(string referenceCode);
     Task AddTransactionAsync(PaymentTransaction transaction);
 }
 

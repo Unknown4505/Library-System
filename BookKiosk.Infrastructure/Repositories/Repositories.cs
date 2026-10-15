@@ -34,6 +34,19 @@ public class MemberRepository : IMemberRepository
     public async Task AddAsync(Member member) => await _context.Members.AddAsync(member);
     public async Task<IEnumerable<PointTransaction>> GetPointHistoryAsync(int memberId) => await _context.PointTransactions.Where(p => p.MemberId == memberId).OrderByDescending(p => p.CreatedAt).ToListAsync();
     public async Task AddPointTransactionAsync(PointTransaction transaction) => await _context.PointTransactions.AddAsync(transaction);
+    public async Task<bool> TryDeductPointsAsync(int memberId, int points)
+    {
+        var affected = await _context.Members
+            .Where(m => m.MemberId == memberId && m.Points >= points)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.Points, m => m.Points - points));
+        return affected > 0;
+    }
+    public async Task AddPointsAsync(int memberId, int points)
+    {
+        await _context.Members
+            .Where(m => m.MemberId == memberId)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.Points, m => m.Points + points));
+    }
 }
 
 public class PromotionRepository : IPromotionRepository
@@ -52,7 +65,7 @@ public class ReportRepository : IReportRepository
     public ReportRepository(ApplicationDbContext context) => _context = context;
     public async Task<object> GetRevenueByMonthAsync(int year)
     {
-        var rawData = await _context.Orders.Where(o => o.OrderStatus == OrderStatus.Paid && o.CompletedAt.HasValue && o.CompletedAt.Value.Year == year).GroupBy(o => o.CompletedAt.Value.Month).Select(g => new { Month = g.Key, Revenue = g.Sum(o => o.TotalAmount), TotalOrders = g.Count() }).ToListAsync();
+        var rawData = await _context.Orders.Where(o => o.OrderStatus == OrderStatus.Paid && o.CompletedAt.HasValue && o.CompletedAt.Value.Year == year).GroupBy(o => o.CompletedAt!.Value.Month).Select(g => new { Month = g.Key, Revenue = g.Sum(o => o.TotalAmount), TotalOrders = g.Count() }).ToListAsync();
         return Enumerable.Range(1, 12).Select(m => new { Month = m, Revenue = rawData.FirstOrDefault(d => d.Month == m)?.Revenue ?? 0, TotalOrders = rawData.FirstOrDefault(d => d.Month == m)?.TotalOrders ?? 0 }).ToList();
     }
     public async Task<object> GetTopSellingBooksAsync(int top)
@@ -77,8 +90,32 @@ public class OrderRepository : IOrderRepository
     public async Task IncreaseReservedQuantityAsync(int bookId, int quantity) => await _context.Books.Where(b => b.BookId == bookId).ExecuteUpdateAsync(s => s.SetProperty(b => b.ReservedQuantity, b => b.ReservedQuantity + quantity));
     public async Task DecreaseStockAndReservedQuantityAsync(int bookId, int quantity) => await _context.Books.Where(b => b.BookId == bookId).ExecuteUpdateAsync(s => s.SetProperty(b => b.StockQuantity, b => b.StockQuantity - quantity).SetProperty(b => b.ReservedQuantity, b => b.ReservedQuantity - quantity));
     public async Task AddOrderAsync(Order order) => await _context.Orders.AddAsync(order);
+    public async Task<bool> TryIncreaseReservedQuantityAsync(int bookId, int quantity)
+    {
+        var affected = await _context.Books
+            .Where(b => b.BookId == bookId && b.IsActive && (b.StockQuantity - b.ReservedQuantity) >= quantity)
+            .ExecuteUpdateAsync(s => s.SetProperty(b => b.ReservedQuantity, b => b.ReservedQuantity + quantity));
+        return affected > 0;
+    }
+    public async Task<bool> TryTransitionOrderStatusAsync(int orderId, OrderStatus fromStatus, OrderStatus toStatus, DateTime? completedAt = null)
+    {
+        var query = _context.Orders.Where(o => o.OrderId == orderId && o.OrderStatus == fromStatus);
+        int affected;
+        if (completedAt.HasValue)
+        {
+            affected = await query.ExecuteUpdateAsync(s => s.SetProperty(o => o.OrderStatus, toStatus).SetProperty(o => o.CompletedAt, completedAt.Value));
+        }
+        else
+        {
+            affected = await query.ExecuteUpdateAsync(s => s.SetProperty(o => o.OrderStatus, toStatus));
+        }
+        return affected > 0;
+    }
     public async Task<Order?> GetPendingOrderByCodeAsync(string orderCode) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode && o.OrderStatus == OrderStatus.Pending);
+    public async Task<Order?> GetOrderByCodeAsync(string orderCode) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode);
     public async Task<Order?> GetOrderByIdAsync(int orderId) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderId == orderId);
+    // F01: Đọc trực tiếp từ DB bỏ qua EF tracking cache, dùng sau rollback để xác định trạng thái thật
+    public async Task<Order?> GetOrderByCodeNoTrackingAsync(string orderCode) => await _context.Orders.AsNoTracking().Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode);
 }
 
 public class PaymentRepository : IPaymentRepository
@@ -86,6 +123,7 @@ public class PaymentRepository : IPaymentRepository
     private readonly ApplicationDbContext _context;
     public PaymentRepository(ApplicationDbContext context) => _context = context;
     public async Task<bool> CheckTransactionExistsAsync(string referenceCode) => await _context.PaymentTransactions.AnyAsync(pt => pt.ReferenceCode == referenceCode);
+    public async Task<PaymentTransaction?> GetByReferenceCodeAsync(string referenceCode) => await _context.PaymentTransactions.FirstOrDefaultAsync(pt => pt.ReferenceCode == referenceCode);
     public async Task AddTransactionAsync(PaymentTransaction transaction) => await _context.PaymentTransactions.AddAsync(transaction);
 }
 
