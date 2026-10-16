@@ -392,3 +392,49 @@ Cơ chế này đảm bảo không bao giờ bị bán lố sách (overselling) 
        throw new Exception("Hết sách hoặc bị người khác mua mất!");
    }
    ```
+
+---
+
+## 6. Baseline schema, drift và HR target (2026-10-16)
+
+| Lớp xác minh | Trạng thái | Kết luận |
+|---|---|---|
+| `origin/main@efcd388a` trước thay đổi HR | CURRENT BASELINE | 17 bảng. 11 cột tiền lịch sử còn `decimal(18,2)`; snapshot có 2 check constraint của `Books` và không biểu diễn 23 SQL default trong bootstrap. |
+| Migration `20261016071312_AddEmployeeSalaryLedger` + snapshot working tree | TARGET SOURCE | Chỉ thêm `Employees`, `SalaryPayments`, các index/check/FK HR và `Manager=3`; tổng 19 bảng. Static review không thấy thay đổi bảng cũ. |
+| `docs/init.sql` | FRESH-BOOTSTRAP DESIRED | 19 bảng; giữ contract tiền lịch sử `decimal(18,0)`, 23 `DEFAULT` và 10 `CHECK`; không phải mirror chính xác EF migration chain. |
+| Database đang chạy | RUNTIME UNKNOWN | Chưa kết nối hoặc chạy migration trên SQL Server QA disposable; không tuyên bố deployed. |
+
+11 cột EF current `decimal(18,2)` là `ImportReceipts.TotalAmount`, `ImportReceiptDetails.CostPrice`, `Orders.SubTotal`, `Orders.DiscountAmount`, `Orders.TotalAmount`, `OrderDetails.UnitPriceAtTime`, `OrderDetails.LineTotal`, `PaymentTransactions.Amount`, `PromotionOrderDiscounts.MinOrderValue`, `PromotionOrderDiscounts.DiscountAmount`, `PromotionProductDiscounts.DiscountAmount`. Migration HR không chuẩn hóa hoặc alter các cột này. Database runtime chưa được kiểm tra nên trạng thái deploy vẫn **NOT RUNTIME TESTED**.
+
+### 6.1 Target `Employees`
+
+- `EmployeeId` PK; `EmployeeCode` unique.
+- `UserId` nullable FK → `Users`, unique có filter `[UserId] IS NOT NULL`, quan hệ 0..1 ↔ 0..1, delete `NO ACTION/RESTRICT`.
+- `FullName`, `PhoneNumber?`, `Email?`, `Position`, `HireDate?`, `CurrentBaseSalary? decimal(18,0)`, `IsActive`, timestamps.
+- `CurrentBaseSalary` nullable để cho phép hồ sơ chưa chốt lương; nếu có phải không âm.
+
+### 6.2 Target `SalaryPayments`
+
+- Một dòng sổ lương cho một nhân viên/tháng: unique `(EmployeeId, PayYear, PayMonth)`.
+- `BaseSalarySnapshot`, `AllowanceAmount`, `DeductionAmount`, `NetSalary` là `decimal(18,0)` và không âm; `PayMonth` từ 1 đến 12.
+- `Status`: `Draft=1`, `Paid=2`; `PaidByUserId?` → `Users`; `EmployeeId` và `PaidByUserId` đều `NO ACTION/RESTRICT` để giữ lịch sử.
+- Không seed dữ liệu lương. Trạng thái Paid sẽ là immutable ở service tương lai; service/API chưa được triển khai.
+
+#### Enforcement contract cho Backend Salary — PLANNED
+
+| Quy tắc | Enforcement | Trạng thái / ghi chú |
+|---|---|---|
+| Một phiếu cho `(EmployeeId, PayYear, PayMonth)` | **DB ENFORCED** | Unique index trong migration. |
+| `PayMonth` thuộc 1..12; bốn khoản tiền không âm; status chỉ 1/2 | **DB ENFORCED** | Check constraints trong migration. |
+| `CurrentBaseSalary` nullable nhưng nếu có thì không âm | **DB ENFORCED** | Check constraint; nullable cho hồ sơ chưa chốt lương. |
+| `PayYear` hợp lệ | **APPLICATION REQUIRED — APPROVED DESIGN (HR-DEC-01)** | Backend validate `2000 <= PayYear <= 2100` khi tạo/cập nhật Draft; migration không có check và V6.3 không bổ sung SQL CHECK. |
+| Khi tạo Draft phải có `BaseSalarySnapshot` hợp lệ | **APPLICATION REQUIRED** | Không tự đổi `CurrentBaseSalary = null` thành 0 nếu chưa có quy tắc được duyệt. |
+| `NetSalary = BaseSalarySnapshot + AllowanceAmount - DeductionAmount` và không âm | **APPLICATION REQUIRED — APPROVED DESIGN (HR-DEC-03)** | DB hiện chỉ kiểm từng khoản và `NetSalary >= 0`, chưa bảo vệ công thức. Leader chốt không thêm SQL CHECK trong V6.3. |
+| Draft chưa có `PaidByUserId`/`PaidAt` | **APPLICATION REQUIRED** | DB cho phép null nhưng chưa kiểm cặp field theo status. |
+| Chỉ `Draft → Paid`, Admin thực hiện, actor/time UTC được ghi atomically | **APPLICATION REQUIRED** | Cập nhật status, `PaidByUserId`, `PaidAt` trong một transaction; không xác nhận Paid hai lần. |
+| Phiếu Paid không sửa/xóa qua API thông thường | **APPLICATION REQUIRED** | Giữ immutable ledger và audit trail. |
+| Cặp field Paid/status | **APPLICATION REQUIRED — APPROVED DESIGN (HR-DEC-03)** | Backend enforce Draft có actor/time null và Paid có Admin actor + UTC trong transaction. Leader chốt giữ nguyên migration, không thêm SQL CHECK trong V6.3. |
+
+**APPROVED DESIGN (HR-DEC-02):** Admin xem mọi Draft/Paid. Manager và Staff chỉ xem phiếu Paid của chính Employee có `Employees.UserId` khớp UserId JWT; không xem Draft hoặc phiếu người khác, và không có Employee liên kết thì deny. Manager không được xác nhận Paid. `HireDate` tiếp tục nullable. SalaryPayments chỉ là sổ ghi nhận thanh toán lương, không triển khai giao dịch chuyển tiền ngân hàng. API/Service vẫn **PLANNED**, chưa phải IMPLEMENTED.
+
+DDL HR đã được đưa vào fresh-bootstrap `init.sql` theo migration `20261016071312_AddEmployeeSalaryLedger`, với guard tạo bảng/index và không có seed HR. Đây không phải bằng chứng database runtime đã migrate; điều kiện kiểm thử SQL QA nằm tại `12-workflow-handoff-and-scope.md`.

@@ -129,3 +129,13 @@ Khách ra Kiosk tạo đơn hàng (đã giữ chỗ kho) nhưng đứng ngó r�
   - Cập nhật `OrderStatus = Cancelled`.
   - Nhả tồn kho: `ReservedQuantity = ReservedQuantity - quantity`.
   - Commit.
+
+---
+
+## 4. Sổ lương tháng — PLANNED
+
+1. Admin tạo bản ghi `SalaryPayment` ở trạng thái `Draft`, snapshot mức lương cơ bản hiện tại và nhập phụ cấp/khấu trừ không âm.
+2. Backend tương lai validate tháng 1..12, unique `(EmployeeId, PayYear, PayMonth)` và tính/kiểm tra `NetSalary` theo contract được duyệt.
+3. Khi chốt, chuyển một chiều `Draft → Paid`, ghi `PaidByUserId` và `PaidAt` UTC. Bản ghi Paid là immutable; sửa sai phải có quy trình điều chỉnh riêng, không update âm thầm.
+
+Đây là **PLANNED**: chưa có service/API/CMS và không bao gồm thuế, chuyển khoản ngân hàng hay payroll đầy đủ.

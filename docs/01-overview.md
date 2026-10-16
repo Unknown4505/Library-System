@@ -312,3 +312,15 @@ Quầy (phòng ngừa quên hủy): Background Service cũng quét Pending quầ
 | API endpoint đầy đủ, request/response | `04-api-reference.md` |
 | Luồng checkout, giữ chỗ kho, webhook | `05-business-pipeline.md` |
 | Cài đặt chạy local, cấu hình ngrok + SePay | `06-local-setup.md` |
+
+---
+
+## 10. Phạm vi current/target (cập nhật 2026-10-16)
+
+- **IMPLEMENTED (source):** 17 bảng hiện tại; `Categories` là loại sách; `Members` độc lập với tài khoản `Users`; `Kiosks`/`KioskIncidents` vẫn là schema thật.
+- **IMPLEMENTED (model/migration source, chưa runtime DB):** scaffold additive `Employees`, `SalaryPayments`, `Manager = 3`; migration `20261016071312_AddEmployeeSalaryLedger` đã static-review chỉ thêm schema HR. Chưa apply trên SQL QA nên không được hiểu là đã deploy.
+- **PLANNED:** API/CMS Auth, Employees và SalaryPayments. Salary là sổ lương tháng đơn giản `Draft → Paid`, không phải payroll/tax/bank transfer.
+- **PLANNED:** Receipt API #28 và Receipt UI/PDF #29; #29 phụ thuộc #28. Hóa đơn lấy từ `Orders`/`OrderDetails` đã `Paid`, không có bảng `Invoices`.
+- **OUT OF CORE SCOPE:** đặt hàng online, giữ chỗ khách hàng, bảng `BookTypes`, quản trị sự cố thiết bị như một quy trình nghiệp vụ chính. Việc bỏ quy trình sự cố khỏi BFD/DFD không xóa hai bảng Kiosk khỏi schema.
+
+Actors nghiệp vụ mục tiêu gồm Customer, Admin, Manager, Staff, Supplier, SePay, Scanner và Printer tùy chọn. Chi tiết trạng thái và handoff xem `12-workflow-handoff-and-scope.md`.

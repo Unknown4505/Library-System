@@ -46,7 +46,7 @@ Web Admin / CMS dành cho Thủ thư và Admin quản lý được dùng thông 
 > **Lý do không dùng Refresh Token:** Hệ thống chạy môi trường nội bộ cửa hàng, phiên làm việc ngắn, không có nhu cầu "nhớ đăng nhập". Stateless đơn giản hơn và không cần thêm bảng DB.
 
 ### Phân quyền (Role-based Authorization)
-Hệ thống CMS Web Admin phân chia rạch ròi 2 cấp độ quyền hạn (Role) được lưu trong chuỗi Claim của JWT AccessToken. Backend sử dụng Attribute `[Authorize(Roles = "...")]` để chặn hoặc cho phép thực thi API.
+Target CMS phân chia 3 role, giữ tương thích số enum: `Admin=1`, `Staff=2`, `Manager=3`. Backend dùng claim role và policy/`[Authorize]`; việc thêm enum không có nghĩa endpoint Auth/HR đã được triển khai.
 
 **1. Role `Staff` (Thủ thư / Nhân viên thu ngân):**
 Nhân viên là người vận hành hàng ngày, được cấp quyền thao tác trên các luồng nghiệp vụ cơ bản, không có quyền can thiệp vào tài chính cốt lõi hay cấu hình hệ thống.
@@ -61,6 +61,12 @@ Admin có toàn quyền (Full Access) đối với toàn bộ hệ thống. Các
 - **Cấu hình Khuyến mãi (`Promotions`):** Tạo mới, chỉnh sửa, bật/tắt các chương trình giảm giá (Tác động trực tiếp đến dòng tiền).
 - **Báo cáo Thống kê:** Truy cập màn hình Dashboard doanh thu, lợi nhuận, top sách bán chạy, phân tích hiệu suất Kiosk.
 - **Quyền Xóa (Deactivate):** Được quyền vô hiệu hóa (IsActive = false) bất kỳ dữ liệu nào (Sách, Category, Member).
+
+**3. Role `Manager` (Quản lý):**
+- Được vận hành nhân sự trong phạm vi policy được Leader duyệt; không mặc định có toàn quyền hệ thống như Admin.
+- Theo **APPROVED DESIGN HR-DEC-02**, chỉ được xem phiếu Paid của chính mình khi JWT map đúng `Employees.UserId`; không được xem Draft hoặc lương người khác.
+- Không được xem password hash, secret, API key hoặc dữ liệu lương ngoài phạm vi được cấp.
+- Reports hiện giữ contract **Admin-only**; không tự mở cho Manager chỉ vì enum đã tồn tại.
 
 > **Ví dụ thực tế trong file Controller C#:**
 > ```csharp
@@ -122,3 +128,11 @@ Khi tích hợp SePay, hệ thống thanh toán cung cấp **Webhook Secret** th
 - Development có thể cho phép cơ chế test cục bộ chỉ khi build/config xác định rõ là Development. Secret nếu dùng phải đến từ user-secrets, environment variable hoặc Windows Credential Manager; không commit vào source/config.
 - Không log password, API key hoặc JWT. Mọi quyết định cho phép thoát Kiosk nên ghi audit tối thiểu gồm kiosk ID, actor và UTC timestamp khi Backend support.
 - `PasswordDialog` hardcode trong PR #11 không đạt contract Production; Khang phải thay trước khi nghiệm thu Release.
+
+## 7. Bảo mật dữ liệu nhân sự/lương — PLANNED
+
+- Chỉ JWT role `Admin` được tạo Draft, xem toàn bộ và xác nhận `Draft → Paid`. Xác nhận Paid phải ghi Admin actor + UTC timestamp trong cùng transaction và không được thực hiện hai lần.
+- Manager và Staff chỉ xem phiếu Paid của chính Employee liên kết User; không xem Draft hoặc lương người khác. Không có Employee liên kết thì deny. Manager không được xác nhận Paid.
+- Backend phải lấy UserId từ JWT, map qua `Employees.UserId` và từ chối khi không map duy nhất; không tin ID do client cung cấp để quyết định ownership.
+- Phiếu Paid không sửa/xóa qua API thông thường. Không serialize `PasswordHash`; không đưa lương, email, điện thoại, secret hoặc token vào log.
+- Các quyền trên là **APPLICATION REQUIRED — APPROVED DESIGN (HR-DEC-02/03)** và API vẫn **PLANNED**. Database hiện chỉ enforce unique kỳ lương, range tháng, tiền không âm, status 1/2 và FK; chưa enforce công thức NetSalary, PayYear 2000..2100, actor/time theo status, concurrency hoặc authorization. Leader chốt không thêm SQL CHECK trong V6.3.

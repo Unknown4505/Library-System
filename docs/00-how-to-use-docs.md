@@ -59,7 +59,11 @@ docs/
 ├── 05-business-pipeline.md     ← Luồng nghiệp vụ: checkout, giữ chỗ kho, webhook SePay
 ├── 06-local-setup.md           ← Cài đặt và chạy toàn bộ project trên máy local
 ├── 07-security.md              ← JWT, API key Kiosk, phân quyền, CORS, webhook signature
-└── 08-kiosk-app.md             ← WPF: màn hình, MVVM, Services, xử lý hardware
+├── 08-kiosk-app.md             ← WPF: màn hình, MVVM, Services, xử lý hardware
+├── 09-task-assignments.md       ← Owner, trạng thái và dependency công việc
+├── 10-srs-functional-requirements.md ← Yêu cầu chức năng
+├── 11-end-to-end-test-plan.md   ← Kế hoạch và evidence E2E
+└── 12-workflow-handoff-and-scope.md ← Current/target, sơ đồ và handoff #28/#29
 ```
 
 > ⚠️ **Quy tắc bất biến:** Không tạo file `.md` mới để giải thích từng hàm/class.
@@ -85,7 +89,7 @@ BookKiosk.Application/Interfaces/ ← Interface / contract giữa các layer
 BookKiosk.Infrastructure/Data/  ← DbContext, EF Configurations, Migrations
 ```
 
-**Đọc:** Tất cả file docs từ `01` → `08`
+**Đọc:** Tất cả file docs từ `01` → `12`
 
 ---
 
@@ -311,7 +315,7 @@ Bạn sửa code → push lên branch → mở Pull Request
 ✅ 1. Logic tính tiền, trừ kho, phân quyền → CHỈ nằm ở Backend API
 ✅ 2. Kiosk là client "mỏng" → chỉ hiển thị số Backend trả về, không tự tính
 ✅ 3. Hiển thị tồn kho thực tế (còn/hết) → đọc từ Backend, không giữ local
-✅ 4. Mọi thay đổi tồn kho phải có bản ghi StockHistories
+✅ 4. Mọi thay đổi tồn kho phải đi qua transaction nghiệp vụ; hiện truy vết bằng Orders/OrderDetails hoặc ImportReceipts/ImportReceiptDetails (schema chưa có StockHistories)
 ✅ 5. API key / connection string → LUÔN từ appsettings/.env, không hardcode
 ✅ 6. Cập nhật docs cùng lúc với merge code thay đổi schema/API/luồng
 🔒 7. [DEV-ONLY] Ô nhập mã thủ công (Kiosk + POS) CHỈ hiển khi `env=Development`

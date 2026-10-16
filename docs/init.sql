@@ -1,7 +1,14 @@
 -- ============================================================
 -- BookKiosk — init.sql
--- Mô tả : DDL đầy đủ + Seed data mẫu cho SQL Server.
---          Script này MIRROR chính xác EF Core Migrations.
+-- Mô tả : Fresh-bootstrap target DDL + seed mẫu cho SQL Server Development.
+--          KHÔNG phải mirror chính xác EF migration snapshot hiện tại.
+--          Baseline EF trước HR có 17 bảng, 11 cột decimal(18,2), 2 CHECK
+--          và không có các DEFAULT bootstrap tương ứng. Migration
+--          20261016071312_AddEmployeeSalaryLedger chỉ thêm 2 bảng HR; snapshot
+--          target có 19 bảng nhưng database runtime chưa được kiểm tra.
+--          Script fresh-bootstrap này có 19 bảng, giữ contract VNĐ lịch sử
+--          decimal(18,0), 23 DEFAULT và 10 CHECK. Không dùng script để suy ra
+--          trạng thái database đang chạy hoặc để nâng cấp database hiện hữu.
 --          Thứ tự tạo bảng theo chiều phụ thuộc FK.
 --
 -- Cách dùng:
@@ -9,8 +16,12 @@
 --   2. Kết nối đến SQL Server instance của bạn
 --   3. Chạy toàn bộ file này (F5)
 --
--- ⚠️  LƯU Ý: Script đã idempotent (IF NOT EXISTS).
---     Có thể chạy lại nhiều lần mà không bị lỗi.
+-- ⚠️  LƯU Ý: Chỉ dùng để fresh-bootstrap một database Development độc lập.
+--     Không chạy trước EF migrations trên cùng database và không dùng để
+--     nâng cấp/repair database hiện hữu. Các guard IF NOT EXISTS chỉ tránh
+--     tạo lại một số object; chúng không xác minh hoặc sửa mọi column,
+--     constraint, migration history hay schema drift. Vì vậy không có bảo
+--     đảm script an toàn khi chạy lặp trên mọi database đã tồn tại.
 --     Seed data chỉ INSERT khi bảng đang trống.
 -- ============================================================
 
@@ -71,7 +82,7 @@ GO
 
 -- ------------------------------------------------------------
 -- 1.3  Users  (Tài khoản Admin / Nhân viên)
--- Enum UserRole: Admin=1, Staff=2
+-- Enum UserRole target: Admin=1, Staff=2, Manager=3
 -- ------------------------------------------------------------
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Users')
 BEGIN
@@ -80,7 +91,7 @@ BEGIN
         [Username]     VARCHAR(100)   NOT NULL,
         [PasswordHash] NVARCHAR(MAX)  NOT NULL,    -- BCrypt hash
         [FullName]     NVARCHAR(255)  NOT NULL,
-        [Role]         INT            NOT NULL,    -- Enum: Admin=1, Staff=2
+        [Role]         INT            NOT NULL,    -- Enum: Admin=1, Staff=2, Manager=3
         [IsActive]     BIT            NOT NULL DEFAULT 1,
         [CreatedAt]    DATETIME2      NOT NULL DEFAULT GETUTCDATE(),
         [UpdatedAt]    DATETIME2      NULL,
@@ -89,6 +100,105 @@ BEGIN
     );
 
     CREATE UNIQUE INDEX [IX_Users_Username] ON [dbo].[Users] ([Username]);
+END
+GO
+
+
+-- ------------------------------------------------------------
+-- 1.3a Employees  (Hồ sơ nhân viên; migration HR additive)
+-- ------------------------------------------------------------
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Employees' AND schema_id = SCHEMA_ID('dbo'))
+BEGIN
+    CREATE TABLE [dbo].[Employees] (
+        [EmployeeId]       INT            NOT NULL IDENTITY(1,1),
+        [EmployeeCode]     VARCHAR(50)    NOT NULL,
+        [UserId]           INT            NULL,
+        [FullName]         NVARCHAR(255)  NOT NULL,
+        [PhoneNumber]      VARCHAR(20)    NULL,
+        [Email]            VARCHAR(255)   NULL,
+        [Position]         NVARCHAR(100)  NOT NULL,
+        [HireDate]         DATETIME2      NULL,
+        [CurrentBaseSalary] DECIMAL(18,0) NULL,
+        [IsActive]         BIT            NOT NULL,
+        [CreatedAt]        DATETIME2      NOT NULL,
+        [UpdatedAt]        DATETIME2      NULL,
+
+        CONSTRAINT [PK_Employees] PRIMARY KEY ([EmployeeId]),
+        CONSTRAINT [FK_Employees_Users_UserId]
+            FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([UserId]) ON DELETE NO ACTION,
+        CONSTRAINT [CK_Employees_CurrentBaseSalary]
+            CHECK ([CurrentBaseSalary] IS NULL OR [CurrentBaseSalary] >= 0)
+    );
+END
+GO
+
+IF OBJECT_ID(N'[dbo].[Employees]', N'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Employees]') AND name = N'IX_Employees_EmployeeCode')
+BEGIN
+    CREATE UNIQUE INDEX [IX_Employees_EmployeeCode]
+        ON [dbo].[Employees] ([EmployeeCode]);
+END
+GO
+
+IF OBJECT_ID(N'[dbo].[Employees]', N'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Employees]') AND name = N'IX_Employees_UserId')
+BEGIN
+    CREATE UNIQUE INDEX [IX_Employees_UserId]
+        ON [dbo].[Employees] ([UserId])
+        WHERE [UserId] IS NOT NULL;
+END
+GO
+
+
+-- ------------------------------------------------------------
+-- 1.3b SalaryPayments  (Sổ lương tháng Draft=1 / Paid=2)
+-- ------------------------------------------------------------
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'SalaryPayments' AND schema_id = SCHEMA_ID('dbo'))
+BEGIN
+    CREATE TABLE [dbo].[SalaryPayments] (
+        [SalaryPaymentId]   INT            NOT NULL IDENTITY(1,1),
+        [EmployeeId]        INT            NOT NULL,
+        [PayMonth]          INT            NOT NULL,
+        [PayYear]           INT            NOT NULL,
+        [BaseSalarySnapshot] DECIMAL(18,0) NOT NULL,
+        [AllowanceAmount]   DECIMAL(18,0)  NOT NULL,
+        [DeductionAmount]   DECIMAL(18,0)  NOT NULL,
+        [NetSalary]         DECIMAL(18,0)  NOT NULL,
+        [Status]            INT            NOT NULL,
+        [PaidByUserId]      INT            NULL,
+        [PaidAt]            DATETIME2      NULL,
+        [Note]              NVARCHAR(1000) NULL,
+        [CreatedAt]         DATETIME2      NOT NULL,
+        [UpdatedAt]         DATETIME2      NULL,
+
+        CONSTRAINT [PK_SalaryPayments] PRIMARY KEY ([SalaryPaymentId]),
+        CONSTRAINT [FK_SalaryPayments_Employees_EmployeeId]
+            FOREIGN KEY ([EmployeeId]) REFERENCES [dbo].[Employees]([EmployeeId]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_SalaryPayments_Users_PaidByUserId]
+            FOREIGN KEY ([PaidByUserId]) REFERENCES [dbo].[Users]([UserId]) ON DELETE NO ACTION,
+        CONSTRAINT [CK_SalaryPayments_PayMonth]
+            CHECK ([PayMonth] >= 1 AND [PayMonth] <= 12),
+        CONSTRAINT [CK_SalaryPayments_Amounts]
+            CHECK ([BaseSalarySnapshot] >= 0 AND [AllowanceAmount] >= 0 AND [DeductionAmount] >= 0 AND [NetSalary] >= 0),
+        CONSTRAINT [CK_SalaryPayments_Status]
+            CHECK ([Status] IN (1, 2))
+    );
+END
+GO
+
+IF OBJECT_ID(N'[dbo].[SalaryPayments]', N'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[SalaryPayments]') AND name = N'IX_SalaryPayments_EmployeeId_PayYear_PayMonth')
+BEGIN
+    CREATE UNIQUE INDEX [IX_SalaryPayments_EmployeeId_PayYear_PayMonth]
+        ON [dbo].[SalaryPayments] ([EmployeeId], [PayYear], [PayMonth]);
+END
+GO
+
+IF OBJECT_ID(N'[dbo].[SalaryPayments]', N'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[SalaryPayments]') AND name = N'IX_SalaryPayments_PaidByUserId')
+BEGIN
+    CREATE INDEX [IX_SalaryPayments_PaidByUserId]
+        ON [dbo].[SalaryPayments] ([PaidByUserId]);
 END
 GO
 

@@ -850,3 +850,19 @@ public abstract class BaseViewModel : INotifyPropertyChanged
 - ❌ Không tạo loading indicator riêng từng page — dùng `LoadingOverlayControl` + bind `IsLoading`
 - ✅ Mọi ViewModel kế thừa `BaseViewModel`
 - ✅ Mọi UserControl định nghĩa `DependencyProperty` cho data binding
+
+---
+
+## 10. Cấu trúc HR target và trạng thái triển khai
+
+| Thành phần | Vị trí | Trạng thái |
+|---|---|---|
+| `Employee`, `SalaryPayment` | `BookKiosk.Domain/Entities/` | IMPLEMENTED trong model; chưa runtime DB |
+| `SalaryPaymentStatus`, `UserRole.Manager` | `BookKiosk.Domain/Enums/` | IMPLEMENTED trong source |
+| `EmployeeConfiguration`, `SalaryPaymentConfiguration` | `BookKiosk.Infrastructure/Data/Configurations/` | IMPLEMENTED trong model |
+| Design-time factory | `BookKiosk.API/DesignTimeApplicationDbContextFactory.cs` | IMPLEMENTED; scaffold model mà không chạy API/`DbInitializer` |
+| Migration HR + snapshot | `BookKiosk.Infrastructure/Migrations/20261016071312_AddEmployeeSalaryLedger*` | SCAFFOLDED + STATIC REVIEW PASS; chỉ thêm 2 bảng HR, chưa apply/runtime SQL |
+| HR API/Service/Controller/CMS | Application/API/CMS | PLANNED; không nằm trong scaffold này |
+| Receipt API/UI | BE #28 / FE #29 | PLANNED; dùng contract chung, #29 phụ thuộc #28 |
+
+Không tạo `BookTypes`, `Invoices`, bảng đặt hàng online hoặc test project mới. Migration lịch sử là read-only.
