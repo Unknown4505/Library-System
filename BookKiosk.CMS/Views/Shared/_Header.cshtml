@@ -17,30 +17,30 @@
 
     <!-- Right Topbar Items -->
     <ul class="navbar-nav align-items-center">
-        <!-- Chuông thông báo -->
+        <!-- Chuông thông báo (Tuần 6: Đếm đơn Cần hỗ trợ / Đối soát lệch tiền) -->
         <li class="nav-item dropdown me-3">
             <a class="nav-link position-relative text-secondary" href="#" id="alertsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fas fa-bell fa-fw fs-5"></i>
-                <span class="position-absolute top-1 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">
-                    1
+                <span class="position-absolute top-1 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 0.65rem;" id="notificationBadge">
+                    0
                 </span>
             </a>
-            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-0" aria-labelledby="alertsDropdown" style="width: 280px; border-radius: var(--bk-radius);">
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-0" aria-labelledby="alertsDropdown" style="width: 290px; border-radius: var(--bk-radius);">
                 <li class="dropdown-header bg-primary text-white py-2 fw-bold" style="border-top-left-radius: var(--bk-radius); border-top-right-radius: var(--bk-radius);">
                     <i class="fas fa-bell me-1"></i> Thông báo hệ thống
                 </li>
                 <li>
-                    <a class="dropdown-item py-2 border-bottom d-flex align-items-center" href="/Kiosks">
-                        <div class="me-2 text-warning"><i class="fas fa-exclamation-triangle"></i></div>
+                    <a class="dropdown-item py-2 border-bottom d-flex align-items-center" href="/Orders?tab=support">
+                        <div class="me-2 text-danger"><i class="fas fa-exclamation-triangle"></i></div>
                         <div>
-                            <div class="small fw-semibold">Hệ thống Kiosk hoạt động</div>
-                            <span class="text-muted small" style="font-size: 0.75rem;">Vừa cập nhật hôm nay</span>
+                            <div class="small fw-semibold text-dark">Đơn hàng cần đối soát</div>
+                            <span class="text-muted small" style="font-size: 0.75rem;">Kiểm tra đơn lệch tiền / chuyển thừa thiếu</span>
                         </div>
                     </a>
                 </li>
                 <li>
-                    <a class="dropdown-item text-center text-primary small py-2 fw-semibold" href="#">
-                        Xem tất cả
+                    <a class="dropdown-item text-center text-primary small py-2 fw-semibold" href="/Orders?tab=support">
+                        Xem danh sách cần hỗ trợ
                     </a>
                 </li>
             </ul>

@@ -32,10 +32,18 @@ builder.Services.AddHttpClient<ICmsApiClient, CmsApiClient>(client =>
 if (useMockApi)
 {
     builder.Services.AddSingleton<IPosApi, MockPosApi>();
+    builder.Services.AddSingleton<IOrderApi, MockOrderApi>();
 }
 else
 {
     builder.Services.AddHttpClient<IPosApi, CmsPosApi>(client =>
+    {
+        client.BaseAddress = new Uri(apiBaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(30);
+    })
+    .AddHttpMessageHandler<JwtDelegatingHandler>();
+
+    builder.Services.AddHttpClient<IOrderApi, CmsOrderApi>(client =>
     {
         client.BaseAddress = new Uri(apiBaseUrl);
         client.Timeout = TimeSpan.FromSeconds(30);

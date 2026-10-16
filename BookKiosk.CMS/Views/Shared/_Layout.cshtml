@@ -69,6 +69,32 @@
         });
     </script>
 
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <!-- Global Notification Bell Updater (Chỉ đếm Cần hỗ trợ trong Tuần 6) -->
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                function refreshNeedsSupportBadge() {
+                    const badge = document.getElementById("notificationBadge");
+                    if (!badge) return;
+                    fetch("/Orders/GetNeedsSupportCount", { headers: { "Accept": "application/json" } })
+                        .then(r => r.json())
+                        .then(d => {
+                            if (d && d.count > 0) {
+                                badge.textContent = d.count > 99 ? "99+" : d.count;
+                                badge.classList.remove("d-none");
+                            } else {
+                                badge.classList.add("d-none");
+                            }
+                        })
+                        .catch(() => {});
+                }
+                refreshNeedsSupportBadge();
+                setInterval(refreshNeedsSupportBadge, 30000);
+            });
+        </script>
+    }
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

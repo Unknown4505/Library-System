@@ -1,0 +1,138 @@
+/* ====================================================================
+   PHÂN HỆ H: QUẢN LÝ HÓA ĐƠN & ĐỐI SOÁT (ORDERS & RECONCILIATION)
+   ==================================================================== */
+
+/* Order Status Badges */
+.badge-status-paid {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+    font-weight: 600;
+}
+
+.badge-status-pending {
+    background-color: #fff3cd;
+    color: #664d03;
+    border: 1px solid #ffecb5;
+    font-weight: 600;
+}
+
+.badge-status-cancelled {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+    font-weight: 600;
+}
+
+/* Channel Badges */
+.badge-channel-kiosk {
+    background-color: #cff4fc;
+    color: #055160;
+    border: 1px solid #b6effb;
+    font-weight: 600;
+}
+
+.badge-channel-counter {
+    background-color: #e2e3e5;
+    color: #41464b;
+    border: 1px solid #d3d6d8;
+    font-weight: 600;
+}
+
+/* Needs Support Badge & Alert */
+.badge-needs-support {
+    background-color: #dc3545;
+    color: white;
+    font-weight: 700;
+    animation: pulse-danger 2s infinite;
+}
+
+@keyframes pulse-danger {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.reconciliation-card {
+    border: 1px solid #f8d7da;
+    background-color: #fff8f8;
+    border-radius: var(--bk-radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.reconciliation-title {
+    color: #842029;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+}
+
+.reconciliation-stat-box {
+    background: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: var(--bk-radius-sm);
+    padding: 0.75rem;
+    text-align: center;
+}
+
+.reconciliation-stat-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.reconciliation-stat-val {
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+/* Tab Navigation */
+.order-tabs .nav-link {
+    font-weight: 600;
+    color: #495057;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.75rem 1.25rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.order-tabs .nav-link:hover {
+    color: var(--bk-primary);
+    border-bottom-color: #badbcc;
+}
+
+.order-tabs .nav-link.active {
+    color: var(--bk-primary);
+    border-bottom: 3px solid var(--bk-primary);
+    background: transparent;
+}
+
+/* Table styling */
+.orders-table th {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background-color: #f8f9fa;
+    color: #495057;
+    font-weight: 700;
+    border-top: none;
+}
+
+.orders-table td {
+    vertical-align: middle;
+    font-size: 0.88rem;
+}
+
+.order-code-link {
+    font-weight: 700;
+    color: var(--bk-primary);
+    text-decoration: none;
+    font-family: var(--bs-font-monospace);
+}
+
+.order-code-link:hover {
+    text-decoration: underline;
+    color: var(--bk-primary-hover);
+}
