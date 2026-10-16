@@ -1,0 +1,308 @@
+@model IEnumerable<SupplierDto>
+@{
+    ViewData["Title"] = "Quản lý Nhà cung cấp";
+}
+
+<!-- Page Header -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h1 class="h3 mb-1 fw-bold text-dark">
+            <i class="fas fa-truck text-primary me-2"></i>Quản lý Nhà cung cấp
+        </h1>
+        <p class="text-muted small mb-0">Danh sách các đối tác xuất bản và nhà phân phối cung ứng sách cho Kiosk.</p>
+    </div>
+    <div>
+        <button type="button" class="btn btn-primary px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#createSupplierModal">
+            <i class="fas fa-plus-circle me-1"></i> Thêm nhà cung cấp
+        </button>
+    </div>
+</div>
+
+<!-- Alert Thông báo -->
+<partial name="_Alert" />
+
+<!-- Main Content Card -->
+<div class="card border-0 shadow-sm" style="border-radius: var(--bk-radius);">
+    <!-- Card Header / Toolbar -->
+    <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <h6 class="mb-0 fw-bold text-dark">Danh sách đối tác</h6>
+            <span class="badge bg-primary-subtle text-primary rounded-pill px-2" id="supplierCountBadge">
+                @(Model?.Count() ?? 0) đối tác
+            </span>
+        </div>
+        <div class="input-group" style="max-width: 320px;">
+            <span class="input-group-text bg-light border-end-0 text-muted">
+                <i class="fas fa-search"></i>
+            </span>
+            <input type="text" id="supplierSearchInput" class="form-control bg-light border-start-0" 
+                   placeholder="Tìm kiếm đối tác, SĐT, người liên hệ..." />
+        </div>
+    </div>
+
+    <!-- Table Body -->
+    <div class="card-body p-0">
+        @if (Model == null || !Model.Any())
+        {
+            <partial name="_EmptyState" model='"Hiện chưa có nhà cung cấp nào trong hệ thống."' />
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="supplierTable">
+                    <thead class="table-light text-secondary small text-uppercase fw-semibold">
+                        <tr>
+                            <th class="ps-4" style="width: 70px;">Mã</th>
+                            <th style="min-width: 220px;">Nhà cung cấp</th>
+                            <th>Người đại diện</th>
+                            <th>Liên hệ</th>
+                            <th>Địa chỉ</th>
+                            <th>Trạng thái</th>
+                            <th class="text-end pe-4" style="width: 130px;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model)
+                        {
+                            <tr class="supplier-row" 
+                                data-name="@s.Name.ToLower()" 
+                                data-contact="@(s.ContactName?.ToLower() ?? "")" 
+                                data-phone="@(s.PhoneNumber ?? "")"
+                                data-email="@(s.Email?.ToLower() ?? "")">
+                                <td class="ps-4 fw-semibold text-muted">#@s.SupplierId</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center me-3" style="width: 36px; height: 36px;">
+                                            <i class="fas fa-building"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-dark">@s.Name</div>
+                                            <small class="text-muted">ID: NCC-@s.SupplierId.ToString("D3")</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(s.ContactName))
+                                    {
+                                        <div class="text-dark fw-medium small">
+                                            <i class="fas fa-user-tie text-secondary me-1"></i>@s.ContactName
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(s.PhoneNumber))
+                                    {
+                                        <div class="small text-dark font-monospace">
+                                            <i class="fas fa-phone-alt text-success me-1"></i>@s.PhoneNumber
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(s.Email))
+                                    {
+                                        <div class="small text-muted">
+                                            <i class="fas fa-envelope text-primary me-1"></i>@s.Email
+                                        </div>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="text-secondary small" title="@s.Address">
+                                        @(string.IsNullOrWhiteSpace(s.Address) ? "—" : (s.Address.Length > 35 ? s.Address.Substring(0, 32) + "..." : s.Address))
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (s.IsActive)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                            <i class="fas fa-check-circle me-1"></i>Hoạt động
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                                            <i class="fas fa-ban me-1"></i>Vô hiệu
+                                        </span>
+                                    }
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary" title="Sửa thông tin"
+                                                onclick="openEditSupplierModal(@s.SupplierId, '@Html.Raw(Html.Encode(s.Name))', '@Html.Raw(Html.Encode(s.ContactName ?? ""))', '@Html.Raw(Html.Encode(s.PhoneNumber ?? ""))', '@Html.Raw(Html.Encode(s.Email ?? ""))', '@Html.Raw(Html.Encode(s.Address ?? ""))', @(s.IsActive ? "true" : "false"))">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        @if (s.IsActive)
+                                        {
+                                            <button type="button" class="btn btn-outline-warning" title="Vô hiệu hóa nhà cung cấp"
+                                                    onclick="confirmDeactivateSupplier(@s.SupplierId, '@Html.Raw(Html.Encode(s.Name))')">
+                                                <i class="fas fa-ban"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- MODAL 1: THÊM MỚI NHÀ CUNG CẤP -->
+<div class="modal fade" id="createSupplierModal" tabindex="-1" aria-labelledby="createSupplierModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0" style="border-radius: var(--bk-radius);">
+            <form asp-controller="Suppliers" asp-action="Create" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark" id="createSupplierModalLabel">
+                        <i class="fas fa-plus-circle text-primary me-2"></i>Thêm nhà cung cấp mới
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary">Tên nhà cung cấp <span class="text-danger">*</span></label>
+                        <input type="text" name="Name" class="form-control" placeholder="Ví dụ: NXB Trẻ, Công ty Fahasa..." required maxlength="255" />
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-secondary">Số điện thoại <span class="text-danger">*</span></label>
+                            <input type="tel" name="PhoneNumber" class="form-control" placeholder="0901234567" required maxlength="20" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-secondary">Người đại diện</label>
+                            <input type="text" name="ContactName" class="form-control" placeholder="Họ và tên..." maxlength="100" />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary">Hộp thư Email</label>
+                        <input type="email" name="Email" class="form-control" placeholder="contact@domain.com" maxlength="100" />
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold text-secondary">Địa chỉ kho / trụ sở</label>
+                        <textarea name="Address" class="form-control" rows="2" placeholder="Số nhà, đường, phường, quận..." maxlength="500"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-light px-3" data-bs-dismiss="modal">Hủy bỏ</button>
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="fas fa-save me-1"></i> Lưu nhà cung cấp
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 2: CẬP NHẬT NHÀ CUNG CẤP -->
+<div class="modal fade" id="editSupplierModal" tabindex="-1" aria-labelledby="editSupplierModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0" style="border-radius: var(--bk-radius);">
+            <form id="editSupplierForm" method="post" action="">
+                @Html.AntiForgeryToken()
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark" id="editSupplierModalLabel">
+                        <i class="fas fa-edit text-primary me-2"></i>Cập nhật nhà cung cấp
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary">Tên nhà cung cấp <span class="text-danger">*</span></label>
+                        <input type="text" id="editSupplierName" name="Name" class="form-control" required maxlength="255" />
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-secondary">Số điện thoại <span class="text-danger">*</span></label>
+                            <input type="tel" id="editSupplierPhone" name="PhoneNumber" class="form-control" required maxlength="20" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-secondary">Người đại diện</label>
+                            <input type="text" id="editSupplierContact" name="ContactName" class="form-control" maxlength="100" />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary">Hộp thư Email</label>
+                        <input type="email" id="editSupplierEmail" name="Email" class="form-control" maxlength="100" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary">Địa chỉ kho / trụ sở</label>
+                        <textarea id="editSupplierAddress" name="Address" class="form-control" rows="2" maxlength="500"></textarea>
+                    </div>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="editSupplierIsActive" name="IsActive" value="true" />
+                        <label class="form-check-label fw-semibold text-dark" for="editSupplierIsActive">
+                            Đang hợp tác / Hoạt động
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-light px-3" data-bs-dismiss="modal">Hủy bỏ</button>
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="fas fa-check me-1"></i> Cập nhật
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal xác nhận vô hiệu hóa kế thừa Tuần 1 -->
+<partial name="_ConfirmModal" />
+
+@section Scripts {
+    <script>
+        // Tìm kiếm Client-side tức thì
+        document.getElementById('supplierSearchInput')?.addEventListener('input', function (e) {
+            const query = e.target.value.toLowerCase().trim();
+            const rows = document.querySelectorAll('.supplier-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const name = row.getAttribute('data-name') || '';
+                const contact = row.getAttribute('data-contact') || '';
+                const phone = row.getAttribute('data-phone') || '';
+                const email = row.getAttribute('data-email') || '';
+
+                if (name.includes(query) || contact.includes(query) || phone.includes(query) || email.includes(query)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            const badge = document.getElementById('supplierCountBadge');
+            if (badge) badge.innerText = visibleCount + ' đối tác';
+        });
+
+        // Mở Modal Sửa
+        function openEditSupplierModal(id, name, contact, phone, email, address, isActive) {
+            const form = document.getElementById('editSupplierForm');
+            if (form) form.action = '/Suppliers/Edit/' + id;
+
+            document.getElementById('editSupplierName').value = name;
+            document.getElementById('editSupplierContact').value = contact;
+            document.getElementById('editSupplierPhone').value = phone;
+            document.getElementById('editSupplierEmail').value = email;
+            document.getElementById('editSupplierAddress').value = address;
+            document.getElementById('editSupplierIsActive').checked = isActive;
+
+            const modal = new bootstrap.Modal(document.getElementById('editSupplierModal'));
+            modal.show();
+        }
+
+        // Xác nhận vô hiệu hóa nhà cung cấp
+        function confirmDeactivateSupplier(id, name) {
+            showConfirmModal(
+                '/Suppliers/Delete/' + id,
+                'Bạn có chắc chắn muốn vô hiệu hóa nhà cung cấp "' + name + '" không? Nhà cung cấp này sẽ không hiển thị khi lập phiếu nhập mới, nhưng các phiếu cũ vẫn được giữ nguyên dữ liệu.',
+                'Vô hiệu hóa',
+                'btn-warning'
+            );
+        }
+    </script>
+}

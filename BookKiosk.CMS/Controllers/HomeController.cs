@@ -1,24 +1,26 @@
-using System.Diagnostics;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using BookKiosk.CMS.Models;
+using BookKiosk.CMS.Helpers;
 
-namespace BookKiosk.CMS.Controllers;
-
-public class HomeController : Controller
+namespace BookKiosk.CMS.Controllers
 {
-    public IActionResult Index()
+    [Authorize]
+    public class HomeController : Controller
     {
-        return View();
-    }
+        public IActionResult Index()
+        {
+            // Admin → Dashboard; Staff → không được xem dashboard doanh thu → POS
+            if (!User.IsAdmin())
+            {
+                return RedirectToAction("Index", "Pos");
+            }
+            return View();
+        }
 
-    public IActionResult Privacy()
-    {
-        return View();
-    }
-
-    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-    public IActionResult Error()
-    {
-        return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult Error()
+        {
+            return View();
+        }
     }
 }

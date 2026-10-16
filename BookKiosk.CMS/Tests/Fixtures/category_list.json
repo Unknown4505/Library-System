@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "Thành công",
+  "data": [
+    {
+      "categoryId": 9001,
+      "name": "E2E-RUN01 Văn Học & Tiểu Thuyết",
+      "description": "Danh mục kiểm thử E2E"
+    },
+    {
+      "categoryId": 9002,
+      "name": "E2E-RUN01 Kinh Tế & Khởi Nghiệp",
+      "description": "Danh mục kiểm thử E2E"
+    }
+  ]
+}

@@ -1,0 +1,420 @@
+@model BookKiosk.CMS.ViewModels.Pos.PosIndexViewModel
+@using BookKiosk.CMS.Helpers
+@{
+    ViewData["Title"] = "Bán tại quầy (POS)";
+}
+
+@Html.AntiForgeryToken()
+
+<div class="pos-wrapper container-fluid px-0 py-2">
+    <!-- Banner cảnh báo Mock Data nếu bật -->
+    @if (Model.UseMockApi)
+    {
+        <div class="alert alert-warning border-warning d-flex align-items-center py-2 px-3 mb-3 shadow-sm" role="alert">
+            <i class="fas fa-flask text-warning fs-5 me-2"></i>
+            <div>
+                <strong>Chế độ Mock:</strong> Hệ thống đang sử dụng dữ liệu giả lập (Cms:UseMockApi = true). Các giao dịch không ghi nhận vào cơ sở dữ liệu thật.
+            </div>
+        </div>
+    }
+
+    <!-- Main Layout 2 Cột (60% / 40%) -->
+    <div class="row g-3">
+        <!-- CỘT TRÁI (60%): Quét mã, Tìm kiếm sách & Giỏ hàng -->
+        <div class="col-lg-7 col-xl-8">
+            <!-- 1. Card Tra cứu Barcode & Tìm sách -->
+            <div class="pos-card mb-3" id="posScanSearchCard">
+                <div class="pos-card-header d-flex justify-content-between align-items-center">
+                    <span class="text-dark">
+                        <span class="scanner-status-pulse me-2"></span>
+                        <i class="fas fa-barcode text-primary me-1"></i>Súng quét mã vạch (Barcode Scanner)
+                    </span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle small">
+                        <i class="fas fa-satellite-dish me-1"></i>Sẵn sàng nhận mã
+                    </span>
+                </div>
+                <div class="card-body p-3">
+                    @if (Model.IsDevelopment)
+                    {
+                        <!-- Ô nhập mã vạch bằng tay: CHỈ render trên môi trường Development -->
+                        <div class="mb-3 p-2 bg-light rounded border border-dashed">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label for="devBarcodeInput" class="form-label small fw-bold text-muted mb-0">
+                                    <i class="fas fa-keyboard me-1 text-info"></i>Ô quét thủ công (Chỉ có trong Development)
+                                </label>
+                                <span class="badge bg-secondary-subtle text-secondary small">Dev Tool</span>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="fas fa-barcode text-muted"></i></span>
+                                <input type="text" id="devBarcodeInput" class="form-control" 
+                                       placeholder="Nhập mã barcode (Ví dụ: 8930000001) rồi Enter..." autocomplete="off" />
+                                <button class="btn btn-outline-primary" type="button" id="btnDevBarcodeScan">
+                                    <i class="fas fa-search me-1"></i>Quét mã
+                                </button>
+                            </div>
+                            <div class="form-text small text-muted">Trên bản Release/Production, súng quét sẽ tự động bắt phím toàn trang mà không cần ô nhập này.</div>
+                        </div>
+                    }
+
+                    <!-- Khung Tìm kiếm sách thủ công -->
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-5">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                                <input type="text" id="posSearchKeyword" class="form-control" 
+                                       placeholder="Tìm tên sách, tác giả..." autocomplete="off" />
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <select id="posSearchCategory" class="form-select form-select-sm">
+                                <option value="">-- Tất cả danh mục --</option>
+                                @foreach (var cat in Model.Categories)
+                                {
+                                    <option value="@cat.CategoryId">@cat.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex gap-1">
+                            <button class="btn btn-sm btn-primary w-100 fw-semibold" type="button" id="btnSearchBooks">
+                                <i class="fas fa-filter me-1"></i>Tìm
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" id="btnClearSearch" title="Đóng kết quả">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Container hiển thị kết quả tìm kiếm sách thủ công (Ẩn mặc định) -->
+                    <div id="posSearchResultsContainer" class="mt-3 p-2 bg-light rounded border d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                            <span class="small fw-bold text-primary">
+                                <i class="fas fa-book-open me-1"></i>Kết quả tìm kiếm (<span id="searchResultCount">0</span> cuốn)
+                            </span>
+                            <button type="button" class="btn-close btn-sm" id="btnCloseSearchResults" aria-label="Đóng"></button>
+                        </div>
+                        <div class="row g-2 pos-search-results" id="posSearchResultsList">
+                            <!-- JS render các item qua _BookCard -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Card Giỏ hàng (Cart Items) -->
+            <div class="pos-card" id="posCartCard">
+                <div class="pos-card-header d-flex justify-content-between align-items-center">
+                    <span class="text-dark">
+                        <i class="fas fa-shopping-cart text-primary me-1"></i>Sản phẩm trong đơn hàng
+                        <span class="badge bg-primary ms-1" id="cartItemCountBadge">0</span>
+                    </span>
+                    <button type="button" class="btn btn-sm btn-outline-danger" id="btnClearCart" title="Xóa toàn bộ giỏ">
+                        <i class="fas fa-trash-alt me-1"></i>Xóa giỏ hàng
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="pos-cart-container">
+                        <table class="table pos-cart-table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="text-center" style="width: 50px;">STT</th>
+                                    <th>Tên sách & Mã vạch</th>
+                                    <th class="text-end" style="width: 120px;">Đơn giá</th>
+                                    <th class="text-center" style="width: 140px;">Số lượng</th>
+                                    <th class="text-center" style="width: 100px;">Tồn kho</th>
+                                    <th class="text-end" style="width: 130px;">Thành tiền</th>
+                                    <th class="text-center" style="width: 50px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="posCartTableBody">
+                                <!-- Trạng thái giỏ rỗng -->
+                                <tr id="cartEmptyRow">
+                                    <td colspan="7" class="text-center py-5 text-muted">
+                                        <i class="fas fa-cart-arrow-down fa-3x mb-3 text-secondary opacity-50"></i>
+                                        <div class="fs-6 fw-semibold">Giỏ hàng đang trống</div>
+                                        <div class="small">Quét mã vạch bằng súng quét hoặc tìm sách ở trên để bắt đầu bán hàng.</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hộp thoại cảnh báo Endpoint Chưa Có (Chỉ hiện khi gọi API thật bị 404 không wrapper) -->
+            <div id="endpointUnavailableBox" class="endpoint-unavailable-box d-none mb-3 shadow-sm">
+                <div class="d-flex align-items-start">
+                    <i class="fas fa-exclamation-triangle text-danger fa-2x me-3 mt-1"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="fw-bold text-danger mb-1">
+                            Endpoint chưa sẵn sàng trên Backend API
+                        </h6>
+                        <p class="small text-muted mb-2" id="endpointUnavailableMessage">
+                            Route <code>POST /api/orders/counter/checkout</code> chưa được triển khai trên nhánh <code>main</code> của Backend.
+                        </p>
+                        <div class="small bg-white p-2 rounded border border-danger-subtle text-secondary mb-3">
+                            <i class="fas fa-shield-alt text-primary me-1"></i>
+                            <strong>Bảo vệ dữ liệu:</strong> Toàn bộ giỏ hàng của bạn được giữ nguyên vẹn. Không có thao tác sai lệch nào được gửi đi.
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-danger px-3 fw-semibold" id="btnRetryEndpoint">
+                                <i class="fas fa-redo-alt me-1"></i>Thử lại kết nối
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary px-3" id="btnDismissEndpointWarning">
+                                <i class="fas fa-arrow-left me-1"></i>Quay lại giỏ hàng
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CỘT PHẢI (40%): Thu ngân, Thành viên, Khuyến mãi & Tạm tính / Chờ thanh toán -->
+        <div class="col-lg-5 col-xl-4">
+            <!-- 1. Panel Thu ngân & Phiên làm việc -->
+            <div class="pos-card mb-3">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="small text-muted d-block">Nhân viên thu ngân:</span>
+                            <span class="fw-bold text-dark fs-6">
+                                <i class="fas fa-user-circle text-primary me-1"></i>@Model.CashierName
+                            </span>
+                        </div>
+                        <div class="text-end">
+                            <span class="small text-muted d-block">Thời gian:</span>
+                            <span class="fw-semibold text-secondary font-monospace" id="posLiveClock">--:--:--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GIAI ĐOẠN 1: DRAFT (SOẠN ĐƠN) -->
+            <div id="posDraftPanel">
+                <!-- 2. Panel Khách hàng Thành viên -->
+                <div class="pos-card mb-3">
+                    <div class="pos-card-header d-flex justify-content-between align-items-center">
+                        <span class="text-dark">
+                            <i class="fas fa-id-card text-primary me-1"></i>Khách hàng Thành viên
+                        </span>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="btnOpenQuickMemberModal">
+                            <i class="fas fa-user-plus me-1"></i>Đăng ký nhanh
+                        </button>
+                    </div>
+                    <div class="card-body p-3">
+                        <!-- Form tra cứu SĐT -->
+                        <div class="input-group mb-2" id="memberLookupFormGroup">
+                            <span class="input-group-text bg-white"><i class="fas fa-phone text-muted"></i></span>
+                            <input type="tel" id="posMemberPhoneInput" class="form-control" 
+                                   placeholder="Nhập 10 số điện thoại..." maxlength="10" autocomplete="off" />
+                            <button class="btn btn-outline-secondary" type="button" id="btnLookupMember">
+                                <i class="fas fa-search me-1"></i>Tìm
+                            </button>
+                        </div>
+
+                        <!-- Box thông tin thành viên (Hiện khi đã chọn) -->
+                        <div id="selectedMemberBox" class="p-2 bg-light rounded border border-primary-subtle d-none">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <div>
+                                    <span class="fw-bold text-dark" id="selectedMemberName">--</span>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1" id="selectedMemberRank">Thành viên</span>
+                                </div>
+                                <button type="button" class="btn-close btn-sm" id="btnRemoveSelectedMember" title="Bỏ chọn thành viên"></button>
+                            </div>
+                            <div class="small text-muted d-flex justify-content-between align-items-center">
+                                <span>SĐT: <strong id="selectedMemberPhone">--</strong></span>
+                                <span>Điểm tích lũy: <strong class="text-success" id="selectedMemberPoints">0</strong> điểm</span>
+                            </div>
+                        </div>
+
+                        <!-- Ô sử dụng điểm thưởng -->
+                        <div class="mt-3 pt-2 border-top">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label for="posPointsToUseInput" class="form-label small fw-semibold text-dark mb-0">
+                                    <i class="fas fa-coins text-warning me-1"></i>Dùng điểm tích lũy:
+                                </label>
+                                <span class="small text-muted" id="pointsDeductionPreview">0 điểm = 0 ₫</span>
+                            </div>
+                            <div class="input-group input-group-sm">
+                                <input type="number" id="posPointsToUseInput" class="form-control text-center fw-bold" 
+                                       value="0" min="0" max="100" step="1" disabled />
+                                <span class="input-group-text bg-white">điểm (Tối đa 100)</span>
+                                <button class="btn btn-outline-secondary" type="button" id="btnUseMaxPoints" disabled>
+                                    Tối đa
+                                </button>
+                            </div>
+                            <div class="form-text small text-muted">
+                                <i class="fas fa-info-circle me-1"></i>Quy đổi: 1 điểm = 1.000 ₫ (chú thích giao diện, tiền trừ thật lấy từ Backend).
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Panel Khuyến mãi Hóa đơn -->
+                <div class="pos-card mb-3">
+                    <div class="pos-card-header d-flex justify-content-between align-items-center">
+                        <span class="text-dark">
+                            <i class="fas fa-tags text-primary me-1"></i>Khuyến mãi Hóa đơn
+                        </span>
+                        <span class="badge bg-secondary-subtle text-secondary small">Tối đa 1 mã</span>
+                    </div>
+                    <div class="card-body p-3">
+                        <select id="posPromotionSelect" class="form-select form-select-sm mb-2">
+                            <option value="">-- Không áp dụng khuyến mãi --</option>
+                            @foreach (var promo in Model.ActivePromotions)
+                            {
+                                <option value="@promo.PromotionId" 
+                                        data-min-value="@(promo.MinOrderValue ?? 0)" 
+                                        data-discount="@promo.DiscountAmount">
+                                    @promo.Name (@promo.SummaryText)
+                                </option>
+                            }
+                        </select>
+                        <!-- Badge gợi ý KM tốt nhất -->
+                        <div id="promoSuggestionBadge" class="small text-success d-none">
+                            <i class="fas fa-lightbulb text-warning me-1"></i>
+                            <span>Gợi ý: <strong id="promoSuggestedName">--</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Panel Tạm tính & Tạo đơn -->
+                <div class="pos-card">
+                    <div class="card-body p-3">
+                        <div class="pos-summary-box mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="pos-summary-title">Tạm tính (Giá niêm yết):</span>
+                                <span class="pos-subtotal-price" id="posSubTotalPrice">0 ₫</span>
+                            </div>
+                            <div class="small text-muted">
+                                <i class="fas fa-shield-alt text-primary me-1"></i>
+                                <strong>Thin Client:</strong> Tiền giảm KM, tiền trừ điểm và thực trả sẽ do Backend tính toán chính thức khi bấm Tạo đơn.
+                            </div>
+                        </div>
+
+                        <!-- Nút Tạo đơn hàng (F9) -->
+                        <button type="button" class="btn btn-primary w-100 btn-checkout-primary d-flex justify-content-center align-items-center" 
+                                id="btnCheckoutOrder" disabled>
+                            <i class="fas fa-bolt me-2 fs-5"></i>
+                            <span id="btnCheckoutText">TẠO ĐƠN HÀNG (F9)</span>
+                        </button>
+                        <div class="text-center mt-2 small text-muted">
+                            Bấm phím <kbd class="bg-light text-dark border">F9</kbd> để tạo đơn nhanh
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GIAI ĐOẠN 2: PENDING (ĐƠN CHỜ THANH TOÁN - Ẩn mặc định) -->
+            <div id="posPendingPanel" class="d-none">
+                <div class="pos-card border-primary">
+                    <div class="pos-card-header bg-primary text-white d-flex justify-content-between align-items-center py-2">
+                        <span>
+                            <i class="fas fa-receipt me-1"></i>Đơn hàng: <strong id="pendingOrderCode">ORD-XXXXXXXX</strong>
+                        </span>
+                        <span class="badge bg-warning text-dark font-monospace fs-6" id="pendingTimerBadge">
+                            <i class="fas fa-clock me-1"></i><span id="pendingCountdownTimer">04:00</span>
+                        </span>
+                    </div>
+                    <div class="card-body p-3">
+                        <!-- Chọn phương thức thanh toán -->
+                        <label class="form-label small fw-bold text-dark mb-2">Phương thức thanh toán:</label>
+                        <div class="btn-group w-100 mb-3" role="group">
+                            <input type="radio" class="btn-check" name="pendingPaymentMethod" id="payMethodCash" value="Cash" checked autocomplete="off" />
+                            <label class="btn btn-outline-primary fw-semibold" for="payMethodCash">
+                                <i class="fas fa-money-bill-wave me-1"></i>Tiền mặt
+                            </label>
+
+                            <input type="radio" class="btn-check" name="pendingPaymentMethod" id="payMethodQR" value="QR" autocomplete="off" />
+                            <label class="btn btn-outline-primary fw-semibold" for="payMethodQR">
+                                <i class="fas fa-qrcode me-1"></i>Chuyển khoản QR
+                            </label>
+                        </div>
+
+                        <!-- Bảng chi tiết tiền CHÍNH THỨC do Backend tính -->
+                        <div class="bg-light p-3 rounded border mb-3">
+                            <div class="d-flex justify-content-between small text-muted mb-1">
+                                <span>Tạm tính (niêm yết):</span>
+                                <span id="pendingSubTotal">0 ₫</span>
+                            </div>
+                            <div class="d-flex justify-content-between small text-success mb-1" id="pendingDiscountRow">
+                                <span>Giảm khuyến mãi:</span>
+                                <span id="pendingDiscountAmount">-0 ₫</span>
+                            </div>
+                            <div class="d-flex justify-content-between small text-success mb-1" id="pendingPointsRow">
+                                <span>Trừ điểm thành viên:</span>
+                                <span id="pendingPointsAmount">-0 ₫</span>
+                            </div>
+                            <div class="border-top pt-2 mt-2 d-flex justify-content-between align-items-center">
+                                <span class="fw-bold text-dark fs-6">TỔNG THỰC TRẢ:</span>
+                                <span class="fw-bold text-danger fs-4" id="pendingTotalAmount">0 ₫</span>
+                            </div>
+                        </div>
+
+                        <!-- Nhánh 1: Tiền mặt (Cash) -->
+                        <div id="cashPaymentBranch">
+                            <div class="mb-3 p-2 bg-white rounded border">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label for="cashGivenInput" class="form-label small fw-semibold text-dark mb-0">Tiền khách đưa (P2):</label>
+                                    <span class="small text-muted">Tiền thối lại: <strong class="text-primary fs-6" id="cashChangeAmount">0 ₫</strong></span>
+                                </div>
+                                <div class="input-group input-group-sm mb-2">
+                                    <input type="number" id="cashGivenInput" class="form-control text-end fw-bold" placeholder="Nhập số tiền..." step="1000" />
+                                    <span class="input-group-text bg-light">₫</span>
+                                </div>
+                                <div class="d-flex gap-1 flex-wrap">
+                                    <button type="button" class="btn btn-xs btn-outline-secondary btn-quick-cash" data-type="exact">Đủ tiền</button>
+                                    <button type="button" class="btn btn-xs btn-outline-secondary btn-quick-cash" data-amount="100000">100K</button>
+                                    <button type="button" class="btn btn-xs btn-outline-secondary btn-quick-cash" data-amount="200000">200K</button>
+                                    <button type="button" class="btn btn-xs btn-outline-secondary btn-quick-cash" data-amount="500000">500K</button>
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn btn-success w-100 py-3 fw-bold fs-5 shadow-sm" id="btnConfirmCashPayment">
+                                <i class="fas fa-check-circle me-2"></i>XÁC NHẬN ĐÃ THU TIỀN MẶT
+                            </button>
+                        </div>
+
+                        <!-- Nhánh 2: Chuyển khoản QR (VietQR SePay) -->
+                        <div id="qrPaymentBranch" class="d-none text-center">
+                            <div class="p-3 bg-white rounded border mb-3">
+                                <div class="mb-2">
+                                    <img id="pendingQrImage" src="" alt="Mã VietQR" class="img-fluid border p-1 rounded" style="max-height: 220px;" />
+                                </div>
+                                <div class="small fw-semibold text-dark">Quét mã bằng App Ngân hàng để thanh toán</div>
+                                <div class="small text-muted font-monospace mt-1">Nội dung: <strong id="pendingQrDes">--</strong></div>
+                                <div class="mt-2 text-primary small d-flex justify-content-center align-items-center">
+                                    <span class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
+                                    <span>Hệ thống đang tự động kiểm tra thanh toán (3s/lần)...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Nút Hủy đơn hàng nhả kho -->
+                        <div class="mt-3 pt-2 border-top">
+                            <button type="button" class="btn btn-outline-danger w-100" id="btnOpenCancelModal">
+                                <i class="fas fa-ban me-1"></i>Hủy đơn hàng (Nhả kho)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Đăng ký nhanh thành viên -->
+<partial name="_QuickMemberModal" />
+
+<!-- Modal Xác nhận Hủy đơn tại quầy -->
+<partial name="_CancelOrderModal" />
+
+<!-- Modal In Hóa đơn K80 -->
+<partial name="_ReceiptModal" />
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/pos.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/print-receipt.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/pos.js" asp-append-version="true"></script>
+}

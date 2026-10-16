@@ -1,0 +1,254 @@
+@model IEnumerable<AreaDto>
+@{
+    ViewData["Title"] = "Quản lý Khu vực & Kệ sách";
+    bool isAdmin = User.IsInRole("Admin");
+}
+
+<!-- Page Header -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h1 class="h3 mb-1 fw-bold text-dark">
+            <i class="fas fa-map-marked-alt text-primary me-2"></i>Quản lý Khu vực & Kệ sách
+        </h1>
+        <p class="text-muted small mb-0">Thiết lập vị trí kệ sách và tọa độ bản đồ hiển thị chỉ đường trên Kiosk tra cứu.</p>
+    </div>
+    <div>
+        @if (isAdmin)
+        {
+            <button type="button" class="btn btn-primary px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#createAreaModal">
+                <i class="fas fa-plus-circle me-1"></i> Thêm khu vực mới
+            </button>
+        }
+        else
+        {
+            <span class="badge bg-light text-muted border p-2">
+                <i class="fas fa-shield-alt me-1"></i> Quyền: Nhân viên (Chỉ xem)
+            </span>
+        }
+    </div>
+</div>
+
+<!-- Alert Thông báo -->
+<partial name="_Alert" />
+
+<!-- Main Content Card -->
+<div class="card border-0 shadow-sm" style="border-radius: var(--bk-radius);">
+    <!-- Card Header / Toolbar -->
+    <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <h6 class="mb-0 fw-bold text-dark">Danh sách khu vực kệ</h6>
+            <span class="badge bg-primary-subtle text-primary rounded-pill px-2" id="areaCountBadge">
+                @(Model?.Count() ?? 0) khu vực
+            </span>
+        </div>
+        <div class="input-group" style="max-width: 320px;">
+            <span class="input-group-text bg-light border-end-0 text-muted">
+                <i class="fas fa-search"></i>
+            </span>
+            <input type="text" id="areaSearchInput" class="form-control bg-light border-start-0" 
+                   placeholder="Tìm kiếm khu vực / kệ..." />
+        </div>
+    </div>
+
+    <!-- Table Body -->
+    <div class="card-body p-0">
+        @if (Model == null || !Model.Any())
+        {
+            <partial name="_EmptyState" model='"Hiện chưa có khu vực / kệ sách nào trong hệ thống."' />
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="areaTable">
+                    <thead class="table-light text-secondary small text-uppercase fw-semibold">
+                        <tr>
+                            <th class="ps-4" style="width: 80px;">Mã</th>
+                            <th style="min-width: 220px;">Tên khu vực / Kệ sách</th>
+                            <th>Tọa độ bản đồ (Kiosk Map Coordinates)</th>
+                            <th class="text-end pe-4" style="width: 180px;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr class="area-row" data-name="@item.Name.ToLower()" data-coord="@(item.MapCoordinates?.ToLower() ?? "")">
+                                <td class="ps-4 fw-semibold text-muted">#@item.AreaId</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="area-icon-box rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center me-3" style="width: 36px; height: 36px;">
+                                            <i class="fas fa-map-pin"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-dark">@item.Name</div>
+                                            <small class="text-muted">Mã kệ: AREA-@item.AreaId.ToString("D3")</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(item.MapCoordinates))
+                                    {
+                                        <code class="text-dark bg-light px-2 py-1 rounded small border">
+                                            <i class="fas fa-crosshairs text-primary me-1"></i>@item.MapCoordinates
+                                        </code>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small fst-italic">Chưa cài đặt tọa độ</span>
+                                    }
+                                </td>
+                                <td class="text-end pe-4">
+                                    @if (isAdmin)
+                                    {
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-primary" 
+                                                    title="Sửa khu vực"
+                                                    onclick="openEditAreaModal(@item.AreaId, '@Html.Raw(Html.Encode(item.Name))', '@Html.Raw(Html.Encode(item.MapCoordinates ?? ""))')">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger" 
+                                                    title="Xóa khu vực"
+                                                    onclick="confirmDeleteArea(@item.AreaId, '@Html.Raw(Html.Encode(item.Name))')">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-light text-muted border">
+                                            <i class="fas fa-lock me-1"></i>Chỉ xem
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@if (isAdmin)
+{
+    <!-- MODAL 1: THÊM MỚI KHU VỰC -->
+    <div class="modal fade" id="createAreaModal" tabindex="-1" aria-labelledby="createAreaModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0" style="border-radius: var(--bk-radius);">
+                <form asp-controller="Areas" asp-action="Create" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header border-bottom-0 pb-0">
+                        <h5 class="modal-title fw-bold text-dark" id="createAreaModalLabel">
+                            <i class="fas fa-plus-circle text-primary me-2"></i>Thêm khu vực / kệ sách mới
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body py-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-secondary">Tên khu vực / kệ sách <span class="text-danger">*</span></label>
+                            <input type="text" name="Name" class="form-control" placeholder="Ví dụ: Kệ A1 - Tầng 1, Khu Khoa học đời sống..." required maxlength="255" />
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold text-secondary">Tọa độ bản đồ (Map Coordinates)</label>
+                            <input type="text" name="MapCoordinates" class="form-control font-monospace" placeholder='Ví dụ: {"x": 120, "y": 340, "floor": 1}' maxlength="500" />
+                            <small class="text-muted d-block mt-1">Chuỗi tọa độ JSON hoặc định dạng vị trí để Kiosk hiển thị sơ đồ dẫn đường.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top-0 pt-0">
+                        <button type="button" class="btn btn-light px-3" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="fas fa-save me-1"></i> Lưu khu vực
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: CẬP NHẬT KHU VỰC -->
+    <div class="modal fade" id="editAreaModal" tabindex="-1" aria-labelledby="editAreaModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0" style="border-radius: var(--bk-radius);">
+                <form id="editAreaForm" method="post" action="">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header border-bottom-0 pb-0">
+                        <h5 class="modal-title fw-bold text-dark" id="editAreaModalLabel">
+                            <i class="fas fa-edit text-primary me-2"></i>Cập nhật khu vực / kệ sách
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body py-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-secondary">Tên khu vực / kệ sách <span class="text-danger">*</span></label>
+                            <input type="text" id="editAreaName" name="Name" class="form-control" required maxlength="255" />
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold text-secondary">Tọa độ bản đồ (Map Coordinates)</label>
+                            <input type="text" id="editAreaCoordinates" name="MapCoordinates" class="form-control font-monospace" maxlength="500" />
+                            <small class="text-muted d-block mt-1">Chuỗi tọa độ JSON hoặc vị trí sơ đồ.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top-0 pt-0">
+                        <button type="button" class="btn btn-light px-3" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="fas fa-check me-1"></i> Cập nhật
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal xác nhận xóa tái sử dụng từ Tuần 1 -->
+<partial name="_ConfirmModal" />
+
+@section Scripts {
+    <script>
+        // Lọc tìm kiếm khu vực Client-side tức thì
+        document.getElementById('areaSearchInput')?.addEventListener('input', function (e) {
+            const query = e.target.value.toLowerCase().trim();
+            const rows = document.querySelectorAll('.area-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const name = row.getAttribute('data-name') || '';
+                const coord = row.getAttribute('data-coord') || '';
+                if (name.includes(query) || coord.includes(query)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            const badge = document.getElementById('areaCountBadge');
+            if (badge) {
+                badge.innerText = visibleCount + ' khu vực';
+            }
+        });
+
+        // Mở Modal Sửa khu vực và gán dữ liệu
+        function openEditAreaModal(id, name, coordinates) {
+            const form = document.getElementById('editAreaForm');
+            const nameInput = document.getElementById('editAreaName');
+            const coordInput = document.getElementById('editAreaCoordinates');
+
+            if (form) form.action = '/Areas/Edit/' + id;
+            if (nameInput) nameInput.value = name;
+            if (coordInput) coordInput.value = coordinates;
+
+            const modal = new bootstrap.Modal(document.getElementById('editAreaModal'));
+            modal.show();
+        }
+
+        // Kích hoạt Modal Xác nhận xóa
+        function confirmDeleteArea(id, name) {
+            showConfirmModal(
+                '/Areas/Delete/' + id,
+                'Bạn có chắc chắn muốn xóa khu vực kệ "' + name + '" không? Sách tại khu vực này sẽ được chuyển về trạng thái Chưa xếp kệ.',
+                'Xác nhận xóa',
+                'btn-danger'
+            );
+        }
+    </script>
+}

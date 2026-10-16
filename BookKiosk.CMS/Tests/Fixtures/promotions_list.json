@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "Thành công",
+  "data": [
+    {
+      "promotionId": 9201,
+      "name": "E2E-RUN01 Giảm 30K đơn từ 200K",
+      "description": "Giảm 30.000 ₫ cho hóa đơn từ 200.000 ₫",
+      "startDate": "2026-10-10T00:00:00Z",
+      "endDate": "2026-10-25T23:59:59Z",
+      "isActive": true
+    }
+  ]
+}

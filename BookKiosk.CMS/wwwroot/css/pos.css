@@ -1,0 +1,180 @@
+/* ====================================================================
+   POS BÁN TẠI QUẦY (PHÂN HỆ G) - STYLESHEET
+   BookKiosk.CMS
+   ==================================================================== */
+
+:root {
+    --pos-primary: #0d6efd;
+    --pos-primary-hover: #0b5ed7;
+    --pos-success: #198754;
+    --pos-danger: #dc3545;
+    --pos-warning: #ffc107;
+    --pos-bg-card: #ffffff;
+    --pos-border: #dee2e6;
+    --pos-radius: 0.5rem;
+}
+
+/* Layout 2 cột */
+.pos-wrapper {
+    min-height: calc(100vh - 130px);
+}
+
+.pos-card {
+    background-color: var(--pos-bg-card);
+    border: 1px solid var(--pos-border);
+    border-radius: var(--pos-radius);
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.05);
+    margin-bottom: 1rem;
+}
+
+.pos-card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid var(--pos-border);
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+}
+
+/* Scanner & Phím súng quét */
+.scanner-status-pulse {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--pos-success);
+    box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
+    animation: scannerPulse 1.8s infinite;
+}
+
+@keyframes scannerPulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
+    }
+    70% {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 8px rgba(25, 135, 84, 0);
+    }
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
+    }
+}
+
+/* Giỏ hàng POS Table */
+.pos-cart-container {
+    max-height: 400px;
+    overflow-y: auto;
+    position: relative;
+}
+
+.pos-cart-table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 2;
+    border-bottom: 2px solid var(--pos-border);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+}
+
+.pos-cart-table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.pos-cart-table tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.03);
+}
+
+.qty-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.qty-input {
+    width: 48px;
+    text-align: center;
+    font-weight: 600;
+}
+
+/* Box kết quả tìm kiếm */
+.pos-search-results {
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+/* Cột phải: Panel thanh toán & Tạm tính */
+.pos-summary-box {
+    background-color: #f8f9fa;
+    border: 1px dashed var(--pos-border);
+    border-radius: var(--pos-radius);
+    padding: 1rem;
+}
+
+.pos-summary-title {
+    font-size: 0.9rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.pos-subtotal-price {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--pos-primary);
+}
+
+/* Nút tạo đơn chính */
+.btn-checkout-primary {
+    font-size: 1.15rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 6px rgba(13, 110, 253, 0.2);
+    transition: all 0.2s ease;
+}
+
+.btn-checkout-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 8px rgba(13, 110, 253, 0.3);
+}
+
+/* Hộp thông báo Endpoint Chưa Có (EndpointUnavailable) */
+.endpoint-unavailable-box {
+    border: 2px dashed #dc3545;
+    background-color: #fff8f8;
+    border-radius: var(--pos-radius);
+    padding: 1.5rem;
+}
+
+/* Badge số lượng và tồn kho */
+.badge-stock-ample {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+}
+
+.badge-stock-low {
+    background-color: #fff3cd;
+    color: #664d03;
+    border: 1px solid #ffecb5;
+}
+
+.badge-stock-out {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+}
+
+/* Chế độ Read-only khi tạo đơn Pending */
+.pos-cart-readonly {
+    opacity: 0.7;
+    pointer-events: none;
+}

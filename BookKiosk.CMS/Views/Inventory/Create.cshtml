@@ -1,0 +1,448 @@
+@model CreateReceiptViewModel
+@{
+    ViewData["Title"] = "Lập phiếu nhập kho";
+}
+
+<!-- Page Header -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-1">
+                <li class="breadcrumb-item"><a asp-action="Index" class="text-decoration-none">Phiếu nhập kho</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Lập phiếu mới</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-0 fw-bold text-dark">
+            <i class="fas fa-dolly-flatbed text-primary me-2"></i>Lập phiếu nhập kho mới
+        </h1>
+    </div>
+    <div>
+        <a asp-action="Index" class="btn btn-outline-secondary px-3">
+            <i class="fas fa-arrow-left me-1"></i> Hủy & Quay lại
+        </a>
+    </div>
+</div>
+
+<!-- Alert Thông báo -->
+<partial name="_Alert" />
+
+<form id="createReceiptForm" asp-action="Create" method="post">
+    @Html.AntiForgeryToken()
+
+    <div class="row g-4">
+        <!-- CỘT TRÁI: QUÉT MÃ VẠCH & BẢNG SÁCH NHẬP KHO -->
+        <div class="col-lg-8">
+            <!-- Ô Quét Mã Vạch Chuyên Dụng (Barcode Scanner Box) -->
+            <div class="card border-0 shadow-sm mb-4 border-start border-4 border-primary" style="border-radius: var(--bk-radius);">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label for="barcodeScannerInput" class="form-label fw-bold text-dark mb-0 fs-6">
+                            <i class="fas fa-barcode text-primary me-2"></i>Quét mã vạch (Barcode Scanner)
+                        </label>
+                        <span class="badge bg-success-subtle text-success small" id="scannerStatusBadge">
+                            <i class="fas fa-circle text-success me-1 fa-xs"></i>Sẵn sàng quét
+                        </span>
+                    </div>
+                    <div class="input-group input-group-lg shadow-sm">
+                        <span class="input-group-text bg-white border-end-0 text-primary">
+                            <i class="fas fa-qrcode fs-4"></i>
+                        </span>
+                        <input type="text" id="barcodeScannerInput" class="form-control font-monospace border-start-0 border-end-0 fw-bold" 
+                               placeholder="Đặt con trỏ tại đây & quét mã vạch trên sách..." autofocus autocomplete="off" />
+                        <button type="button" class="btn btn-primary px-4 fw-semibold" id="btnManualAdd" onclick="handleScanBarcode()">
+                            <i class="fas fa-search me-1"></i> Tra mã
+                        </button>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 small text-muted">
+                        <span><i class="fas fa-info-circle me-1"></i>Hỗ trợ đầu đọc mã vạch USB hoặc gõ mã rồi nhấn <strong>Enter</strong>.</span>
+                        <span id="scanNotice" class="fw-semibold"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bảng Danh mục sách trong phiếu nhập -->
+            <div class="card border-0 shadow-sm" style="border-radius: var(--bk-radius);">
+                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <h6 class="mb-0 fw-bold text-dark">Danh sách ấn phẩm nhập kho</h6>
+                        <span class="badge bg-primary-subtle text-primary rounded-pill px-2" id="itemCountBadge">0 đầu sách</span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-link text-danger text-decoration-none p-0 d-none" id="btnClearAll" onclick="clearAllItems()">
+                        <i class="fas fa-trash-alt me-1"></i>Xóa toàn bộ
+                    </button>
+                </div>
+
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="receiptDraftTable">
+                            <thead class="table-light text-secondary small text-uppercase fw-semibold">
+                                <tr>
+                                    <th class="ps-4" style="width: 50px;">Bìa</th>
+                                    <th style="min-width: 220px;">Tựa đề sách & Tác giả</th>
+                                    <th class="text-center" style="width: 100px;">Tồn hiện tại</th>
+                                    <th class="text-center" style="width: 140px;">SL Nhập</th>
+                                    <th class="text-end" style="width: 150px;">Giá nhập (₫)</th>
+                                    <th class="text-end" style="width: 150px;">Thành tiền</th>
+                                    <th class="text-center" style="width: 50px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="receiptDraftTableBody">
+                                <!-- Dòng dữ liệu được thêm động qua JS khi quét mã -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Trạng thái trống khi chưa quét sách -->
+                    <div id="draftEmptyState" class="p-4">
+                        <partial name="_EmptyState" model='"Chưa có ấn phẩm nào trong phiếu nhập. Hãy quét mã vạch ở ô phía trên để bắt đầu."' />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CỘT PHẢI: THÔNG TIN PHIẾU, NHÀ CUNG CẤP & TỔNG KẾT -->
+        <div class="col-lg-4">
+            <!-- Card Nhà cung cấp & Ghi chú -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: var(--bk-radius);">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-bold text-dark">
+                        <i class="fas fa-truck text-primary me-2"></i>Thông tin nhà cung cấp
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <label asp-for="SupplierId" class="form-label fw-semibold text-secondary small">
+                            Nhà cung cấp đối tác <span class="text-danger">*</span>
+                        </label>
+                        <select asp-for="SupplierId" asp-items="Model.SupplierOptions" class="form-select" id="supplierSelect" required>
+                            <option value="">-- Chọn đối tác cung ứng --</option>
+                        </select>
+                        <span asp-validation-for="SupplierId" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-0">
+                        <label asp-for="Notes" class="form-label fw-semibold text-secondary small">Ghi chú phiếu nhập</label>
+                        <textarea asp-for="Notes" id="receiptNotes" class="form-control" rows="3" placeholder="Số hóa đơn VAT, số hợp đồng, tình trạng kiện hàng..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Tổng kết & Hành động -->
+            <div class="card border-0 shadow-sm" style="border-radius: var(--bk-radius);">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-bold text-dark">
+                        <i class="fas fa-receipt text-primary me-2"></i>Tổng kết phiếu nhập
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-secondary">Tổng số đầu sách:</span>
+                        <strong class="text-dark" id="summaryTotalTypes">0 loại</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-secondary">Tổng số cuốn nhập:</span>
+                        <strong class="text-primary fs-6" id="summaryTotalUnits">0 cuốn</strong>
+                    </div>
+
+                    <hr class="my-3 opacity-25" />
+
+                    <div class="d-flex justify-content-between align-items-baseline mb-4">
+                        <span class="fw-bold text-dark fs-6">Tạm tính tổng tiền:</span>
+                        <h3 class="fw-bold text-success mb-0" id="summaryGrandTotal">0 ₫</h3>
+                    </div>
+
+                    <div class="alert alert-info py-2 px-3 small mb-4 border-0 bg-info-subtle text-info-emphasis">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <strong>Lưu ý:</strong> Tổng tiền cuối cùng và số lượng tồn kho sẽ được hệ thống Backend tính toán và hạch toán tự động sau khi Lưu phiếu.
+                    </div>
+
+                    <div id="hiddenItemsContainer"></div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary py-3 fw-bold shadow-sm" id="btnSubmitReceipt" disabled>
+                            <i class="fas fa-save me-2"></i> Lưu phiếu nhập kho
+                        </button>
+                        <a asp-action="Index" class="btn btn-light py-2 text-secondary">
+                            <i class="fas fa-times me-1"></i> Hủy thao tác
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Mảng lưu trữ các ấn phẩm tạm thời trong phiếu nhập
+        let draftItems = [];
+
+        const scannerInput = document.getElementById('barcodeScannerInput');
+        const draftTableBody = document.getElementById('receiptDraftTableBody');
+        const emptyState = document.getElementById('draftEmptyState');
+        const btnSubmit = document.getElementById('btnSubmitReceipt');
+        const btnClear = document.getElementById('btnClearAll');
+        const itemCountBadge = document.getElementById('itemCountBadge');
+
+        // Luôn giữ focus cho ô quét mã vạch
+        window.addEventListener('DOMContentLoaded', () => {
+            scannerInput?.focus();
+        });
+
+        // Bắt phím Enter trên ô quét mã vạch
+        scannerInput?.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleScanBarcode();
+            }
+        });
+
+        // Tự động focus lại sau khi click vào bất kỳ vùng trống nào trên trang (trừ lúc đang gõ vào input khác)
+        document.addEventListener('click', function (e) {
+            const tag = e.target.tagName.toLowerCase();
+            if (tag !== 'input' && tag !== 'textarea' && tag !== 'select' && tag !== 'button' && tag !== 'a') {
+                scannerInput?.focus();
+            }
+        });
+
+        // Xử lý quét mã vạch
+        async function handleScanBarcode() {
+            const barcode = scannerInput.value.trim();
+            if (!barcode) {
+                scannerInput.focus();
+                return;
+            }
+
+            setScannerStatus(true, 'Đang tra cứu mã ' + barcode + '...');
+
+            try {
+                // Gọi API tra cứu sách theo mã vạch
+                const response = await fetch('/api/books/barcode/' + encodeURIComponent(barcode));
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    const book = result.data || result;
+
+                    if (book && (book.bookId || book.BookId)) {
+                        const normalizedBook = {
+                            bookId: book.bookId || book.BookId,
+                            barcode: book.barcode || book.Barcode || barcode,
+                            title: book.title || book.Title || 'Ấn phẩm #' + (book.bookId || book.BookId),
+                            author: book.author || book.Author || '',
+                            imageUrl: book.imageUrl || book.ImageUrl || '',
+                            stockQuantity: book.stockQuantity ?? book.StockQuantity ?? 0,
+                            costPrice: book.costPrice ?? book.CostPrice ?? 0
+                        };
+
+                        addOrIncrementItem(normalizedBook);
+                        scannerInput.value = '';
+                        setScannerStatus(false, 'Đã thêm: ' + normalizedBook.title);
+                    } else {
+                        showBarcodeNotFound(barcode);
+                    }
+                } else {
+                    showBarcodeNotFound(barcode);
+                }
+            } catch (err) {
+                console.error(err);
+                showBarcodeNotFound(barcode);
+            } finally {
+                scannerInput.focus();
+            }
+        }
+
+        // Thêm mới hoặc cộng dồn số lượng nếu đã có trong danh sách
+        function addOrIncrementItem(book) {
+            const existingIndex = draftItems.findIndex(x => x.bookId === book.bookId);
+
+            if (existingIndex !== -1) {
+                // CỘNG DỒN SỐ LƯỢNG (+1)
+                draftItems[existingIndex].quantity += 1;
+                renderTable();
+
+                // Highlight chớp sáng dòng sách vừa quét
+                const row = document.getElementById('draftRow_' + book.bookId);
+                if (row) {
+                    row.classList.add('table-warning');
+                    setTimeout(() => row.classList.remove('table-warning'), 1200);
+                }
+            } else {
+                // THÊM DÒNG MỚI VÀO BẢNG
+                draftItems.push({
+                    bookId: book.bookId,
+                    barcode: book.barcode,
+                    title: book.title,
+                    author: book.author,
+                    imageUrl: book.imageUrl,
+                    stockQuantity: book.stockQuantity,
+                    quantity: 1,
+                    importPrice: book.costPrice > 0 ? book.costPrice : 0
+                });
+
+                renderTable();
+
+                const row = document.getElementById('draftRow_' + book.bookId);
+                if (row) {
+                    row.classList.add('table-success');
+                    setTimeout(() => row.classList.remove('table-success'), 1200);
+                }
+            }
+        }
+
+        // Render lại bảng danh sách sách
+        function renderTable() {
+            if (draftItems.length === 0) {
+                draftTableBody.innerHTML = '';
+                emptyState.style.display = 'block';
+                btnSubmit.disabled = true;
+                btnClear.classList.add('d-none');
+                itemCountBadge.innerText = '0 đầu sách';
+                updateSummary();
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            btnClear.classList.remove('d-none');
+            btnSubmit.disabled = false;
+            itemCountBadge.innerText = draftItems.length + ' đầu sách';
+
+            let html = '';
+            draftItems.forEach((item, index) => {
+                const lineTotal = item.quantity * item.importPrice;
+                const imgUrl = item.imageUrl || 'https://placehold.co/40x54/f8f9fa/6c757d?text=No+Img';
+
+                html += `
+                    <tr id="draftRow_${item.bookId}" style="transition: background-color 0.4s ease;">
+                        <td class="ps-4">
+                            <div class="rounded overflow-hidden shadow-sm d-flex align-items-center justify-content-center bg-light border" style="width: 38px; height: 50px;">
+                                <img src="${imgUrl}" alt="${item.title}" style="max-width: 100%; max-height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='https://placehold.co/40x54/f8f9fa/6c757d?text=No+Img';" />
+                            </div>
+                        </td>
+                        <td>
+                            <div class="fw-bold text-dark text-truncate" style="max-width: 260px;" title="${item.title}">${item.title}</div>
+                            <small class="text-muted font-monospace"><i class="fas fa-barcode me-1 text-secondary"></i>${item.barcode}</small>
+                        </td>
+                        <td class="text-center text-muted fw-semibold">
+                            ${item.stockQuantity}
+                        </td>
+                        <td class="text-center">
+                            <input type="number" min="1" max="99999" class="form-control form-control-sm text-center fw-bold" 
+                                   value="${item.quantity}" onchange="updateQuantity(${item.bookId}, this.value)" />
+                        </td>
+                        <td class="text-end">
+                            <input type="number" min="0" step="1000" class="form-control form-control-sm text-end font-monospace" 
+                                   value="${item.importPrice}" onchange="updateImportPrice(${item.bookId}, this.value)" />
+                        </td>
+                        <td class="text-end fw-bold text-success fs-6">
+                            ${lineTotal.toLocaleString('vi-VN')} ₫
+                        </td>
+                        <td class="text-center pe-3">
+                            <button type="button" class="btn btn-sm btn-outline-danger border-0" title="Xóa dòng này" onclick="removeItem(${item.bookId})">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            draftTableBody.innerHTML = html;
+            updateSummary();
+        }
+
+        // Cập nhật số lượng
+        function updateQuantity(bookId, value) {
+            const qty = parseInt(value) || 1;
+            const item = draftItems.find(x => x.bookId === bookId);
+            if (item) {
+                item.quantity = Math.max(1, qty);
+                renderTable();
+            }
+        }
+
+        // Cập nhật giá nhập
+        function updateImportPrice(bookId, value) {
+            const price = parseFloat(value) || 0;
+            const item = draftItems.find(x => x.bookId === bookId);
+            if (item) {
+                item.importPrice = Math.max(0, price);
+                renderTable();
+            }
+        }
+
+        // Xóa một đầu sách khỏi phiếu nhập
+        function removeItem(bookId) {
+            draftItems = draftItems.filter(x => x.bookId !== bookId);
+            renderTable();
+            scannerInput.focus();
+        }
+
+        // Xóa toàn bộ phiếu
+        function clearAllItems() {
+            if (confirm('Bạn có chắc chắn muốn xóa toàn bộ danh sách ấn phẩm vừa quét không?')) {
+                draftItems = [];
+                renderTable();
+                scannerInput.focus();
+            }
+        }
+
+        // Cập nhật thẻ tổng kết chi phí
+        function updateSummary() {
+            let totalUnits = 0;
+            let grandTotal = 0;
+
+            draftItems.forEach(item => {
+                totalUnits += item.quantity;
+                grandTotal += (item.quantity * item.importPrice);
+            });
+
+            document.getElementById('summaryTotalTypes').innerText = draftItems.length + ' loại';
+            document.getElementById('summaryTotalUnits').innerText = totalUnits.toLocaleString('vi-VN') + ' cuốn';
+            document.getElementById('summaryGrandTotal').innerText = grandTotal.toLocaleString('vi-VN') + ' ₫';
+        }
+
+        // Báo lỗi không tìm thấy sách
+        function showBarcodeNotFound(barcode) {
+            setScannerStatus(false, '<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Không tìm thấy mã: ' + barcode + '</span>');
+            alert('Không tìm thấy sách với mã vạch "' + barcode + '". Vui lòng tạo sách mới trong menu Quản lý Sách trước khi nhập kho.');
+        }
+
+        function setScannerStatus(isLoading, message) {
+            const notice = document.getElementById('scanNotice');
+            if (notice) notice.innerHTML = message;
+        }
+
+        // Xử lý trước khi Submit form: Chuyển dữ liệu mảng draftItems sang các thẻ hidden inputs
+        document.getElementById('createReceiptForm')?.addEventListener('submit', function (e) {
+            if (draftItems.length === 0) {
+                e.preventDefault();
+                alert('Vui lòng quét ít nhất một đầu sách trước khi lưu phiếu nhập!');
+                return;
+            }
+
+            const supplierSelect = document.getElementById('supplierSelect');
+            if (!supplierSelect.value) {
+                e.preventDefault();
+                alert('Vui lòng chọn Nhà cung cấp đối tác!');
+                supplierSelect.focus();
+                return;
+            }
+
+            // Sinh các thẻ hidden input theo quy tắc Model Binding của ASP.NET Core
+            const container = document.getElementById('hiddenItemsContainer');
+            container.innerHTML = '';
+
+            draftItems.forEach((item, index) => {
+                container.innerHTML += `
+                    <input type="hidden" name="Items[${index}].BookId" value="${item.bookId}" />
+                    <input type="hidden" name="Items[${index}].Quantity" value="${item.quantity}" />
+                    <input type="hidden" name="Items[${index}].ImportPrice" value="${item.importPrice}" />
+                `;
+            });
+
+            // Khóa nút submit chống double-click
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Đang lưu phiếu nhập...';
+        });
+    </script>
+}
