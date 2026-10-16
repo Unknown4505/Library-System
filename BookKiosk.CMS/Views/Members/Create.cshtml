@@ -1,0 +1,113 @@
+@model BookKiosk.CMS.ViewModels.Members.MemberFormViewModel
+@{
+    ViewData["Title"] = "Đăng ký Thành viên mới";
+}
+
+<div class="container-fluid px-4 py-3">
+    <!-- Breadcrumb & Header -->
+    <div class="mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-2 small">
+                <li class="breadcrumb-item"><a asp-action="Index">Thẻ thành viên</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Đăng ký mới</li>
+            </ol>
+        </nav>
+        <div class="d-flex align-items-center justify-content-between">
+            <h4 class="fw-bold mb-0 text-dark">
+                <i class="fas fa-user-plus text-primary me-2"></i>Đăng ký Khách hàng Thành viên mới
+            </h4>
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Quay lại
+            </a>
+        </div>
+    </div>
+
+    <!-- Alert / Toast -->
+    <partial name="_Alert" />
+    <partial name="_Toast" />
+
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="fw-bold mb-0 text-primary">
+                        <i class="fas fa-id-badge me-2"></i>Thông tin tài khoản hội viên
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="Create" method="post" id="memberCreateForm">
+                        @Html.AntiForgeryToken()
+
+                        <!-- Số điện thoại -->
+                        <div class="mb-3">
+                            <label asp-for="PhoneNumber" class="form-label fw-semibold">
+                                Số điện thoại di động <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="fas fa-phone-alt text-primary"></i>
+                                </span>
+                                <input asp-for="PhoneNumber" type="tel" class="form-control border-start-0 fs-5" 
+                                       placeholder="Ví dụ: 0987654321" autofocus id="phoneInput" />
+                            </div>
+                            <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
+                            <div class="form-text small">Số điện thoại là mã định danh duy nhất dùng để tra cứu và tích điểm khi mua sách.</div>
+                        </div>
+
+                        <!-- Họ và tên -->
+                        <div class="mb-4">
+                            <label asp-for="FullName" class="form-label fw-semibold">
+                                Họ và tên thành viên <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="fas fa-user text-primary"></i>
+                                </span>
+                                <input asp-for="FullName" class="form-control border-start-0 fs-5" 
+                                       placeholder="Ví dụ: Nguyễn Văn An" />
+                            </div>
+                            <span asp-validation-for="FullName" class="text-danger small"></span>
+                        </div>
+
+                        <!-- Ghi chú nghiệp vụ tính điểm -->
+                        <div class="p-3 bg-light rounded-3 mb-4 border-start border-4 border-info">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-info-circle text-info fs-5 me-2 mt-1"></i>
+                                <div class="small text-secondary">
+                                    <strong class="text-dark d-block mb-1">Chính sách điểm thưởng:</strong>
+                                    - Điểm ban đầu mặc định khi đăng ký là <strong>0 điểm</strong>.<br />
+                                    - Điểm được tích lũy tự động sau mỗi giao dịch thanh toán thành công tại Kiosk/POS.<br />
+                                    - Quy đổi: <strong>1 điểm = 1.000 ₫</strong> giảm trực tiếp vào hóa đơn tiếp theo.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Nút thao tác -->
+                        <div class="d-flex align-items-center justify-content-between pt-3 border-top">
+                            <a asp-action="Index" class="btn btn-outline-secondary px-4">
+                                <i class="fas fa-times me-1"></i> Hủy bỏ
+                            </a>
+                            <button type="submit" class="btn btn-success px-5 py-2 fw-semibold">
+                                <i class="fas fa-check-circle me-1"></i> Đăng ký thành viên
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const phoneInput = document.getElementById('phoneInput');
+            if (phoneInput) {
+                phoneInput.addEventListener('input', function () {
+                    this.value = this.value.replace(/\s+/g, '');
+                });
+            }
+        });
+    </script>
+}

@@ -1,0 +1,248 @@
+@model BookKiosk.CMS.ViewModels.Members.MemberIndexViewModel
+@{
+    ViewData["Title"] = "Thẻ Thành viên & Điểm thưởng";
+}
+
+<div class="container-fluid px-4 py-3">
+    <!-- Header Page -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h4 class="fw-bold mb-1 text-dark">
+                <i class="fas fa-id-card text-primary me-2"></i>Khách hàng Thành viên & Tích điểm
+            </h4>
+            <p class="text-muted small mb-0">Tra cứu nhanh hồ sơ hội viên bằng số điện thoại, đăng ký thẻ mới và theo dõi biến động điểm thưởng</p>
+        </div>
+        <div>
+            <a asp-action="Create" class="btn btn-primary shadow-sm px-3">
+                <i class="fas fa-user-plus me-1"></i> Đăng ký thành viên mới
+            </a>
+        </div>
+    </div>
+
+    <!-- Alert / Toast partials -->
+    <partial name="_Alert" />
+    <partial name="_Toast" />
+
+    <!-- Tra cứu nhanh Hero Box -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4 bg-white">
+        <div class="card-body p-4">
+            <form method="get" asp-action="Index" id="memberSearchForm">
+                <label class="form-label fw-bold text-dark mb-2">
+                    <i class="fas fa-search me-1 text-primary"></i> Tra cứu thẻ thành viên theo số điện thoại:
+                </label>
+                <div class="input-group input-group-lg">
+                    <span class="input-group-text bg-light border-end-0">
+                        <i class="fas fa-phone-alt text-primary"></i>
+                    </span>
+                    <input type="tel" name="phone" value="@Model.PhoneNumber" 
+                           class="form-control border-start-0 fs-5" 
+                           placeholder="Nhập số điện thoại (ví dụ: 0912345678)..." 
+                           autocomplete="tel" autofocus id="phoneSearchInput" />
+                    @if (!string.IsNullOrWhiteSpace(Model.PhoneNumber))
+                    {
+                        <a asp-action="Index" class="btn btn-outline-secondary border-start-0 d-flex align-items-center" title="Xóa tìm kiếm">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    }
+                    <button type="submit" class="btn btn-primary px-4 fw-semibold">
+                        <i class="fas fa-search me-1"></i> Tra cứu
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (Model.IsSearched)
+    {
+        @if (Model.IsNotFound || Model.Member == null)
+        {
+            <!-- Trạng thái KHÔNG TÌM THẤY (404) -->
+            <div class="card border-0 shadow-sm rounded-3 p-5 text-center bg-white">
+                <div class="mb-3 text-warning">
+                    <i class="fas fa-user-slash fa-4x opacity-75"></i>
+                </div>
+                <h4 class="fw-bold text-dark">Chưa có thông tin thành viên</h4>
+                <p class="text-muted mx-auto" style="max-width: 500px;">
+                    Số điện thoại <strong class="text-dark">@Model.PhoneNumber</strong> hiện chưa được đăng ký trong hệ thống thẻ thành viên của nhà sách.
+                </p>
+                <div class="d-flex justify-content-center gap-2 mt-2">
+                    <a asp-action="Create" asp-route-phone="@Model.PhoneNumber" class="btn btn-success px-4 py-2 fw-semibold">
+                        <i class="fas fa-user-plus me-1"></i> Đăng ký ngay cho SĐT này
+                    </a>
+                    <a asp-action="Index" class="btn btn-outline-secondary px-3">
+                        <i class="fas fa-undo me-1"></i> Tra cứu số khác
+                    </a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- Trạng thái TÌM THẤY THÀNH VIÊN -->
+            <div class="row g-4 mb-4">
+                <!-- Cột trái: Thẻ Thành viên đồ họa cao cấp -->
+                <div class="col-lg-5">
+                    <div class="card border-0 shadow-lg rounded-4 text-white p-4 h-100 position-relative overflow-hidden" 
+                         style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #172554 100%); min-height: 260px;">
+                        
+                        <!-- Watermark & Chip icon -->
+                        <div class="d-flex justify-content-between align-items-start mb-4">
+                            <div>
+                                <span class="badge bg-warning text-dark fw-bold px-2 py-1 mb-1">
+                                    <i class="fas fa-crown me-1"></i>@Model.Member.RankName
+                                </span>
+                                <div class="text-uppercase small tracking-wider opacity-75">BookKiosk Member Club</div>
+                            </div>
+                            <div class="text-warning">
+                                <i class="fas fa-sim-card fa-2x rotate-90 opacity-75"></i>
+                            </div>
+                        </div>
+
+                        <!-- Thông tin thành viên -->
+                        <div class="mb-4">
+                            <h3 class="fw-bold mb-1 text-white text-truncate">@Model.Member.FullName</h3>
+                            <div class="fs-5 font-monospace opacity-90 letter-spacing-2">
+                                <i class="fas fa-phone-alt me-1 fs-6"></i> @Model.Member.PhoneNumber
+                            </div>
+                        </div>
+
+                        <!-- Điểm thưởng & Quy đổi tiền mặt -->
+                        <div class="d-flex justify-content-between align-items-end mt-auto pt-3 border-top border-white border-opacity-20">
+                            <div>
+                                <small class="text-uppercase opacity-75 d-block">Điểm tích lũy</small>
+                                <span class="fs-3 fw-bold text-warning">@Model.Member.Points.ToString("N0")</span>
+                                <span class="small opacity-75 ms-1">điểm</span>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-uppercase opacity-75 d-block">Giá trị quy đổi</small>
+                                <span class="fs-4 fw-bold text-success-light">@Model.Member.PointMoneyValue.ToString("N0") ₫</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Nút thao tác nhanh thành viên -->
+                    <div class="d-flex gap-2 mt-3">
+                        <a asp-action="Details" asp-route-phone="@Model.Member.PhoneNumber" class="btn btn-outline-primary flex-grow-1">
+                            <i class="fas fa-history me-1"></i> Xem toàn bộ lịch sử điểm
+                        </a>
+                        <a asp-action="Edit" asp-route-phone="@Model.Member.PhoneNumber" class="btn btn-outline-secondary" title="Sửa họ tên">
+                            <i class="fas fa-user-edit"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Cột phải: Bảng lịch sử 10 giao dịch gần nhất -->
+                <div class="col-lg-7">
+                    <div class="card border-0 shadow-sm rounded-3 h-100">
+                        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold mb-0 text-dark">
+                                <i class="fas fa-exchange-alt me-2 text-primary"></i>Lịch sử biến động điểm gần nhất
+                            </h6>
+                            <a asp-action="Details" asp-route-phone="@Model.Member.PhoneNumber" class="btn btn-sm btn-link text-decoration-none">
+                                Xem tất cả <i class="fas fa-chevron-right ms-1"></i>
+                            </a>
+                        </div>
+                        <div class="card-body p-0">
+                            @if (Model.RecentHistory == null || !Model.RecentHistory.Any())
+                            {
+                                <div class="p-4 text-center text-muted">
+                                    <i class="fas fa-inbox fa-2x mb-2 opacity-50"></i>
+                                    <p class="mb-0 small">Thành viên chưa có giao dịch tích/tiêu điểm nào.</p>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-light text-secondary text-uppercase small">
+                                            <tr>
+                                                <th class="ps-3">Thời gian</th>
+                                                <th>Loại</th>
+                                                <th>Biến động</th>
+                                                <th>Quy đổi</th>
+                                                <th>Diễn giải</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var item in Model.RecentHistory)
+                                            {
+                                                <tr>
+                                                    <td class="ps-3 small text-muted">
+                                                        @item.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge @item.BadgeClass">
+                                                            @item.TypeText
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <strong class="@(item.Type == 1 ? "text-success" : "text-danger") fs-6">
+                                                            @item.PointsDisplay
+                                                        </strong>
+                                                    </td>
+                                                    <td class="small text-muted">
+                                                        @item.MoneyEquivalent
+                                                    </td>
+                                                    <td class="small text-dark text-truncate" style="max-width: 180px;" title="@item.Description">
+                                                        @(string.IsNullOrWhiteSpace(item.Description) ? (item.OrderId.HasValue ? $"Đơn hàng #{item.OrderId}" : "Giao dịch hệ thống") : item.Description)
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <!-- Mặc định khi chưa nhập SĐT tra cứu -->
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm rounded-3 p-4 text-center bg-white h-100">
+                    <div class="bg-primary-subtle text-primary p-3 rounded-circle mx-auto mb-3" style="width: 60px; height: 60px; display: grid; place-items: center;">
+                        <i class="fas fa-bolt fs-4"></i>
+                    </div>
+                    <h6 class="fw-bold text-dark">Tra cứu siêu tốc</h6>
+                    <p class="text-muted small mb-0">Chỉ cần số điện thoại của bạn đọc để kiểm tra ngay số điểm tích lũy và quyền lợi ưu đãi.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm rounded-3 p-4 text-center bg-white h-100">
+                    <div class="bg-success-subtle text-success p-3 rounded-circle mx-auto mb-3" style="width: 60px; height: 60px; display: grid; place-items: center;">
+                        <i class="fas fa-coins fs-4"></i>
+                    </div>
+                    <h6 class="fw-bold text-dark">Quy đổi minh bạch</h6>
+                    <p class="text-muted small mb-0">Mỗi 1 điểm thưởng = 1.000 ₫ tiền mặt được trừ trực tiếp vào hóa đơn thanh toán tại quầy.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm rounded-3 p-4 text-center bg-white h-100">
+                    <div class="bg-warning-subtle text-warning p-3 rounded-circle mx-auto mb-3" style="width: 60px; height: 60px; display: grid; place-items: center;">
+                        <i class="fas fa-medal fs-4"></i>
+                    </div>
+                    <h6 class="fw-bold text-dark">Hạng mức thành viên</h6>
+                    <p class="text-muted small mb-0">Hệ thống tự động xếp hạng Chuẩn, Bạc, Vàng, Bạch Kim và Kim Cương theo số điểm sở hữu.</p>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const input = document.getElementById('phoneSearchInput');
+            if (input) {
+                input.focus();
+                // Tự động bỏ khoảng trắng khi paste/gõ
+                input.addEventListener('input', function () {
+                    this.value = this.value.replace(/\s+/g, '');
+                });
+            }
+        });
+    </script>
+}

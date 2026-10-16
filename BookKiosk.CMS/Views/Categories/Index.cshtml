@@ -1,0 +1,245 @@
+@model IEnumerable<CategoryDto>
+@{
+    ViewData["Title"] = "Quản lý Thể loại sách";
+    bool isAdmin = User.IsInRole("Admin");
+}
+
+<!-- Page Header -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h1 class="h3 mb-1 fw-bold text-dark">
+            <i class="fas fa-th-list text-primary me-2"></i>Quản lý Thể loại sách
+        </h1>
+        <p class="text-muted small mb-0">Danh sách phân loại danh mục sách phục vụ tra cứu trên Kiosk và quản lý kho hàng.</p>
+    </div>
+    <div>
+        @if (isAdmin)
+        {
+            <button type="button" class="btn btn-primary px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#createCategoryModal">
+                <i class="fas fa-plus-circle me-1"></i> Thêm thể loại mới
+            </button>
+        }
+        else
+        {
+            <span class="badge bg-light text-muted border p-2">
+                <i class="fas fa-shield-alt me-1"></i> Quyền: Nhân viên (Chỉ xem)
+            </span>
+        }
+    </div>
+</div>
+
+<!-- Alert Thông báo -->
+<partial name="_Alert" />
+
+<!-- Main Content Card -->
+<div class="card border-0 shadow-sm" style="border-radius: var(--bk-radius);">
+    <!-- Card Header / Toolbar -->
+    <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <h6 class="mb-0 fw-bold text-dark">Danh sách thể loại</h6>
+            <span class="badge bg-primary-subtle text-primary rounded-pill px-2" id="categoryCountBadge">
+                @(Model?.Count() ?? 0) danh mục
+            </span>
+        </div>
+        <div class="input-group" style="max-width: 320px;">
+            <span class="input-group-text bg-light border-end-0 text-muted">
+                <i class="fas fa-search"></i>
+            </span>
+            <input type="text" id="categorySearchInput" class="form-control bg-light border-start-0" 
+                   placeholder="Tìm kiếm danh mục..." />
+        </div>
+    </div>
+
+    <!-- Table Body -->
+    <div class="card-body p-0">
+        @if (Model == null || !Model.Any())
+        {
+            <partial name="_EmptyState" model='"Hiện chưa có danh mục thể loại nào trong hệ thống."' />
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="categoryTable">
+                    <thead class="table-light text-secondary small text-uppercase fw-semibold">
+                        <tr>
+                            <th class="ps-4" style="width: 80px;">Mã</th>
+                            <th style="min-width: 220px;">Tên thể loại</th>
+                            <th>Mô tả</th>
+                            <th class="text-end pe-4" style="width: 180px;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr class="category-row" data-name="@item.Name.ToLower()" data-desc="@(item.Description?.ToLower() ?? "")">
+                                <td class="ps-4 fw-semibold text-muted">#@item.CategoryId</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="category-icon-box rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center me-3" style="width: 36px; height: 36px;">
+                                            <i class="fas fa-bookmark"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-dark">@item.Name</div>
+                                            <small class="text-muted">ID: @item.CategoryId</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="text-secondary small">
+                                        @(string.IsNullOrWhiteSpace(item.Description) ? "—" : item.Description)
+                                    </span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    @if (isAdmin)
+                                    {
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-primary" 
+                                                    title="Sửa danh mục"
+                                                    onclick="openEditCategoryModal(@item.CategoryId, '@Html.Raw(Html.Encode(item.Name))', '@Html.Raw(Html.Encode(item.Description ?? ""))')">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger" 
+                                                    title="Xóa danh mục"
+                                                    onclick="confirmDeleteCategory(@item.CategoryId, '@Html.Raw(Html.Encode(item.Name))')">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-light text-muted border">
+                                            <i class="fas fa-lock me-1"></i>Chỉ xem
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@if (isAdmin)
+{
+    <!-- MODAL 1: THÊM MỚI DANH MỤC -->
+    <div class="modal fade" id="createCategoryModal" tabindex="-1" aria-labelledby="createCategoryModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0" style="border-radius: var(--bk-radius);">
+                <form asp-controller="Categories" asp-action="Create" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header border-bottom-0 pb-0">
+                        <h5 class="modal-title fw-bold text-dark" id="createCategoryModalLabel">
+                            <i class="fas fa-plus-circle text-primary me-2"></i>Thêm thể loại mới
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body py-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-secondary">Tên thể loại <span class="text-danger">*</span></label>
+                            <input type="text" name="Name" class="form-control" placeholder="Ví dụ: Công nghệ thông tin, Văn học..." required maxlength="255" />
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold text-secondary">Mô tả chi tiết</label>
+                            <textarea name="Description" class="form-control" rows="3" placeholder="Nhập tóm tắt mô tả thể loại sách này..." maxlength="500"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top-0 pt-0">
+                        <button type="button" class="btn btn-light px-3" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="fas fa-save me-1"></i> Lưu thể loại
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: CẬP NHẬT DANH MỤC -->
+    <div class="modal fade" id="editCategoryModal" tabindex="-1" aria-labelledby="editCategoryModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0" style="border-radius: var(--bk-radius);">
+                <form id="editCategoryForm" method="post" action="">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header border-bottom-0 pb-0">
+                        <h5 class="modal-title fw-bold text-dark" id="editCategoryModalLabel">
+                            <i class="fas fa-edit text-primary me-2"></i>Cập nhật thể loại
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body py-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-secondary">Tên thể loại <span class="text-danger">*</span></label>
+                            <input type="text" id="editCategoryName" name="Name" class="form-control" required maxlength="255" />
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold text-secondary">Mô tả chi tiết</label>
+                            <textarea id="editCategoryDescription" name="Description" class="form-control" rows="3" maxlength="500"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top-0 pt-0">
+                        <button type="button" class="btn btn-light px-3" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="fas fa-check me-1"></i> Cập nhật
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal xác nhận xóa tái sử dụng từ Tuần 1 -->
+<partial name="_ConfirmModal" />
+
+@section Scripts {
+    <script>
+        // Lọc tìm kiếm danh mục Client-side tức thì
+        document.getElementById('categorySearchInput')?.addEventListener('input', function (e) {
+            const query = e.target.value.toLowerCase().trim();
+            const rows = document.querySelectorAll('.category-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const name = row.getAttribute('data-name') || '';
+                const desc = row.getAttribute('data-desc') || '';
+                if (name.includes(query) || desc.includes(query)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            const badge = document.getElementById('categoryCountBadge');
+            if (badge) {
+                badge.innerText = visibleCount + ' danh mục';
+            }
+        });
+
+        // Mở Modal Sửa danh mục và gán dữ liệu
+        function openEditCategoryModal(id, name, description) {
+            const form = document.getElementById('editCategoryForm');
+            const nameInput = document.getElementById('editCategoryName');
+            const descInput = document.getElementById('editCategoryDescription');
+
+            if (form) form.action = '/Categories/Edit/' + id;
+            if (nameInput) nameInput.value = name;
+            if (descInput) descInput.value = description;
+
+            const modal = new bootstrap.Modal(document.getElementById('editCategoryModal'));
+            modal.show();
+        }
+
+        // Kích hoạt Modal Xác nhận xóa
+        function confirmDeleteCategory(id, name) {
+            showConfirmModal(
+                '/Categories/Delete/' + id,
+                'Bạn có chắc chắn muốn xóa thể loại "' + name + '" không? Nếu thể loại đang có sách trong kho, hệ thống sẽ từ chối xóa.',
+                'Xác nhận xóa',
+                'btn-danger'
+            );
+        }
+    </script>
+}

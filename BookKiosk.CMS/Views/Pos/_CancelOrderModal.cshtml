@@ -1,0 +1,36 @@
+@* Modal Xác nhận Hủy đơn tại quầy (Chỉ nhả kho, KHÔNG ghi hoàn điểm) *@
+<div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-labelledby="cancelOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow border-0 rounded-3">
+            <div class="modal-header bg-danger text-white py-2">
+                <h5 class="modal-title fs-6 fw-bold" id="cancelOrderModalLabel">
+                    <i class="fas fa-exclamation-triangle me-1"></i>Xác nhận Hủy đơn hàng tại quầy
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="d-flex align-items-start">
+                    <i class="fas fa-undo-alt text-danger fa-2x me-3 mt-1"></i>
+                    <div>
+                        <h6 class="fw-bold text-dark mb-1">Xác nhận hủy đơn và nhả kho giữ chỗ?</h6>
+                        <p class="small text-muted mb-2">
+                            Đơn hàng đang ở trạng thái chờ thanh toán (Pending). Nếu khách đổi ý không mua, việc hủy đơn sẽ <strong>nhả kho sách đã giữ chỗ ngay lập tức</strong> để phục vụ các khách hàng khác.
+                        </p>
+                        <div class="small bg-light p-2 rounded border text-secondary">
+                            <i class="fas fa-info-circle text-primary me-1"></i>
+                            <strong>Lưu ý:</strong> Điểm tích lũy thành viên chưa bị trừ ở bước này nên không phát sinh giao dịch hoàn điểm.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-light py-2">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+                    <i class="fas fa-arrow-left me-1"></i>Quay lại
+                </button>
+                <button type="button" class="btn btn-danger px-3 fw-semibold" id="btnConfirmCancelOrder">
+                    <i class="fas fa-trash-alt me-1"></i>Xác nhận hủy đơn & nhả kho
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

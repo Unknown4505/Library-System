@@ -10,4 +10,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- Loại bỏ hoàn toàn thư mục Tests và Fixtures khỏi gói Publish Release -->
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <Compile Remove="Tests\**" />
+    <Content Remove="Tests\**" />
+    <None Remove="Tests\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Update="Tests\**" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
 </Project>

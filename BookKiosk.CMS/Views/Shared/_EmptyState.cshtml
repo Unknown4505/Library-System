@@ -1,0 +1,10 @@
+@* Partial View: _EmptyState.cshtml *@
+@model string
+
+<div class="empty-state py-5 text-center">
+    <div class="empty-state-icon text-muted mb-3">
+        <i class="fas fa-inbox fa-3x opacity-50"></i>
+    </div>
+    <h5 class="fw-bold text-secondary">Không tìm thấy dữ liệu</h5>
+    <p class="text-muted small mb-0">@(string.IsNullOrWhiteSpace(Model) ? "Hiện chưa có bản ghi nào để hiển thị." : Model)</p>
+</div>

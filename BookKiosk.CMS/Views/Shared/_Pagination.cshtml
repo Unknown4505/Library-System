@@ -1,0 +1,87 @@
+@* Partial View: _Pagination.cshtml *@
+@model dynamic
+
+@{
+    int totalPages = 0;
+    int pageIndex = 1;
+    bool hasPrevious = false;
+    bool hasNext = false;
+    object? totalCount = null;
+
+    if (Model != null)
+    {
+        try { totalPages = (int)(Model.TotalPages ?? 0); } catch { totalPages = 0; }
+        try { pageIndex = (int)(Model.PageIndex ?? 1); } catch { pageIndex = 1; }
+        try { hasPrevious = (bool)(Model.HasPreviousPage ?? (pageIndex > 1)); } catch { hasPrevious = pageIndex > 1; }
+        try { hasNext = (bool)(Model.HasNextPage ?? (pageIndex < totalPages)); } catch { hasNext = pageIndex < totalPages; }
+        try { totalCount = Model.TotalCount; } catch { totalCount = null; }
+    }
+
+    int startPage = Math.Max(1, pageIndex - 2);
+    int endPage = Math.Min(totalPages, pageIndex + 2);
+
+    string GetPageUrl(int p)
+    {
+        var queryParams = new List<string>();
+        foreach (var key in Context.Request.Query.Keys)
+        {
+            if (!string.Equals(key, "page", StringComparison.OrdinalIgnoreCase) && 
+                !string.Equals(key, "pageIndex", StringComparison.OrdinalIgnoreCase))
+            {
+                queryParams.Add($"{key}={Uri.EscapeDataString(Context.Request.Query[key].ToString())}");
+            }
+        }
+        queryParams.Add($"page={p}");
+        return "?" + string.Join("&", queryParams);
+    }
+}
+
+@if (totalPages > 1)
+{
+    <nav aria-label="Page navigation" class="d-flex flex-wrap justify-content-between align-items-center mt-3 gap-2">
+        <div class="text-muted small">
+            Trang <strong>@pageIndex</strong> / <strong>@totalPages</strong>
+            @if (totalCount != null)
+            {
+                <span>(Tổng cộng: <strong>@totalCount</strong> bản ghi)</span>
+            }
+        </div>
+        <ul class="pagination pagination-sm mb-0">
+            @* Nút Trang đầu *@
+            <li class="page-item @(pageIndex <= 1 ? "disabled" : "")">
+                <a class="page-link" href="@GetPageUrl(1)" aria-label="First">
+                    <i class="fas fa-angle-double-left"></i>
+                </a>
+            </li>
+
+            @* Nút Trang trước *@
+            <li class="page-item @(hasPrevious ? "" : "disabled")">
+                <a class="page-link" href="@GetPageUrl(pageIndex - 1)" aria-label="Previous">
+                    <i class="fas fa-angle-left"></i>
+                </a>
+            </li>
+
+            @* Các số trang *@
+            @for (int p = startPage; p <= endPage; p++)
+            {
+                <li class="page-item @(p == pageIndex ? "active" : "")">
+                    <a class="page-link" href="@GetPageUrl(p)">@p</a>
+                </li>
+            }
+
+            @* Nút Trang sau *@
+            <li class="page-item @(hasNext ? "" : "disabled")">
+                <a class="page-link" href="@GetPageUrl(pageIndex + 1)" aria-label="Next">
+                    <i class="fas fa-angle-right"></i>
+                </a>
+            </li>
+
+            @* Nút Trang cuối *@
+            <li class="page-item @(pageIndex >= totalPages ? "disabled" : "")">
+                <a class="page-link" href="@GetPageUrl(totalPages)" aria-label="Last">
+                    <i class="fas fa-angle-double-right"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+}

@@ -1,0 +1,89 @@
+@* Partial View: _Header.cshtml *@
+@{
+    var fullName = User.Identity?.Name ?? "Người dùng";
+    var role = User.IsInRole("Admin") ? "Admin" : "Staff";
+}
+
+<nav class="navbar navbar-expand navbar-light topbar mb-4 px-4 static-top d-flex justify-content-between">
+    <!-- Nút Toggle Sidebar (cho Mobile/Tablet) -->
+    <div class="d-flex align-items-center">
+        <button id="sidebarToggle" class="btn btn-light btn-sm rounded-circle me-3 border shadow-sm">
+            <i class="fa fa-bars text-secondary"></i>
+        </button>
+        <span class="d-none d-md-inline-block fw-semibold text-secondary small">
+            Hệ thống Quản trị Nhà sách BookKiosk
+        </span>
+    </div>
+
+    <!-- Right Topbar Items -->
+    <ul class="navbar-nav align-items-center">
+        <!-- Chuông thông báo -->
+        <li class="nav-item dropdown me-3">
+            <a class="nav-link position-relative text-secondary" href="#" id="alertsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-bell fa-fw fs-5"></i>
+                <span class="position-absolute top-1 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">
+                    1
+                </span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-0" aria-labelledby="alertsDropdown" style="width: 280px; border-radius: var(--bk-radius);">
+                <li class="dropdown-header bg-primary text-white py-2 fw-bold" style="border-top-left-radius: var(--bk-radius); border-top-right-radius: var(--bk-radius);">
+                    <i class="fas fa-bell me-1"></i> Thông báo hệ thống
+                </li>
+                <li>
+                    <a class="dropdown-item py-2 border-bottom d-flex align-items-center" href="/Kiosks">
+                        <div class="me-2 text-warning"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div>
+                            <div class="small fw-semibold">Hệ thống Kiosk hoạt động</div>
+                            <span class="text-muted small" style="font-size: 0.75rem;">Vừa cập nhật hôm nay</span>
+                        </div>
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item text-center text-primary small py-2 fw-semibold" href="#">
+                        Xem tất cả
+                    </a>
+                </li>
+            </ul>
+        </li>
+
+        <div class="topbar-divider d-none d-sm-block vr mx-2 my-auto" style="height: 2rem;"></div>
+
+        <!-- User Information & Logout Dropdown -->
+        <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle d-flex align-items-center text-decoration-none" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <div class="me-2 text-end d-none d-lg-block">
+                    <span class="d-block fw-bold text-dark small">@fullName</span>
+                    <span class="badge @(role == "Admin" ? "bg-primary" : "bg-info")" style="font-size: 0.68rem;">@role</span>
+                </div>
+                <img class="img-profile rounded-circle border shadow-sm" 
+                     src="https://ui-avatars.com/api/?name=@Uri.EscapeDataString(fullName)&background=2457A6&color=fff&size=128" 
+                     alt="Avatar" style="height: 2.3rem; width: 2.3rem;">
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2 mt-2" aria-labelledby="userDropdown" style="border-radius: var(--bk-radius); min-width: 200px;">
+                <li class="px-3 py-2 border-bottom mb-1">
+                    <div class="fw-bold text-dark">@fullName</div>
+                    <div class="text-muted small">Vai trò: @role</div>
+                </li>
+                <li>
+                    <a class="dropdown-item py-2" href="#">
+                        <i class="fas fa-user fa-sm fa-fw me-2 text-secondary"></i> Thông tin cá nhân
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item py-2" href="#">
+                        <i class="fas fa-key fa-sm fa-fw me-2 text-secondary"></i> Đổi mật khẩu
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <form method="post" action="/Account/Logout" id="logoutForm" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="dropdown-item py-2 text-danger fw-semibold">
+                            <i class="fas fa-sign-out-alt fa-sm fa-fw me-2 text-danger"></i> Đăng xuất
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </li>
+    </ul>
+</nav>

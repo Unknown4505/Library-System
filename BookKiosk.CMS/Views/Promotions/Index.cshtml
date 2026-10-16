@@ -1,0 +1,339 @@
+@model BookKiosk.CMS.ViewModels.Promotions.PromotionListViewModel
+@{
+    ViewData["Title"] = "Quản lý Khuyến mãi";
+}
+
+<div class="container-fluid px-4 py-3">
+    <!-- Header Page -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h4 class="fw-bold mb-1 text-dark">
+                <i class="fas fa-tags text-primary me-2"></i>Chương trình Khuyến mãi
+            </h4>
+            <p class="text-muted small mb-0">Quản lý các chính sách giảm giá đơn hàng và ấn phẩm sách cho toàn hệ thống Kiosk</p>
+        </div>
+        <div class="d-flex gap-2">
+            @if (Model.IsAdmin)
+            {
+                <a asp-action="Create" class="btn btn-primary shadow-sm px-3">
+                    <i class="fas fa-plus-circle me-1"></i> Tạo khuyến mãi mới
+                </a>
+            }
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="fas fa-sync-alt me-1"></i> Làm mới
+            </a>
+        </div>
+    </div>
+
+    <!-- Alert / Toast partials -->
+    <partial name="_Alert" />
+    <partial name="_Toast" />
+
+    <!-- Thống kê nhanh Widget Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-primary h-100">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted small text-uppercase fw-semibold">Tổng chương trình</span>
+                        <h3 class="fw-bold mb-0 text-dark mt-1">@Model.TotalCount</h3>
+                    </div>
+                    <div class="bg-primary-subtle text-primary p-3 rounded-circle">
+                        <i class="fas fa-ticket-alt fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-success h-100">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted small text-uppercase fw-semibold">Đang hiệu lực</span>
+                        <h3 class="fw-bold mb-0 text-success mt-1">@Model.ActiveCount</h3>
+                    </div>
+                    <div class="bg-success-subtle text-success p-3 rounded-circle">
+                        <i class="fas fa-check-circle fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-info h-100">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted small text-uppercase fw-semibold">Sắp diễn ra</span>
+                        <h3 class="fw-bold mb-0 text-info mt-1">@Model.UpcomingCount</h3>
+                    </div>
+                    <div class="bg-info-subtle text-info p-3 rounded-circle">
+                        <i class="fas fa-calendar-alt fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-secondary h-100">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted small text-uppercase fw-semibold">Hết hạn / Tạm ngưng</span>
+                        <h3 class="fw-bold mb-0 text-secondary mt-1">@(Model.ExpiredCount + Model.InactiveCount)</h3>
+                    </div>
+                    <div class="bg-secondary-subtle text-secondary p-3 rounded-circle">
+                        <i class="fas fa-pause-circle fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter & Search Toolbar -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-body p-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <!-- Nav Tabs lọc trạng thái -->
+                <ul class="nav nav-pills flex-grow-1">
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-1 @(Model.CurrentStatus == "all" ? "active" : "")" 
+                           asp-action="Index" asp-route-status="all" asp-route-keyword="@Model.Keyword">
+                            Tất cả <span class="badge bg-secondary ms-1">@Model.TotalCount</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-1 @(Model.CurrentStatus == "active" ? "active" : "")" 
+                           asp-action="Index" asp-route-status="active" asp-route-keyword="@Model.Keyword">
+                            Đang hiệu lực <span class="badge bg-success ms-1">@Model.ActiveCount</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-1 @(Model.CurrentStatus == "upcoming" ? "active" : "")" 
+                           asp-action="Index" asp-route-status="upcoming" asp-route-keyword="@Model.Keyword">
+                            Sắp diễn ra <span class="badge bg-info ms-1">@Model.UpcomingCount</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-1 @(Model.CurrentStatus == "expired" ? "active" : "")" 
+                           asp-action="Index" asp-route-status="expired" asp-route-keyword="@Model.Keyword">
+                            Hết hạn <span class="badge bg-dark ms-1">@Model.ExpiredCount</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-1 @(Model.CurrentStatus == "inactive" ? "active" : "")" 
+                           asp-action="Index" asp-route-status="inactive" asp-route-keyword="@Model.Keyword">
+                            Tạm ngưng <span class="badge bg-secondary ms-1">@Model.InactiveCount</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- Form Search -->
+                <form method="get" asp-action="Index" class="d-flex gap-2" style="min-width: 280px;">
+                    <input type="hidden" name="status" value="@Model.CurrentStatus" />
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="keyword" value="@Model.Keyword" class="form-control border-start-0" 
+                               placeholder="Tìm theo tên, thể lệ, sách..." />
+                        @if (!string.IsNullOrWhiteSpace(Model.Keyword))
+                        {
+                            <a asp-action="Index" asp-route-status="@Model.CurrentStatus" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        }
+                        <button type="submit" class="btn btn-secondary">Tìm</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+        @if (Model.Promotions == null || !Model.Promotions.Any())
+        {
+            <div class="p-4">
+                <partial name="_EmptyState" model="@("Không tìm thấy chương trình khuyến mãi nào phù hợp với bộ lọc hiện tại.")" />
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-secondary text-uppercase small">
+                        <tr>
+                            <th class="ps-4" style="width: 25%;">Chương trình khuyến mãi</th>
+                            <th style="width: 15%;">Loại hình</th>
+                            <th style="width: 15%;">Mức giảm giá</th>
+                            <th style="width: 20%;">Điều kiện áp dụng</th>
+                            <th style="width: 15%;">Thời gian hiệu lực</th>
+                            <th style="width: 10%;">Trạng thái</th>
+                            <th class="text-end pe-4" style="width: 10%;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var promo in Model.Promotions)
+                        {
+                            <tr>
+                                <!-- Tên & Thể lệ -->
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-primary-subtle text-primary p-2 rounded-3 me-3 flex-shrink-0">
+                                            <i class="fas fa-gift fs-5"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-dark">@promo.Name</div>
+                                            <small class="text-muted d-block text-truncate" style="max-width: 280px;" title="@promo.AutoSummary">
+                                                @promo.AutoSummary
+                                            </small>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- Loại hình -->
+                                <td>
+                                    @if (promo.PromotionType == 2)
+                                    {
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                                            <i class="fas fa-book me-1"></i> Giảm theo Sách
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                            <i class="fas fa-receipt me-1"></i> Giảm theo Hóa đơn
+                                        </span>
+                                    }
+                                </td>
+
+                                <!-- Mức giảm cố định VNĐ -->
+                                <td>
+                                    <span class="fw-bold text-success fs-6">
+                                        -@promo.DiscountAmount.ToString("N0") ₫
+                                    </span>
+                                </td>
+
+                                <!-- Điều kiện áp dụng -->
+                                <td>
+                                    @if (promo.PromotionType == 2)
+                                    {
+                                        <div class="small">
+                                            <span class="text-muted">Áp dụng:</span>
+                                            <strong class="text-dark d-block">@(string.IsNullOrWhiteSpace(promo.BookTitle) ? $"Ấn phẩm #{promo.BookId}" : promo.BookTitle)</strong>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="small">
+                                            <span class="text-muted">Đơn tối thiểu:</span>
+                                            <strong class="text-dark d-block">@((promo.MinOrderValue ?? 0).ToString("N0")) ₫</strong>
+                                        </div>
+                                    }
+                                </td>
+
+                                <!-- Thời gian -->
+                                <td>
+                                    <div class="small">
+                                        <div><i class="fas fa-play text-muted me-1" style="font-size: 0.7rem;"></i>@promo.StartDate.ToString("dd/MM/yyyy")</div>
+                                        <div><i class="fas fa-stop text-muted me-1" style="font-size: 0.7rem;"></i>@promo.EndDate.ToString("dd/MM/yyyy")</div>
+                                    </div>
+                                </td>
+
+                                <!-- Trạng thái Badge -->
+                                <td>
+                                    <span class="badge @promo.DisplayBadgeClass">
+                                        @promo.DisplayStatus
+                                    </span>
+                                </td>
+
+                                <!-- Thao tác -->
+                                <td class="text-end pe-4">
+                                    @if (Model.IsAdmin)
+                                    {
+                                        <div class="btn-group btn-group-sm">
+                                            <!-- Toggle Active -->
+                                            <button type="button" 
+                                                    class="btn @(promo.IsActive ? "btn-outline-warning" : "btn-outline-success") btn-toggle-active" 
+                                                    data-id="@promo.PromotionId" 
+                                                    data-current-active="@promo.IsActive.ToString().ToLower()"
+                                                    title="@(promo.IsActive ? "Tạm ngưng kích hoạt" : "Kích hoạt áp dụng")">
+                                                <i class="fas @(promo.IsActive ? "fa-pause" : "fa-play")"></i>
+                                            </button>
+
+                                            <!-- Sửa -->
+                                            <a asp-action="Edit" asp-route-id="@promo.PromotionId" class="btn btn-outline-primary" title="Chỉnh sửa">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+
+                                            <!-- Xóa / Ngưng vĩnh viễn -->
+                                            <button type="button" class="btn btn-outline-danger" 
+                                                    onclick="confirmDeletePromotion(@promo.PromotionId, '@Html.Raw(promo.Name.Replace("'", "\\'"))')" 
+                                                    title="Ngưng áp dụng">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-light text-muted border">Chỉ xem</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal xác nhận xóa / ngưng áp dụng -->
+<partial name="_ConfirmModal" />
+
+<!-- Antiforgery Token cho AJAX call -->
+@Html.AntiForgeryToken()
+
+@section Scripts {
+    <script>
+        function confirmDeletePromotion(id, name) {
+            showConfirmModal(
+                '/Promotions/Delete/' + id,
+                'Bạn có chắc chắn muốn ngưng áp dụng chương trình khuyến mãi "' + name + '" không?',
+                'Ngưng áp dụng',
+                'btn-danger'
+            );
+        }
+
+        // Xử lý AJAX Toggle Active
+        document.querySelectorAll('.btn-toggle-active').forEach(button => {
+            button.addEventListener('click', async function () {
+                const id = this.getAttribute('data-id');
+                const isCurrentlyActive = this.getAttribute('data-current-active') === 'true';
+                const nextActiveState = !isCurrentlyActive;
+
+                const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+                const token = tokenInput ? tokenInput.value : '';
+
+                const formData = new FormData();
+                formData.append('id', id);
+                formData.append('isActive', nextActiveState);
+                formData.append('__RequestVerificationToken', token);
+
+                try {
+                    this.disabled = true;
+                    const response = await fetch('/Promotions/ToggleActive', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Không thể thay đổi trạng thái khuyến mãi.');
+                        this.disabled = false;
+                    }
+                } catch (err) {
+                    console.error('Lỗi khi cập nhật trạng thái:', err);
+                    alert('Lỗi kết nối máy chủ. Vui lòng thử lại.');
+                    this.disabled = false;
+                }
+            });
+        });
+    </script>
+}

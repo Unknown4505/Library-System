@@ -1,0 +1,337 @@
+@model BookKiosk.CMS.ViewModels.Promotions.PromotionFormViewModel
+@{
+    ViewData["Title"] = $"Chỉnh sửa Khuyến mãi #{Model.PromotionId}";
+}
+
+<div class="container-fluid px-4 py-3">
+    <!-- Breadcrumb & Header -->
+    <div class="mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-2 small">
+                <li class="breadcrumb-item"><a asp-action="Index">Chương trình khuyến mãi</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Chỉnh sửa #@Model.PromotionId</li>
+            </ol>
+        </nav>
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <h4 class="fw-bold mb-0 text-dark">
+                    <i class="fas fa-edit text-primary me-2"></i>Chỉnh sửa Khuyến mãi
+                    <span class="text-muted fw-normal fs-6 ms-2">#@Model.PromotionId</span>
+                </h4>
+            </div>
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Quay lại danh sách
+            </a>
+        </div>
+    </div>
+
+    <!-- Alert / Toast -->
+    <partial name="_Alert" />
+    <partial name="_Toast" />
+
+    <form asp-action="Edit" asp-route-id="@Model.PromotionId" method="post" id="promotionEditForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="PromotionId" />
+
+        <div class="row g-4">
+            <!-- Cột trái: Form chỉnh sửa -->
+            <div class="col-lg-8">
+                <!-- THÔNG TIN CHUNG -->
+                <div class="card border-0 shadow-sm rounded-3 mb-4">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h6 class="fw-bold mb-0 text-primary">
+                            <i class="fas fa-info-circle me-2"></i>1. Thông tin chương trình
+                        </h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="mb-3">
+                            <label asp-for="Name" class="form-label fw-semibold">
+                                Tên chương trình <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="Name" class="form-control form-control-lg fs-6" id="promoNameInput" />
+                            <span asp-validation-for="Name" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label fw-semibold">Mô tả thể lệ / Điều khoản</label>
+                            <textarea asp-for="Description" rows="2" class="form-control" id="promoDescInput"></textarea>
+                            <span asp-validation-for="Description" class="text-danger small"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HÌNH THỨC & ĐIỀU KIỆN ÁP DỤNG -->
+                <div class="card border-0 shadow-sm rounded-3 mb-4">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h6 class="fw-bold mb-0 text-primary">
+                            <i class="fas fa-sliders-h me-2"></i>2. Hình thức & Điều kiện giảm giá
+                        </h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Chọn loại hình khuyến mãi -->
+                        <label class="form-label fw-semibold d-block mb-3">
+                            Loại hình khuyến mãi <span class="text-danger">*</span>
+                        </label>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="card h-100 p-3 border-2 cursor-pointer promo-type-card @(Model.PromotionType == 1 ? "border-primary bg-primary-subtle" : "border-light-subtle")" 
+                                       for="typeOrderDiscount">
+                                    <div class="d-flex align-items-center">
+                                        <input class="form-check-input me-3 mt-0" type="radio" asp-for="PromotionType" 
+                                               id="typeOrderDiscount" value="1" />
+                                        <div>
+                                            <div class="fw-bold text-dark">
+                                                <i class="fas fa-receipt me-1 text-primary"></i> Theo Hóa đơn (OrderDiscount)
+                                            </div>
+                                            <small class="text-muted d-block mt-1">Giảm trực tiếp vào tổng tiền hóa đơn.</small>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="card h-100 p-3 border-2 cursor-pointer promo-type-card @(Model.PromotionType == 2 ? "border-warning bg-warning-subtle" : "border-light-subtle")" 
+                                       for="typeProductDiscount">
+                                    <div class="d-flex align-items-center">
+                                        <input class="form-check-input me-3 mt-0" type="radio" asp-for="PromotionType" 
+                                               id="typeProductDiscount" value="2" />
+                                        <div>
+                                            <div class="fw-bold text-dark">
+                                                <i class="fas fa-book me-1 text-warning"></i> Theo Cuốn sách (ProductDiscount)
+                                            </div>
+                                            <small class="text-muted d-block mt-1">Giảm vào giá bán của ấn phẩm sách cụ thể.</small>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Cấu hình Loại 1: OrderDiscount -->
+                        <div id="sectionOrderDiscount" class="p-3 bg-light rounded-3 mb-3 @(Model.PromotionType == 1 ? "" : "d-none")">
+                            <label asp-for="MinOrderValue" class="form-label fw-semibold">
+                                <i class="fas fa-coins text-warning me-1"></i> Giá trị đơn hàng tối thiểu (VNĐ)
+                            </label>
+                            <div class="input-group">
+                                <input asp-for="MinOrderValue" type="number" step="1000" min="0" 
+                                       class="form-control" id="minOrderInput" />
+                                <span class="input-group-text">₫</span>
+                            </div>
+                            <span asp-validation-for="MinOrderValue" class="text-danger small"></span>
+                        </div>
+
+                        <!-- Cấu hình Loại 2: ProductDiscount -->
+                        <div id="sectionProductDiscount" class="p-3 bg-light rounded-3 mb-3 @(Model.PromotionType == 2 ? "" : "d-none")">
+                            <label asp-for="BookId" class="form-label fw-semibold">
+                                <i class="fas fa-book text-warning me-1"></i> Ấn phẩm sách áp dụng <span class="text-danger">*</span>
+                            </label>
+                            <select asp-for="BookId" asp-items="Model.AvailableBooks" class="form-select" id="bookSelect">
+                            </select>
+                            <span asp-validation-for="BookId" class="text-danger small"></span>
+                        </div>
+
+                        <!-- MỨC GIẢM CỐ ĐỊNH VNĐ -->
+                        <div class="mt-4 pt-3 border-top">
+                            <label asp-for="DiscountAmount" class="form-label fw-semibold fs-6">
+                                Mức giảm giá cố định (VNĐ) <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group input-group-lg mb-2">
+                                <span class="input-group-text bg-success text-white fw-bold">-</span>
+                                <input asp-for="DiscountAmount" type="number" step="1000" min="1000" 
+                                       class="form-control fw-bold text-success fs-4" id="discountAmountInput" />
+                                <span class="input-group-text fw-bold">VNĐ</span>
+                            </div>
+                            <span asp-validation-for="DiscountAmount" class="text-danger small"></span>
+
+                            <!-- Chip chọn nhanh -->
+                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                <span class="small text-muted me-1 align-self-center">Chọn nhanh:</span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-amount" data-amount="10000">10.000 ₫</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-amount" data-amount="20000">20.000 ₫</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-amount" data-amount="50000">50.000 ₫</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-amount" data-amount="100000">100.000 ₫</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- THỜI GIAN HIỆU LỰC & TRẠNG THÁI -->
+                <div class="card border-0 shadow-sm rounded-3 mb-4">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h6 class="fw-bold mb-0 text-primary">
+                            <i class="fas fa-calendar-alt me-2"></i>3. Thời gian & Kích hoạt
+                        </h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="StartDate" class="form-label fw-semibold">
+                                    Ngày bắt đầu <span class="text-danger">*</span>
+                                </label>
+                                <input asp-for="StartDate" type="date" class="form-control" id="startDateInput" />
+                                <span asp-validation-for="StartDate" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="EndDate" class="form-label fw-semibold">
+                                    Ngày kết thúc <span class="text-danger">*</span>
+                                </label>
+                                <input asp-for="EndDate" type="date" class="form-control" id="endDateInput" />
+                                <span asp-validation-for="EndDate" class="text-danger small"></span>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-top">
+                            <div class="form-check form-switch fs-6">
+                                <input class="form-check-input" type="checkbox" asp-for="IsActive" id="isActiveSwitch" />
+                                <label class="form-check-label fw-semibold" for="isActiveSwitch">
+                                    Kích hoạt áp dụng chương trình
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NÚT THAO TÁC -->
+                <div class="d-flex align-items-center justify-content-between p-3 bg-white shadow-sm rounded-3">
+                    <a asp-action="Index" class="btn btn-outline-secondary px-4">
+                        <i class="fas fa-times me-1"></i> Hủy bỏ
+                    </a>
+                    <button type="submit" class="btn btn-primary px-5 py-2 fw-semibold">
+                        <i class="fas fa-save me-1"></i> Lưu thay đổi
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cột phải: Live Preview -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm rounded-3 sticky-top" style="top: 90px;">
+                    <div class="card-header bg-dark text-white py-3">
+                        <h6 class="fw-bold mb-0">
+                            <i class="fas fa-eye me-2 text-warning"></i>Xem trước hiển thị Kiosk
+                        </h6>
+                    </div>
+                    <div class="card-body p-4 text-center">
+                        <div class="p-3 rounded-4 bg-primary-subtle text-primary border border-primary border-opacity-25 mb-3">
+                            <div class="small text-uppercase fw-bold opacity-75" id="previewTypeBadge">Giảm giá</div>
+                            <h2 class="fw-bolder my-2 text-primary" id="previewDiscountText">-@Model.DiscountAmount.ToString("N0") ₫</h2>
+                            <div class="fw-bold fs-6 text-dark" id="previewTitle">@Model.Name</div>
+                            <div class="small text-muted mt-1" id="previewDesc">@(Model.Description ?? "Chưa có mô tả...")</div>
+                        </div>
+
+                        <div class="text-start bg-light p-3 rounded-3 small">
+                            <div class="d-flex justify-content-between py-1 border-bottom">
+                                <span class="text-muted">Mã chương trình:</span>
+                                <strong>#@Model.PromotionId</strong>
+                            </div>
+                            <div class="d-flex justify-content-between py-1 border-bottom">
+                                <span class="text-muted">Điều kiện áp dụng:</span>
+                                <strong id="previewCondition" class="text-end">Đang tải...</strong>
+                            </div>
+                            <div class="d-flex justify-content-between py-1 border-bottom">
+                                <span class="text-muted">Thời gian:</span>
+                                <strong id="previewDuration" class="text-end">@Model.StartDate.ToString("dd/MM/yyyy") - @Model.EndDate.ToString("dd/MM/yyyy")</strong>
+                            </div>
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-muted">Trạng thái:</span>
+                                <span class="badge @(Model.IsActive ? "bg-success-subtle text-success border border-success-subtle" : "bg-secondary-subtle text-secondary border border-secondary-subtle")" id="previewStatus">
+                                    @(Model.IsActive ? "Đang kích hoạt" : "Tạm ngưng")
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const promoNameInput = document.getElementById('promoNameInput');
+            const promoDescInput = document.getElementById('promoDescInput');
+            const minOrderInput = document.getElementById('minOrderInput');
+            const discountAmountInput = document.getElementById('discountAmountInput');
+            const bookSelect = document.getElementById('bookSelect');
+            const startDateInput = document.getElementById('startDateInput');
+            const endDateInput = document.getElementById('endDateInput');
+            const isActiveSwitch = document.getElementById('isActiveSwitch');
+
+            const sectionOrder = document.getElementById('sectionOrderDiscount');
+            const sectionProduct = document.getElementById('sectionProductDiscount');
+            const radioOrder = document.getElementById('typeOrderDiscount');
+            const radioProduct = document.getElementById('typeProductDiscount');
+
+            // Preview elements
+            const previewTypeBadge = document.getElementById('previewTypeBadge');
+            const previewDiscountText = document.getElementById('previewDiscountText');
+            const previewTitle = document.getElementById('previewTitle');
+            const previewDesc = document.getElementById('previewDesc');
+            const previewCondition = document.getElementById('previewCondition');
+            const previewDuration = document.getElementById('previewDuration');
+            const previewStatus = document.getElementById('previewStatus');
+
+            function updateTypeToggle() {
+                if (radioOrder.checked) {
+                    sectionOrder.classList.remove('d-none');
+                    sectionProduct.classList.add('d-none');
+                    previewTypeBadge.textContent = 'GIẢM THEO HÓA ĐƠN';
+                } else {
+                    sectionOrder.classList.add('d-none');
+                    sectionProduct.classList.remove('d-none');
+                    previewTypeBadge.textContent = 'GIẢM THEO SÁCH';
+                }
+                updatePreview();
+            }
+
+            radioOrder.addEventListener('change', updateTypeToggle);
+            radioProduct.addEventListener('change', updateTypeToggle);
+
+            document.querySelectorAll('.btn-quick-amount').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    discountAmountInput.value = this.getAttribute('data-amount');
+                    updatePreview();
+                });
+            });
+
+            function updatePreview() {
+                const name = promoNameInput.value.trim() || 'Tên chương trình khuyến mãi';
+                const desc = promoDescInput.value.trim() || 'Chưa có mô tả...';
+                const amount = parseFloat(discountAmountInput.value) || 0;
+                const minOrder = parseFloat(minOrderInput.value) || 0;
+
+                previewTitle.textContent = name;
+                previewDesc.textContent = desc;
+                previewDiscountText.textContent = '-' + amount.toLocaleString('vi-VN') + ' ₫';
+
+                if (radioOrder.checked) {
+                    previewCondition.textContent = 'Đơn từ ' + minOrder.toLocaleString('vi-VN') + ' ₫';
+                } else {
+                    const selectedText = bookSelect.options[bookSelect.selectedIndex]?.text || '';
+                    previewCondition.textContent = selectedText ? selectedText.split('(')[0].trim() : 'Chọn sách';
+                }
+
+                const sDate = startDateInput.value ? new Date(startDateInput.value).toLocaleDateString('vi-VN') : '...';
+                const eDate = endDateInput.value ? new Date(endDateInput.value).toLocaleDateString('vi-VN') : '...';
+                previewDuration.textContent = sDate + ' - ' + eDate;
+
+                if (isActiveSwitch.checked) {
+                    previewStatus.textContent = 'Đang kích hoạt';
+                    previewStatus.className = 'badge bg-success-subtle text-success border border-success-subtle';
+                } else {
+                    previewStatus.textContent = 'Tạm ngưng';
+                    previewStatus.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle';
+                }
+            }
+
+            [promoNameInput, promoDescInput, minOrderInput, discountAmountInput, bookSelect, startDateInput, endDateInput, isActiveSwitch].forEach(el => {
+                if (el) {
+                    el.addEventListener('input', updatePreview);
+                    el.addEventListener('change', updatePreview);
+                }
+            });
+
+            updateTypeToggle();
+        });
+    </script>
+}

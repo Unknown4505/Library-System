@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "Thành công",
+  "data": {
+    "memberId": 9103,
+    "phoneNumber": "0981110003",
+    "fullName": "E2E-RUN01 Khách Vàng (100 điểm)",
+    "points": 100
+  }
+}

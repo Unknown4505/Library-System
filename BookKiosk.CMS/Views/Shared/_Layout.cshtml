@@ -1,70 +1,74 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - BookKiosk Admin</title>
+
+    <!-- Bootstrap 5 CSS -->
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <!-- FontAwesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- DataTables Bootstrap 5 CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fc; }
-        .sidebar { min-height: 100vh; background: #4e73df; color: white; transition: all 0.3s; }
-        .sidebar a { color: rgba(255,255,255,.8); text-decoration: none; padding: 15px 20px; display: block; font-weight: bold; }
-        .sidebar a:hover, .sidebar a.active { color: white; background: rgba(255,255,255,.1); }
-        .sidebar .brand { font-size: 1.2rem; font-weight: 800; padding: 20px; text-align: center; text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid rgba(255,255,255,.1); }
-        .content-wrapper { width: 100%; overflow-x: hidden; }
-        .topbar { background: white; box-shadow: 0 .15rem 1.75rem 0 rgba(58,59,69,.15); height: 4.375rem; }
-    </style>
+    <!-- Design System Tokens & Custom Styles -->
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
 </head>
 <body class="d-flex">
-    <!-- Sidebar -->
-    <div class="sidebar d-flex flex-column" style="width: 250px;">
-        <div class="brand">
-            <i class="fas fa-book-reader me-2"></i> BookKiosk
-        </div>
-        <a href="/" class="active"><i class="fas fa-fw fa-tachometer-alt me-2"></i> Dashboard</a>
-        <a href="/Books"><i class="fas fa-fw fa-book me-2"></i> Quản lý Sách</a>
-        <a href="#"><i class="fas fa-fw fa-list me-2"></i> Danh mục</a>
-        <a href="#"><i class="fas fa-fw fa-desktop me-2"></i> Quản lý Kiosk</a>
-        <a href="#"><i class="fas fa-fw fa-chart-area me-2"></i> Thống kê</a>
-    </div>
+    <!-- Sidebar Phân quyền theo Role -->
+    <partial name="_Sidebar" />
 
-    <!-- Main Content -->
-    <div class="content-wrapper d-flex flex-column">
-        <!-- Topbar -->
-        <nav class="navbar navbar-expand navbar-light topbar mb-4 px-4 static-top">
-            <button class="btn btn-link d-md-none rounded-circle me-3"><i class="fa fa-bars"></i></button>
-            <ul class="navbar-nav ms-auto">
-                <li class="nav-item dropdown no-arrow">
-                    <a class="nav-link dropdown-toggle text-gray-600" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-                        <span class="me-2 d-none d-lg-inline text-gray-600 small fw-bold">Admin</span>
-                        <img class="img-profile rounded-circle" src="https://ui-avatars.com/api/?name=Admin&background=random" style="height:2rem;width:2rem;">
-                    </a>
-                </li>
-            </ul>
-        </nav>
+    <!-- Main Content Wrapper -->
+    <div class="content-wrapper flex-grow-1 min-vh-100 d-flex flex-column">
+        <!-- Topbar Header -->
+        <partial name="_Header" />
 
         <!-- Page Content -->
-        <div class="container-fluid px-4">
+        <main class="container-fluid px-4 flex-grow-1">
+            <!-- Global Flash Alerts -->
+            <partial name="_Alert" />
+
+            <!-- Body View -->
             @RenderBody()
-        </div>
-        
-        <!-- Footer -->
-        <footer class="sticky-footer bg-white mt-auto py-3">
-            <div class="container my-auto">
-                <div class="copyright text-center my-auto text-muted small">
-                    <span>Copyright &copy; BookKiosk CMS 2026</span>
+        </main>
+
+        <!-- Sticky Footer -->
+        <footer class="sticky-footer bg-white mt-auto py-3 border-top">
+            <div class="container-fluid px-4 my-auto">
+                <div class="d-flex justify-content-between align-items-center text-muted small">
+                    <span>Copyright &copy; BookKiosk CMS @DateTime.Now.Year</span>
+                    <span>Hệ thống Quản lý Kiosk Bán Sách v1.0</span>
                 </div>
             </div>
         </footer>
     </div>
 
+    <!-- Shared Modals & Global Components -->
+    <partial name="_ConfirmModal" />
+    <partial name="_LoadingSpinner" />
+    <partial name="_Toast" />
+
+    <!-- JavaScript Dependencies -->
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- Sidebar Toggle Script -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const toggleBtn = document.getElementById("sidebarToggle");
+            const sidebar = document.getElementById("sidebar");
+            if (toggleBtn && sidebar) {
+                toggleBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    sidebar.classList.toggle("d-none");
+                });
+            }
+        });
+    </script>
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

@@ -1,0 +1,58 @@
+@model BookKiosk.CMS.Models.Api.Pos.PosBookDto
+@using BookKiosk.CMS.Helpers
+
+<div class="card h-100 border shadow-sm book-card-item" data-book-id="@Model.BookId">
+    <div class="card-body p-3 d-flex flex-column justify-content-between">
+        <div>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="badge bg-light text-dark border font-monospace small">
+                    <i class="fas fa-barcode me-1 text-primary"></i>@Model.Barcode
+                </span>
+                @if (!Model.IsActive)
+                {
+                    <span class="badge bg-secondary">Ngừng bán</span>
+                }
+                else if (Model.AvailableStock <= 0)
+                {
+                    <span class="badge bg-danger">Hết hàng</span>
+                }
+                else if (Model.AvailableStock <= 3)
+                {
+                    <span class="badge bg-warning text-dark">Còn @Model.AvailableStock</span>
+                }
+                else
+                {
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">Còn @Model.AvailableStock</span>
+                }
+            </div>
+            <h6 class="card-title fw-bold text-dark text-truncate mb-1" title="@Model.Title">@Model.Title</h6>
+            <div class="small text-muted mb-2 text-truncate">
+                <i class="fas fa-user-edit me-1"></i>@(string.IsNullOrWhiteSpace(Model.Author) ? "Chưa rõ" : Model.Author)
+                @if (!string.IsNullOrWhiteSpace(Model.CategoryName))
+                {
+                    <span class="ms-1 badge bg-info-subtle text-info border border-info-subtle">@Model.CategoryName</span>
+                }
+            </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-2">
+            <span class="fw-bold text-primary fs-6">@MoneyHelper.FormatVnd(Model.SellingPrice)</span>
+            @if (Model.IsActive && Model.AvailableStock > 0)
+            {
+                <button type="button" class="btn btn-sm btn-outline-primary btn-add-book-cart"
+                        data-book-id="@Model.BookId"
+                        data-barcode="@Model.Barcode"
+                        data-title="@Model.Title"
+                        data-price="@Model.SellingPrice"
+                        data-stock="@Model.AvailableStock">
+                    <i class="fas fa-plus me-1"></i>Thêm
+                </button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-sm btn-secondary" disabled>
+                    <i class="fas fa-ban me-1"></i>Hết
+                </button>
+            }
+        </div>
+    </div>
+</div>

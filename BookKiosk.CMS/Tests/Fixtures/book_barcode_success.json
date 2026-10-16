@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "Thành công",
+  "data": {
+    "bookId": 9301,
+    "barcode": "8930000001",
+    "title": "E2E Dế Mèn Phiêu Lưu Ký",
+    "author": "Tô Hoài",
+    "publisher": "NXB Kim Đồng",
+    "imageUrl": "/images/books/book1.jpg",
+    "costPrice": 30000,
+    "sellingPrice": 50000,
+    "stockQuantity": 25,
+    "reservedQuantity": 0,
+    "availableStock": 25,
+    "isActive": true,
+    "categoryId": 9003,
+    "categoryName": "E2E-RUN01 Sách Thiếu Nhi",
+    "areaId": null,
+    "areaName": null
+  }
+}
