@@ -40,7 +40,7 @@ dotnet restore BookKiosk.slnx
 
 ## 3. Cấu hình Cơ sở dữ liệu (Database Setup)
 
-Toàn bộ Backend sử dụng **Entity Framework Core (Code First)**.
+Backend sử dụng **Entity Framework Core (Code First)**. Chọn đúng **một** trong hai con đường khởi tạo dưới đây cho một database; không chạy `init.sql` trước rồi để startup EF migrate cùng database đó.
 
 ### Bước 3.1: Đổi chuỗi kết nối (Connection String)
 Mở file `BookKiosk.API/appsettings.Development.json` (nếu chưa có thì copy từ `appsettings.json`):
@@ -51,14 +51,30 @@ Mở file `BookKiosk.API/appsettings.Development.json` (nếu chưa có thì cop
 ```
 *(Đổi `Server=localhost` thành tên instance SQL Server của máy bạn nếu cần, ví dụ `Server=.\\SQLEXPRESS`).*
 
-### Bước 3.2: Chạy Migration để tạo Database
-Mở Terminal ở thư mục gốc của project (hoặc mở Package Manager Console trong Visual Studio, chọn Default project là `BookKiosk.Infrastructure`):
+### A. EF Migrations — khuyến nghị cho ứng dụng
+
+Chỉ trỏ `DefaultConnection` tới database Development do chính bạn sở hữu và đã xác minh không phải database dùng chung/production. Khi chạy API, startup gọi `DbInitializer.Initialize()` và áp dụng `Database.Migrate()` theo migration history:
 
 ```bash
-cd BookKiosk.API
-dotnet ef database update --project ../BookKiosk.Infrastructure
+dotnet run --project BookKiosk.API
 ```
-Lệnh này sẽ tự động tạo Database tên là `BookKiosk_Dev` và đẩy toàn bộ các bảng vào SQL Server của bạn.
+
+Startup tạo/nâng cấp database theo migration history; vì vậy phải kiểm tra connection string **trước khi** chạy API. Không chạy `docs/init.sql` vào cùng database dùng EF migrations.
+
+`DesignTimeApplicationDbContextFactory` hiện cố ý dùng endpoint `.invalid` để scaffold không chạm database. Vì vậy không dùng `dotnet ef database update` với factory hiện tại. Cơ chế CLI apply/rollback nhận connection QA đã guard cần task riêng và Leader duyệt; không sửa factory hoặc thay sentinel bằng connection thật chỉ để chạy thử.
+
+Khi kiểm thử apply/rollback migration, chỉ dùng database QA disposable `BookKiosk_QA_<run-id>` đã xác minh guard; không thử trên database Development đang dùng, database dùng chung hoặc production.
+
+### B. `init.sql` — fresh bootstrap Development độc lập
+
+`docs/init.sql` chỉ dành cho một môi trường Development độc lập cần bootstrap schema + seed mẫu. Script này:
+
+- không phải script nâng cấp database hiện hữu và không ghi migration history của EF;
+- không tương đương hoàn toàn với EF snapshot/migration chain do còn schema drift về decimal/default/check;
+- không được kết hợp tùy tiện với startup tự động gọi `Database.Migrate()`;
+- có các guard `IF NOT EXISTS` để tránh tạo lại một số object, nhưng các guard đó không kiểm tra/sửa mọi column, constraint hoặc schema drift và không bảo đảm an toàn trên mọi database đã tồn tại.
+
+Sau khi chọn bootstrap SQL, không khởi động API trỏ vào database đó cho tới khi đã xác nhận tương thích migration history. Nếu cần đưa database về quy trình EF, lập kế hoạch baseline/migration riêng và được Leader duyệt; không tự chèn migration history.
 
 ---
 
@@ -132,3 +148,18 @@ Thêm route API xử lý webhook của bạn vào đuôi:
 ### Lỗi 3: Kiosk gọi API toàn báo `401 Unauthorized`
 - **Nguyên nhân:** Kiosk chưa truyền `X-Api-Key` trong Header.
 - **Cách fix:** Kiểm tra `BookKioskApiClient`/HttpClient gửi Header `X-API-KEY`, và `ApiSettings:ApiKey` của Kiosk trùng với `ApiSettings:ApiKey` phía API.
+
+---
+
+## 8. Quy trình EF migration an toàn trên QA
+
+`BookKiosk.API/Program.cs` gọi `DbInitializer.Initialize()`, và initializer gọi `Database.Migrate()`. Vì vậy **không chạy API hoặc `dotnet ef` bằng connection string trỏ database đang dùng, dùng chung hoặc production để thử migration**. Việc startup tự động migrate là rủi ro vận hành cần task riêng nếu Leader muốn thay đổi; V6.2 không sửa startup logic.
+
+Chỉ scaffold/verify migration khi đáp ứng đủ:
+
+1. Có SQL Server QA disposable tên `BookKiosk_QA_<run-id>` và connection string được xác nhận không trỏ DB dùng chung.
+2. Design-time context không đi qua startup auto-migrate, hoặc startup được cung cấp đúng QA connection đã kiểm tra.
+3. Chạy `dotnet ef migrations add <Name> --project BookKiosk.Infrastructure --startup-project BookKiosk.API` chỉ để sinh migration/snapshot; review `Up`/`Down` trước khi apply.
+4. Apply trên QA disposable, kiểm tra 19 bảng, unique/filter/check/FK/delete rules, rồi mới cân nhắc deploy. Không sửa migration lịch sử.
+
+Working tree tích hợp có `BookKiosk.API/DesignTimeApplicationDbContextFactory.cs` dùng endpoint `.invalid` chỉ để scaffold model, không khởi chạy API/`DbInitializer`. Migration `20261016071312_AddEmployeeSalaryLedger` đã được scaffold và static-review; **không** chạy `dotnet ef database update`. Apply/runtime SQL vẫn **BLOCKED — ENV** cho tới khi có connection string trỏ đúng database disposable `BookKiosk_QA_<run-id>` và guard được xác minh.

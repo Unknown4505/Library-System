@@ -99,3 +99,28 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
 * **3.3.1. Tự động áp dụng Khuyến mãi (Kiosk)**
   * **Input:** Tổng giá trị giỏ hàng (`SubTotal`) khi khách bấm Thanh toán trên Kiosk.
   * **Output:** Tìm trong danh sách các CTKM đang Active, lọc ra các CTKM thỏa mãn điều kiện `MinOrderValue <= SubTotal`, tự động chọn 1 CTKM có mức giảm `DiscountAmount` cao nhất để áp dụng. Trả về mức chiết khấu.
+
+---
+
+## 4. Yêu cầu target bổ sung và phạm vi
+
+### 4.1 Nhân viên, tài khoản và vai trò — PLANNED
+
+- Lưu hồ sơ `Employees` độc lập với `Members`; một Employee có tối đa một tài khoản User và User có tối đa một Employee.
+- Giữ `Admin=1`, `Staff=2`, thêm `Manager=3`; vô hiệu hóa thay vì xóa lịch sử.
+- Auth/User/Employee API và CMS chưa được triển khai trong scaffold này.
+
+### 4.2 Sổ lương cơ bản — PLANNED
+
+- Mỗi nhân viên tối đa một `SalaryPayment` cho mỗi tháng/năm, trạng thái `Draft` hoặc `Paid`.
+- Lưu snapshot lương cơ bản, phụ cấp, khấu trừ, lương thực nhận, người/thời điểm chốt; tiền không âm.
+- Không bao gồm thuế, bảo hiểm, payroll phức tạp hoặc chuyển tiền ngân hàng.
+
+### 4.3 Hóa đơn Kiosk — PLANNED #28/#29
+
+- Chỉ đơn `Paid` có `CompletedAt` hợp lệ được lấy hóa đơn; dữ liệu từ `Orders`/`OrderDetails`, không có bảng `Invoices`.
+- Kiosk hiển thị/in/PDF từ `ReceiptDto`; không dùng giá/tổng local cart; không lộ giá vốn hoặc PII.
+
+### 4.4 Ngoài phạm vi
+
+Không có `BookTypes` (`Categories` là loại sách), đặt hàng online/pre-order, bảng giữ chỗ khách hàng hoặc quản trị sự cố thiết bị như quy trình kinh doanh chính. `Kiosks` và `KioskIncidents` vẫn thuộc schema kỹ thuật.

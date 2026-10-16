@@ -330,6 +330,39 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - Cả hai endpoint chỉ dành cho JWT role `Admin`; tiền chỉ tính từ order `Paid`.
 - Dashboard trạng thái thiết bị dùng contract `KioskStatusSummaryDto { online, offline, error, openIncidents }`. Backend hiện chưa có endpoint tổng hợp tương ứng; không giả lập dữ liệu CMS và không tự coi contract này là endpoint đã tồn tại.
 
+### 3.8 Auth, Users, Employees và SalaryPayments — PLANNED
+
+Các route dưới đây chỉ là namespace contract mục tiêu, **chưa phải endpoint đã tồn tại** và cần review riêng trước khi member triển khai:
+
+- `POST /api/auth/login`: xác thực tài khoản active, trả JWT có role `Admin`, `Manager` hoặc `Staff`.
+- `/api/users`: quản lý tài khoản; Admin-only.
+- `/api/employees`: hồ sơ nhân viên; Admin/Manager theo policy, Staff chỉ được đọc hồ sơ của chính mình khi có identity mapping.
+- `/api/salary-payments`: sổ lương tháng; API/DTO/controller/service đều **PLANNED**.
+
+**Contract tạo Draft — APPLICATION REQUIRED:**
+
+- Chỉ Admin được tạo; mỗi `(EmployeeId, PayYear, PayMonth)` có tối đa một phiếu (`409` khi trùng).
+- `PayMonth` phải thuộc 1..12; theo **APPROVED DESIGN HR-DEC-01**, `PayYear` phải thuộc 2000..2100 (bao gồm hai đầu) khi tạo hoặc cập nhật Draft. Ngoài khoảng trả validation error theo response wrapper hiện có.
+- Các khoản tiền không âm; Backend tính và kiểm `NetSalary = BaseSalarySnapshot + AllowanceAmount - DeductionAmount`, kết quả không âm.
+- Phải xác định `BaseSalarySnapshot` hợp lệ. Nếu `CurrentBaseSalary` null thì trả validation error hoặc áp dụng quy tắc riêng đã được Leader duyệt; không ngầm đổi thành 0.
+- Draft phải có `Status=Draft`, `PaidByUserId=null`, `PaidAt=null`.
+
+**Contract xác nhận Paid — APPLICATION REQUIRED:**
+
+- Chỉ JWT role `Admin`; chỉ chuyển `Draft → Paid`.
+- Ghi `PaidByUserId` từ UserId của Admin trong token và `PaidAt` theo UTC, cùng thay đổi status trong một transaction.
+- Request lặp không được xác nhận Paid lần hai. Phiếu Paid không được sửa/xóa qua API thông thường.
+
+**Quyền đọc — APPLICATION REQUIRED:**
+
+- Admin xem toàn bộ.
+- Manager chỉ được xem phiếu Paid của chính mình khi mapping `Employees.UserId` khớp UserId JWT; không xem Draft hoặc phiếu người khác.
+- Staff chỉ xem phiếu **Paid** của chính Employee liên kết User khi self-service được triển khai.
+- Manager/Staff không có Employee liên kết thì deny. Backend lấy identity từ JWT và enforce row ownership; không tin EmployeeId/UserId do client gửi và không cho đổi ID trong URL để đọc lương người khác.
+- Manager không được xác nhận Paid. Quyền xác nhận Paid chỉ thuộc Admin dù Manager có quyền quản lý vận hành.
+
+**DB ENFORCED hiện tại:** unique kỳ lương, tháng 1..12, tiền không âm, status 1/2 và FK/RESTRICT. Theo **APPROVED DESIGN HR-DEC-01/02/03**, Backend phải enforce PayYear 2000..2100, công thức `NetSalary`, actor/time theo status, state transition/concurrency và JWT row authorization. Leader chốt giữ migration hiện tại, không thêm SQL CHECK trong V6.3. Validation trùng `EmployeeCode`, trùng kỳ lương hoặc input sai trả `409`/`400` theo nguyên nhân; không trả password hash hoặc lương người khác. Đây là ledger ghi nhận trả lương, không phải API chuyển tiền ngân hàng; toàn bộ Salary API/Service vẫn **PLANNED**.
+
 ---
 
 ## 4. Bảng mã Lỗi Chuẩn (Error Codes)

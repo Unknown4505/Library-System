@@ -40,6 +40,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 0.4 | **[Leader]** Setup DbContext & Fluent API Configurations | @Unknown4505 | | | `[x]` |
 | 0.5 | **[Leader]** Viết DbInitializer (Seed Data) & Chạy Migration | @Unknown4505 | | | `[x]` |
 | 0.6 | **[Leader]** Setup Dependency Injection (DI) & Serilog (Log lỗi) chung cho hệ thống | @Unknown4505 | | | `[x]` |
+| 0.7 | **[Leader]** Scaffold additive Employees/SalaryPayments, Manager=3; sinh/verify migration trên DB QA disposable | @Unknown4505 | | | `[ ]` — model + migration scaffold/static review xong; SQL QA BLOCKED — ENV |
 
 ### MODULE 1: BACKEND API - SÁCH & DANH MỤC
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
@@ -150,6 +151,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 12.1 | **[Leader]** Kịch bản Test End-to-End toàn luồng | @Unknown4505 | | | `[ ]` |
 | 12.1.1 | Kiểm thử E2E Checkout → Paid → Receipt API → Kiosk hiển thị và xuất PDF (Issues #28, #29) | @Unknown4505 | <br> | <br> | `[ ]` |
 | 12.2 | **[Leader]** Vẽ Sơ đồ Context Diagram, BFD, DFD | @Unknown4505 | | | `[ ]` |
+| 12.2.1 | **[Leader]** Đồng bộ BFD/DFD/ERD/Class Diagram current/target và sửa DG-01…DG-08; PNG sẽ được Leader vẽ/xuất lại sau | @Unknown4505 | | | `[ ]` |
 | 12.3 | **[Leader]** Vẽ ERD Database | @Unknown4505 | | | `[x]` |
 | 12.4 | Viết Báo cáo Word Đồ án cuối kỳ | @Unknown4505 | @thien33 | @lehuukhang | `[ ]` |
 
@@ -164,6 +166,15 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | **@lehuukhang** | ~29 | Thiết kế UI Kiosk, Xử lý giao diện CMS Quản lý tồn kho & Doanh thu |
 
 ### Ghi chú nghiệm thu cập nhật 2026-10-11
+
+### Handoff Receipt cập nhật 2026-10-16
+
+- **Task 5.6 / Issue #28 — @thien33:** Receipt API chỉ đọc `Orders`/`OrderDetails` đã Paid; nộp test 200/404/409, privacy và idempotent GET. Trạng thái `PLANNED`, không coi docs/diagram là code hoàn thành.
+- **Task 8.2.1 / Issue #29 — @lehuukhang:** dùng `ReceiptDto` thật cho Receipt UI, Mock Printer, QuestPDF; xử lý network/404/409; phụ thuộc #28 PASS contract.
+- **Task 12.1.1 — @Unknown4505:** E2E trên SQL QA disposable và SePay test mode. Nếu thiếu SQL/SePay/endpoint thì ghi `BLOCKED — ENV`, không mô phỏng rồi tự báo PASS.
+- #19/#20 đã closed/completed và PR #26 đã merge; không mở lại. Chi tiết file ownership, acceptance và draft comment ở `12-workflow-handoff-and-scope.md`.
+- **Handoff PLANNED:** Auth/RBAC và Employee/Salary giao Backend `@thien33` triển khai sau contract; CMS Auth/Employee/Salary/NCC giao FE `@lehuukhang`; Leader giữ Domain/EF schema, shared contract và integration QA. Chưa tạo Issue mới; Owner/Dependencies/API-Data contract/Acceptance nằm ở docs/12.
+- **Salary APPROVED DESIGN (HR-DEC-01/02/03):** PayYear 2000..2100; Admin xem all và pay; Manager/Staff chỉ xem own Paid qua JWT→Employee; Backend enforce công thức NetSalary, Draft/Paid actor-time, transaction/concurrency và immutable Paid. API/UI vẫn `[ ]` PLANNED; migration giữ nguyên và SQL QA vẫn `BLOCKED — ENV`.
 
 - **4.5 giữ chưa hoàn thành:** HTTP smoke trên merge không commit `main@fbc15a2` + `Khang@d9de651` đã PASS pagination, keyword, category, detail, barcode hợp lệ/404 và dữ liệu out-of-stock. WPF chưa chạy tương tác; FE-13 còn race pagination và Backend vẫn trả sách inactive qua detail/barcode.
 - **5.5 giữ chưa hoàn thành:** Đã chạy bộ test trên SQL Server Express local bằng database cô lập. Constraints, rollback, concurrent last-copy, cancel và promotion+100 điểm PASS; duplicate webhook, 4 validation điểm và OrderCode uniqueness FAIL. Checkout idempotency/cleanup race vẫn BLOCKED bởi Issue #19/#20.

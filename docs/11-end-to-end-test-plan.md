@@ -64,3 +64,55 @@ Ghi lại và so sánh trực tiếp các trường: `OrderId`, `OrderCode`, `Su
 ## 5. Điều kiện nghiệm thu Task 12.1
 
 Task chỉ được chuyển sang hoàn thành khi toàn bộ kịch bản bắt buộc đã chạy hoặc blocker được Leader chấp nhận bằng văn bản, không có lỗi P0/P1 mở, và có ma trận kết quả Actual/PASS-FAIL gắn với một bộ SHA cụ thể. Tại thời điểm tạo tài liệu này, Task 12.1 vẫn chưa hoàn thành.
+
+## 6. Delta verification cho HR và Receipt (2026-10-16)
+
+Các dòng kết quả 2026-10-11 ở trên là evidence lịch sử. #19/#20 hiện closed/completed và PR #26 đã merge; không mở lại. Trạng thái mới phải gắn SHA mới, không suy diễn từ log cũ.
+
+| Test | Mức | Expected | Trạng thái hiện tại |
+|---|---|---|---|
+| HR-MODEL-01 | Build/model | `Admin=1`, `Staff=2`, `Manager=3`; Employee/User filtered unique; salary unique/check/RESTRICT | PASS — 2/2 automated model-contract tests |
+| HR-SQL-01 | SQL integration | Migration additive tạo 19 bảng, giữ dữ liệu/precision cũ, rollback sạch trên DB QA disposable | BLOCKED — ENV |
+| RECEIPT-DTO | Contract/serialization | Shared `ReceiptDto` có đủ field server-owned và không serialize dữ liệu nhạy cảm | PASS — 2/2 contract tests |
+| RECEIPT-200 | HTTP contract | Paid + CompletedAt → 200 `ApiResponseDto<ReceiptDto>` từ persisted rows, GET không side effect | BLOCKED — #28 |
+| RECEIPT-404 | HTTP contract | order không tồn tại → 404 | BLOCKED — #28 |
+| RECEIPT-409 | HTTP contract | Pending/Cancelled → 409, không trả receipt | BLOCKED — #28 |
+| RECEIPT-PRIVACY | Contract/security | Không có CostPrice, phone/member PII | BLOCKED — #28 |
+| RECEIPT-UI-PDF | WPF/E2E | Paid polling → API → UI/mock printer/PDF cùng DTO | BLOCKED — #29 depends #28 |
+| SALARY-RBAC | HTTP/security | Admin/Manager/Staff đúng policy và row authorization, không lộ lương người khác | BLOCKED — API chưa implement |
+
+Không chạy API để thử migration vì startup auto-migrate. EF CLI scaffold qua design-time factory không khởi chạy API. SQL chỉ được chạy khi `BOOKKIOSK_TEST_SQLSERVER` đã được xác minh trỏ tới database `BookKiosk_QA_<run-id>` disposable.
+
+### Evidence lượt 2026-10-16 — `origin/main@efcd388a` + `codex/leader-workflow-integration`
+
+| Kiểm tra | Kết quả | Evidence / giới hạn |
+|---|---|---|
+| `dotnet build BookKiosk.slnx -c Release -m:1` | PASS | Release build V6: PASS, 0 errors, 123 warnings. Warning delta so với baseline Release: NOT VERIFIED. `NU1902`/`NU1903` được theo dõi riêng như security follow-up; không nâng package trong V6.2. |
+| `dotnet test ... --filter FullyQualifiedName~BookKiosk.Tests.Contracts.Hr` | PASS | 2/2: enum role/status và EF design-time model (nullability, decimal(18,0), filtered unique, unique kỳ lương, check, RESTRICT). Không kết nối DB. |
+| `dotnet test ... --filter FullyQualifiedName~BookKiosk.Tests.Contracts.Receipts` | PASS | 2/2 DTO contract/serialization. Không chứng minh endpoint #28 vì endpoint chưa implement. |
+| Test harness main compatibility | PASS sau sửa tối thiểu | Bổ sung 4 delegation `GetOrderByCodeNoTrackingAsync` vào fake repositories và 1 file HR test dưới 100 dòng trong test repo độc lập; production không đổi để chiều test. |
+| Migration `20261016071312_AddEmployeeSalaryLedger` | PASS static / NOT RUNTIME TESTED | EF CLI log dùng design-time factory; `Up()` chỉ 2 CreateTable + 4 CreateIndex, không alter/drop bảng cũ. Không chạy `database update`. |
+| SQL apply/rollback | BLOCKED — ENV | `BOOKKIOSK_TEST_SQLSERVER` absent; không có database `BookKiosk_QA_<run-id>` disposable được xác minh. |
+| `.drawio` XML/ID/references | PASS structural | 6 file parse được, trang 1/3/1/1/1/3, 0 duplicate ID, 0 missing parent/source/target ref. Visual và PNG NOT RUNTIME TESTED theo quyết định Leader. |
+
+Security follow-up riêng từ restore metadata của targeted tests: `NU1903` cho `AutoMapper 13.0.1`; `NU1902` và `NU1903` cho transitive `System.Security.Cryptography.Pkcs 9.0.11` qua `Microsoft.Data.SqlClient 6.1.6`. V6.2 không nâng package; cần dependency review/regression riêng. `NU1900` chỉ cho biết vulnerability feed không truy vấn được tại một số lượt restore, không chứng minh package an toàn hoặc có lỗ hổng mới.
+
+### Salary contract tests — APPROVED DESIGN, IMPLEMENTATION PLANNED
+
+Các ca dưới đây là acceptance plan cho HR-DEC-01/02/03. Salary Service/API chưa tồn tại nên tất cả đều **PLANNED / NOT RUN**, không phải PASS.
+
+| ID | Test tối thiểu | Expected | Trạng thái |
+|---|---|---|---|
+| SAL-01 | Tạo/cập nhật Draft với PayYear `1999`, `2000`, `2100`, `2101` | 2000/2100 hợp lệ; 1999/2101 trả validation error chuẩn | PLANNED / NOT RUN |
+| SAL-02 | PayMonth `0`, `1`, `12`, `13` | 1/12 hợp lệ; 0/13 bị từ chối | PLANNED / NOT RUN |
+| SAL-03 | Gửi các khoản tiền hợp lệ và NetSalary đúng/sai công thức | Server enforce `Base + Allowance - Deduction`; từ chối sai công thức hoặc kết quả âm | PLANNED / NOT RUN |
+| SAL-04 | Tạo Draft | `PaidByUserId=null`, `PaidAt=null` | PLANNED / NOT RUN |
+| SAL-05 | Admin xác nhận Paid | Actor lấy từ JWT Admin; `PaidAt` là UTC server; status/actor/time commit cùng transaction | PLANNED / NOT RUN |
+| SAL-06 | Manager xem phiếu Paid của chính Employee | ALLOW khi JWT UserId map đúng `Employees.UserId` | PLANNED / NOT RUN |
+| SAL-07 | Staff xem phiếu Paid của chính Employee | ALLOW khi JWT UserId map đúng `Employees.UserId` | PLANNED / NOT RUN |
+| SAL-08 | Manager/Staff đổi ID để xem phiếu người khác | DENY; không dùng UserId/EmployeeId client làm ownership | PLANNED / NOT RUN |
+| SAL-09 | Manager/Staff xem Draft của chính mình hoặc người khác | DENY | PLANNED / NOT RUN |
+| SAL-10 | JWT User không có Employee liên kết | DENY quyền xem lương cá nhân | PLANNED / NOT RUN |
+| SAL-11 | Manager xác nhận Paid | DENY; chỉ Admin được pay | PLANNED / NOT RUN |
+| SAL-12 | Hai request đồng thời xác nhận cùng Draft | Chỉ một request chuyển sang Paid; không ghi actor/time hai lần | PLANNED / NOT RUN |
+| SAL-13 | Sửa hoặc xóa phiếu Paid qua API thường | DENY; ledger Paid immutable | PLANNED / NOT RUN |

@@ -118,3 +118,12 @@ Máy Kiosk đặt nơi công cộng cần tránh việc khách hàng thoát ra n
 - F3 chỉ hiển thị trong Development và gọi `POST /api/payments/dev-simulate-success/{orderCode}` không body; `ApiClient` tiếp tục gửi `X-Api-Key`.
 - Không gọi `sepay-webhook` bằng payload giả. Khi API trả lỗi/404, UI báo Development simulation không khả dụng và giữ nguyên order; không tự chuyển Paid.
 - Release không đăng ký phím F3 và Backend Production không map endpoint.
+
+## 5. Handoff Receipt #29 — PLANNED, phụ thuộc #28
+
+- Sau khi polling trả `Paid`, Kiosk dùng `OrderId` thật gọi `GET /api/orders/kiosk/{orderId}/receipt` với `X-Api-Key`.
+- `ReceiptPage`, `ReceiptViewModel`, Mock Printer và QuestPDF dùng cùng `ReceiptDto` từ Backend; không dựng tổng tiền từ cart local.
+- `404`, `409`, timeout và network error phải hiển thị trạng thái có thể retry; không tự coi order Paid/Cancelled và không in payload chưa xác minh.
+- Pending/Cancelled không có hóa đơn Paid. Chỉ xóa cart sau khi luồng thành công đã giữ đủ dữ liệu hiển thị/in.
+
+Owner: `@lehuukhang`, Issue #29; acceptance runtime chỉ bắt đầu sau khi Issue #28 có endpoint và contract test PASS.
