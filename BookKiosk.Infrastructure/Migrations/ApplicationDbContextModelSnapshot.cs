@@ -154,6 +154,73 @@ namespace BookKiosk.Infrastructure.Migrations
                     b.ToTable("Categories", (string)null);
                 });
 
+            modelBuilder.Entity("BookKiosk.Domain.Entities.Employee", b =>
+                {
+                    b.Property<int>("EmployeeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmployeeId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("CurrentBaseSalary")
+                        .HasColumnType("decimal(18,0)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("EmployeeCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime?>("HireDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("EmployeeId");
+
+                    b.HasIndex("EmployeeCode")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasFilter("[UserId] IS NOT NULL");
+
+                    b.ToTable("Employees", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Employees_CurrentBaseSalary", "[CurrentBaseSalary] IS NULL OR [CurrentBaseSalary] >= 0");
+                        });
+                });
+
             modelBuilder.Entity("BookKiosk.Domain.Entities.ImportReceipt", b =>
                 {
                     b.Property<int>("ImportReceiptId")
@@ -560,6 +627,71 @@ namespace BookKiosk.Infrastructure.Migrations
                     b.ToTable("PromotionProductDiscounts");
                 });
 
+            modelBuilder.Entity("BookKiosk.Domain.Entities.SalaryPayment", b =>
+                {
+                    b.Property<int>("SalaryPaymentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SalaryPaymentId"));
+
+                    b.Property<decimal>("AllowanceAmount")
+                        .HasColumnType("decimal(18,0)");
+
+                    b.Property<decimal>("BaseSalarySnapshot")
+                        .HasColumnType("decimal(18,0)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("DeductionAmount")
+                        .HasColumnType("decimal(18,0)");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("NetSalary")
+                        .HasColumnType("decimal(18,0)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("PaidByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PayMonth")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PayYear")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("SalaryPaymentId");
+
+                    b.HasIndex("PaidByUserId");
+
+                    b.HasIndex("EmployeeId", "PayYear", "PayMonth")
+                        .IsUnique();
+
+                    b.ToTable("SalaryPayments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_SalaryPayments_Amounts", "[BaseSalarySnapshot] >= 0 AND [AllowanceAmount] >= 0 AND [DeductionAmount] >= 0 AND [NetSalary] >= 0");
+
+                            t.HasCheckConstraint("CK_SalaryPayments_PayMonth", "[PayMonth] >= 1 AND [PayMonth] <= 12");
+
+                            t.HasCheckConstraint("CK_SalaryPayments_Status", "[Status] IN (1, 2)");
+                        });
+                });
+
             modelBuilder.Entity("BookKiosk.Domain.Entities.Supplier", b =>
                 {
                     b.Property<int>("SupplierId")
@@ -651,6 +783,16 @@ namespace BookKiosk.Infrastructure.Migrations
                     b.Navigation("Area");
 
                     b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("BookKiosk.Domain.Entities.Employee", b =>
+                {
+                    b.HasOne("BookKiosk.Domain.Entities.User", "User")
+                        .WithOne()
+                        .HasForeignKey("BookKiosk.Domain.Entities.Employee", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("BookKiosk.Domain.Entities.ImportReceipt", b =>
@@ -814,6 +956,24 @@ namespace BookKiosk.Infrastructure.Migrations
                     b.Navigation("Promotion");
                 });
 
+            modelBuilder.Entity("BookKiosk.Domain.Entities.SalaryPayment", b =>
+                {
+                    b.HasOne("BookKiosk.Domain.Entities.Employee", "Employee")
+                        .WithMany("SalaryPayments")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BookKiosk.Domain.Entities.User", "PaidByUser")
+                        .WithMany()
+                        .HasForeignKey("PaidByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("PaidByUser");
+                });
+
             modelBuilder.Entity("BookKiosk.Domain.Entities.Area", b =>
                 {
                     b.Navigation("Books");
@@ -822,6 +982,11 @@ namespace BookKiosk.Infrastructure.Migrations
             modelBuilder.Entity("BookKiosk.Domain.Entities.Category", b =>
                 {
                     b.Navigation("Books");
+                });
+
+            modelBuilder.Entity("BookKiosk.Domain.Entities.Employee", b =>
+                {
+                    b.Navigation("SalaryPayments");
                 });
 
             modelBuilder.Entity("BookKiosk.Domain.Entities.ImportReceipt", b =>
