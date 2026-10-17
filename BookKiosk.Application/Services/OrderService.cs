@@ -14,6 +14,7 @@ public interface IOrderService
     Task<CheckoutResponseDto> CheckoutKioskAsync(CheckoutRequestDto request);
     Task<bool> CancelOrderAsync(int orderId);
     Task<PaymentStatusDto> GetPaymentStatusAsync(int orderId);
+    Task<ReceiptDto> GetReceiptAsync(int orderId);
 }
 
 public class OrderService : IOrderService
@@ -266,6 +267,38 @@ public class OrderService : IOrderService
             OrderId = order.OrderId,
             OrderCode = order.OrderCode,
             Status = order.OrderStatus.ToString()
+        };
+    }
+
+    public async Task<ReceiptDto> GetReceiptAsync(int orderId)
+    {
+        var order = await _orderRepository.GetReceiptOrderByIdAsync(orderId);
+        if (order == null)
+            throw new System.Collections.Generic.KeyNotFoundException("Không tìm thấy đơn hàng.");
+
+        if (order.OrderStatus != OrderStatus.Paid || !order.CompletedAt.HasValue)
+            throw new InvalidOperationException("Đơn hàng chưa hoàn tất thanh toán hoặc đã bị hủy.");
+
+        return new ReceiptDto
+        {
+            OrderId = order.OrderId,
+            OrderCode = order.OrderCode,
+            CreatedAt = order.CreatedAt,
+            CompletedAt = order.CompletedAt.Value,
+            SubTotal = order.SubTotal,
+            DiscountAmount = order.DiscountAmount,
+            PointsUsed = order.PointsUsed,
+            PointsUsedAmount = order.PointsUsed * 1000m,
+            TotalAmount = order.TotalAmount,
+            PaymentMethod = order.PaymentMethod,
+            Items = order.OrderDetails.Select(od => new ReceiptLineDto
+            {
+                BookId = od.BookId,
+                BookTitle = od.Book?.Title ?? string.Empty,
+                Quantity = od.Quantity,
+                UnitPriceAtTime = od.UnitPriceAtTime,
+                LineTotal = od.LineTotal
+            }).ToList()
         };
     }
 }

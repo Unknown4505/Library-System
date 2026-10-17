@@ -116,6 +116,7 @@ public class OrderRepository : IOrderRepository
     public async Task<Order?> GetOrderByIdAsync(int orderId) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderId == orderId);
     // F01: Đọc trực tiếp từ DB bỏ qua EF tracking cache, dùng sau rollback để xác định trạng thái thật
     public async Task<Order?> GetOrderByCodeNoTrackingAsync(string orderCode) => await _context.Orders.AsNoTracking().Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode);
+    public async Task<Order?> GetReceiptOrderByIdAsync(int orderId) => await _context.Orders.AsNoTracking().Include(o => o.OrderDetails).ThenInclude(od => od.Book).FirstOrDefaultAsync(o => o.OrderId == orderId);
 }
 
 public class PaymentRepository : IPaymentRepository

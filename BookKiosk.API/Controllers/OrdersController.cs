@@ -79,4 +79,25 @@ public class OrdersController : ControllerBase
             return NotFound(ApiResponseDto<object>.Error("NOT_FOUND", ex.Message));
         }
     }
+
+    /// <summary>
+    /// Lấy hóa đơn chính thức cho đơn hàng Kiosk đã thanh toán (Task 5.6)
+    /// </summary>
+    [HttpGet("kiosk/{orderId}/receipt")]
+    public async Task<IActionResult> GetReceipt(int orderId)
+    {
+        try
+        {
+            var receiptDto = await _orderService.GetReceiptAsync(orderId);
+            return Ok(ApiResponseDto<ReceiptDto>.Ok(receiptDto, "Lấy hóa đơn thành công."));
+        }
+        catch (System.Collections.Generic.KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponseDto<object>.Error("NOT_FOUND", ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponseDto<object>.Error("CONFLICT", ex.Message));
+        }
+    }
 }
