@@ -95,7 +95,7 @@ namespace BookKiosk.CMS.Controllers
 
             _logger.LogInformation("Người dùng '{Username}' (vai trò: {Role}) đã đăng nhập thành công.", model.Username, loginData.Role);
 
-            return RedirectToLocal(returnUrl);
+            return RedirectToLocal(returnUrl, principal);
         }
 
         // POST: /Account/Logout
@@ -118,16 +118,17 @@ namespace BookKiosk.CMS.Controllers
             return View();
         }
 
-        // Helper: Chống Open Redirect
-        private IActionResult RedirectToLocal(string? returnUrl)
+        // Helper: Chống Open Redirect & Điều hướng theo ClaimsPrincipal
+        private IActionResult RedirectToLocal(string? returnUrl, ClaimsPrincipal? currentPrincipal = null)
         {
             if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
             {
                 return Redirect(returnUrl);
             }
 
-            // Phân quyền điều hướng theo Role
-            if (User.IsInRole("Admin"))
+            // CMS-AUTH-01: Ưu tiên dùng principal vừa đăng nhập để kiểm tra vai trò điều hướng
+            var principalToCheck = currentPrincipal ?? User;
+            if (principalToCheck.IsInRole("Admin"))
             {
                 return RedirectToAction("Index", "Home");
             }
