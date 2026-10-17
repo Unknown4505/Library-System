@@ -126,8 +126,17 @@ namespace BookKiosk.CMS.Controllers
         [HttpGet("Details/{id:int}")]
         public async Task<IActionResult> Details(int id)
         {
+            var isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+
             if (id <= 0)
-                return NotFound();
+            {
+                if (isAjax)
+                    return NotFound(new { message = "Mã đơn hàng không hợp lệ." });
+
+                Response.StatusCode = 404;
+                ViewData["Title"] = "Không tìm thấy đơn hàng";
+                return View(new OrderDetailViewModel());
+            }
 
             var result = await _orderApi.GetOrderByIdAsync(id);
             var viewModel = new OrderDetailViewModel();
@@ -143,16 +152,25 @@ namespace BookKiosk.CMS.Controllers
             }
             else
             {
-                return NotFound();
+                if (isAjax)
+                    return NotFound(new { message = result.Message ?? "Không tìm thấy thông tin đơn hàng." });
+
+                Response.StatusCode = 404;
+                ViewData["Title"] = "Không tìm thấy đơn hàng";
+                return View(viewModel);
             }
 
             // Nếu gọi qua AJAX (Modal popup) -> Trả PartialView
-            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            if (isAjax)
             {
                 return PartialView("_OrderDetailModal", viewModel);
             }
 
-            ViewData["Title"] = $"Chi tiết đơn hàng {viewModel.Order.OrderCode}";
+            var orderCode = viewModel.Order?.OrderCode;
+            ViewData["Title"] = !string.IsNullOrWhiteSpace(orderCode)
+                ? $"Chi tiết đơn hàng {orderCode}"
+                : "Chi tiết đơn hàng";
+
             return View(viewModel);
         }
 

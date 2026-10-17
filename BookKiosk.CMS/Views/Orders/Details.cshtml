@@ -1,0 +1,83 @@
+@model BookKiosk.CMS.ViewModels.Orders.OrderDetailViewModel
+@using BookKiosk.CMS.Models.Api.Orders
+@{
+    var order = Model.Order;
+    var orderCode = order?.OrderCode;
+    ViewData["Title"] = !string.IsNullOrWhiteSpace(orderCode) ? $"Chi tiết đơn hàng {orderCode}" : "Chi tiết đơn hàng";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/orders.css" asp-append-version="true" />
+}
+
+<div class="container-fluid px-4 py-3">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb small mb-0">
+            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index" class="text-decoration-none">Trang chủ</a></li>
+            <li class="breadcrumb-item"><a asp-action="Index" class="text-decoration-none">Đơn hàng & Hóa đơn</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@(orderCode ?? "Chi tiết")</li>
+        </ol>
+    </nav>
+
+    <!-- Header Actions -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h1 class="h4 fw-bold text-dark mb-1">
+                <i class="fas fa-file-invoice text-primary me-2"></i>Chi tiết đơn hàng: <span class="font-monospace text-primary">@(orderCode ?? "Thông tin đơn")</span>
+            </h1>
+            <p class="text-muted small mb-0">Xem toàn bộ thông tin tài chính, snapshot sách đã mua và lịch sử đối soát giao dịch.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i>Quay lại danh sách
+            </a>
+            @if (order != null && order.SaleChannel == SaleChannel.Counter && order.OrderStatus == OrderStatus.Pending)
+            {
+                <form asp-action="CancelCounterOrder" asp-route-id="@order.OrderId" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn hủy đơn hàng này và nhả kho giữ chỗ?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-ban me-1"></i>Hủy đơn hàng
+                    </button>
+                </form>
+            }
+            @if (order != null && order.OrderStatus == OrderStatus.Paid)
+            {
+                <button type="button" class="btn btn-primary btn-sm fw-semibold btn-print-from-detail" data-order-id="@order.OrderId">
+                    <i class="fas fa-print me-1"></i>In lại hóa đơn K80
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (order == null && !Model.IsEndpointUnavailable)
+    {
+        <!-- 404 thân thiện khi không tìm thấy đơn hàng -->
+        <div class="card border-0 shadow-sm p-5 text-center my-4">
+            <div class="display-4 text-warning mb-3"><i class="fas fa-search-minus"></i></div>
+            <h4 class="fw-bold text-dark">Không tìm thấy thông tin đơn hàng</h4>
+            <p class="text-muted mb-4">Đơn hàng bạn yêu cầu không tồn tại, đã bị xóa hoặc bạn không có quyền truy cập.</p>
+            <div>
+                <a asp-action="Index" class="btn btn-primary px-4">
+                    <i class="fas fa-arrow-left me-1"></i>Về danh sách đơn hàng
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Thân chi tiết đơn hàng dùng chung qua Partial -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <partial name="_OrderDetailContent" model="Model" />
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal In hóa đơn dùng chung -->
+<partial name="~/Views/Pos/_ReceiptModal.cshtml" />
+
+@section Scripts {
+    <script src="~/js/orders.js" asp-append-version="true"></script>
+}
