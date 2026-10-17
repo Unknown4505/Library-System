@@ -6,7 +6,7 @@
 
 @Html.AntiForgeryToken()
 
-<div class="pos-wrapper container-fluid px-0 py-2">
+<div class="pos-wrapper container-fluid px-0 py-2" id="posWrapper" data-allow-mock-qr="@((Model.IsDevelopment && Model.UseMockApi).ToString().ToLowerInvariant())">
     <!-- Banner cảnh báo Mock Data nếu bật -->
     @if (Model.UseMockApi)
     {
@@ -435,5 +435,10 @@
 }
 
 @section Scripts {
+    <script>
+        window.POS_CONFIG = {
+            allowMockQr: @((Model.IsDevelopment && Model.UseMockApi) ? "true" : "false")
+        };
+    </script>
     <script src="~/js/pos.js" asp-append-version="true"></script>
 }

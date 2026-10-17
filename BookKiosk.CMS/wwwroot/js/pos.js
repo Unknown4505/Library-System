@@ -1247,9 +1247,13 @@
                 const qrDes = document.getElementById('pendingQrDes');
 
                 // CMS-POS-01: Chỉ nhận sepayQrCodeUrl không rỗng và có giao thức https.
-                // Tuyệt đối không fallback số tài khoản hardcode hoặc tự ghép URL thanh toán ở client.
+                // Ngoại lệ ảnh mock chỉ được phép khi server truyền cờ (IsDevelopment && Cms:UseMockApi)
+                // và đường dẫn phải so khớp CHÍNH XÁC '/images/mock-qr.svg' (không nhận theo tiền tố).
                 const rawQrUrl = (currentOrder && currentOrder.sepayQrCodeUrl) ? currentOrder.sepayQrCodeUrl.trim() : '';
-                const isValidHttps = rawQrUrl.length > 0 && rawQrUrl.toLowerCase().startsWith('https://');
+                const allowMockQr = (window.POS_CONFIG && window.POS_CONFIG.allowMockQr === true) ||
+                                    (document.getElementById('posWrapper')?.dataset?.allowMockQr === 'true');
+                const isInternalMockQr = allowMockQr && (rawQrUrl === '/images/mock-qr.svg');
+                const isValidHttps = rawQrUrl.length > 0 && (rawQrUrl.toLowerCase().startsWith('https://') || isInternalMockQr);
 
                 if (isValidHttps) {
                     if (qrBox) qrBox.classList.remove('d-none');

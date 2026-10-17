@@ -10,14 +10,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <!-- Loại bỏ hoàn toàn thư mục Tests và Fixtures khỏi gói Publish Release -->
+  <!-- Loại bỏ hoàn toàn thư mục Tests, Fixtures và mock-qr.svg khỏi gói Publish Release -->
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
     <Compile Remove="Tests\**" />
     <Content Remove="Tests\**" />
     <None Remove="Tests\**" />
+    <Content Remove="wwwroot\images\mock-qr.svg" />
   </ItemGroup>
   <ItemGroup>
     <Content Update="Tests\**" CopyToPublishDirectory="Never" />
+    <Content Update="wwwroot\images\mock-qr.svg" Condition="'$(Configuration)' == 'Release'" CopyToPublishDirectory="Never" />
   </ItemGroup>
 
 </Project>

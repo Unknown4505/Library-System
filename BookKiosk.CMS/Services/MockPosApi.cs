@@ -429,9 +429,8 @@ namespace BookKiosk.CMS.Services
                 TotalAmount = totalAmount,
                 ExpiresAt = expiresAt,
                 CreatedAt = now,
-                ServerTime = now,
                 RemainingSeconds = 240,
-                SepayQrCodeUrl = $"https://mock.sepay.vn/qr/MOCK-TEST-QR?amount={(long)totalAmount}&des={orderCode}",
+                SepayQrCodeUrl = "/images/mock-qr.svg",
                 Items = orderItems
             };
 
