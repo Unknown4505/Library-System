@@ -14,6 +14,7 @@ public interface IPromotionService
     Task<ApiResponseDto<PromotionDto>> CreatePromotionAsync(CreatePromotionDto request);
     Task<ApiResponseDto<PromotionDto>> UpdatePromotionAsync(int id, PromotionDto request);
     Task<ApiResponseDto<bool>> DeletePromotionAsync(int id);
+    Task<ApiResponseDto<bool>> TogglePromotionActiveAsync(int id, bool isActive);
 }
 
 public class PromotionService : IPromotionService
@@ -56,6 +57,22 @@ public class PromotionService : IPromotionService
 
         await _unitOfWork.SaveChangesAsync();
         return ApiResponseDto<PromotionDto>.Ok(_mapper.Map<PromotionDto>(promotion));
+    }
+
+    public async Task<ApiResponseDto<bool>> TogglePromotionActiveAsync(int id, bool isActive)
+    {
+        var promotion = await _promotionRepository.GetByIdAsync(id);
+        if (promotion == null)
+            return ApiResponseDto<bool>.Error("NOT_FOUND", "Không tìm thấy khuyến mãi.");
+
+        if (isActive && promotion.EndDate < System.DateTime.UtcNow)
+        {
+            return ApiResponseDto<bool>.Error("CONFLICT", "Không thể kích hoạt chương trình khuyến mãi đã hết hạn.");
+        }
+
+        promotion.IsActive = isActive;
+        await _unitOfWork.SaveChangesAsync();
+        return ApiResponseDto<bool>.Ok(true, isActive ? "Kích hoạt chương trình khuyến mãi thành công." : "Tạm ngưng chương trình khuyến mãi thành công.");
     }
 
     public async Task<ApiResponseDto<bool>> DeletePromotionAsync(int id)
