@@ -1071,6 +1071,21 @@
             if (btnDismiss) {
                 btnDismiss.addEventListener('click', hideEndpointWarning);
             }
+
+            // Nút Thử lại & Hủy đơn khi gặp lỗi QR
+            const btnRetryQr = document.getElementById('btnRetryQrCheck');
+            const btnCancelQr = document.getElementById('btnCancelFromQrError');
+            if (btnRetryQr) {
+                btnRetryQr.addEventListener('click', function () {
+                    switchPaymentBranch('QR');
+                });
+            }
+            if (btnCancelQr) {
+                btnCancelQr.addEventListener('click', function () {
+                    const btnOpenCancel = document.getElementById('btnOpenCancelModal');
+                    if (btnOpenCancel) btnOpenCancel.click();
+                });
+            }
         }
 
         async function createCounterOrder() {
@@ -1216,16 +1231,34 @@
                 if (cashBranch) cashBranch.classList.add('d-none');
                 if (qrBranch) qrBranch.classList.remove('d-none');
 
-                // Bind QR image
+                const qrBox = document.getElementById('qrContentBox');
+                const qrErrorBox = document.getElementById('qrErrorBox');
                 const qrImg = document.getElementById('pendingQrImage');
                 const qrDes = document.getElementById('pendingQrDes');
-                const qrUrl = currentOrder.sepayQrCodeUrl || `https://qr.sepay.vn/img?acc=0366994409&bank=MB&amount=${Math.round(currentOrder.totalAmount)}&des=${encodeURIComponent(currentOrder.orderCode)}`;
 
-                if (qrImg) qrImg.src = qrUrl;
-                if (qrDes) qrDes.textContent = currentOrder.orderCode;
+                // CMS-POS-01: Chỉ nhận sepayQrCodeUrl không rỗng và có giao thức https.
+                // Tuyệt đối không fallback số tài khoản hardcode hoặc tự ghép URL thanh toán ở client.
+                const rawQrUrl = (currentOrder && currentOrder.sepayQrCodeUrl) ? currentOrder.sepayQrCodeUrl.trim() : '';
+                const isValidHttps = rawQrUrl.length > 0 && rawQrUrl.toLowerCase().startsWith('https://');
 
-                // Bắt đầu Polling 3s/lần
-                PosApp.PollModule.startPolling(currentOrder.orderId);
+                if (isValidHttps) {
+                    if (qrBox) qrBox.classList.remove('d-none');
+                    if (qrErrorBox) qrErrorBox.classList.add('d-none');
+                    if (qrImg) qrImg.src = rawQrUrl;
+                    if (qrDes) qrDes.textContent = currentOrder.orderCode;
+
+                    // Bắt đầu Polling 3s/lần
+                    PosApp.PollModule.startPolling(currentOrder.orderId);
+                } else {
+                    // Không có URL hợp lệ: chặn hiển thị QR, dừng polling và hiển thị thông báo lỗi
+                    if (qrBox) qrBox.classList.add('d-none');
+                    if (qrErrorBox) qrErrorBox.classList.remove('d-none');
+                    PosApp.PollModule.stopPolling();
+
+                    if (typeof showToast === 'function') {
+                        showToast('Không thể hiển thị mã QR: Máy chủ chưa cung cấp liên kết thanh toán hợp lệ.', 'danger');
+                    }
+                }
             }
         }
 
