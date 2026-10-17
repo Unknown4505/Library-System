@@ -9,6 +9,12 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body p-3 bg-light">
+                <!-- Cảnh báo khi đơn đã thanh toán nhưng chưa lấy được hóa đơn chính thức từ máy chủ (CMS-POS-02) -->
+                <div id="receiptPendingAlert" class="alert alert-warning d-none mb-3 py-2 px-3 small shadow-sm">
+                    <div class="fw-bold"><i class="fas fa-exclamation-triangle me-1"></i>Đã thanh toán — Chưa tải được hóa đơn chính thức</div>
+                    <div class="text-muted mt-1">Đơn hàng đã được xác nhận thanh toán, nhưng hệ thống chưa lấy được dữ liệu hóa đơn chính thức từ máy chủ. Nút in tạm thời bị khóa.</div>
+                </div>
+
                 <!-- Khu vực in hóa đơn (Receipt Print Area K80) -->
                 <div id="receiptPrintArea" class="receipt-k80 shadow-sm border">
                     <div class="receipt-header">
@@ -103,6 +109,9 @@
                     <i class="fas fa-plus me-1"></i>Đơn mới
                 </button>
                 <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-primary d-none" id="btnRetryFetchReceipt">
+                        <i class="fas fa-sync-alt me-1"></i>Thử tải lại hóa đơn
+                    </button>
                     <button type="button" class="btn btn-primary px-3 fw-semibold" id="btnPrintReceipt">
                         <i class="fas fa-print me-1"></i>In hóa đơn K80
                     </button>

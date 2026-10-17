@@ -1059,6 +1059,16 @@
                 btnNewOrder.addEventListener('click', resetToDraft);
             }
 
+            // Nút Thử tải lại hóa đơn chính thức (CMS-POS-02)
+            const btnRetryReceipt = document.getElementById('btnRetryFetchReceipt');
+            if (btnRetryReceipt) {
+                btnRetryReceipt.addEventListener('click', function () {
+                    if (currentOrder) {
+                        fetchOfficialReceipt(currentOrder.orderId);
+                    }
+                });
+            }
+
             // Nút Thử lại & Bỏ qua cảnh báo EndpointUnavailable
             const btnRetry = document.getElementById('btnRetryEndpoint');
             const btnDismiss = document.getElementById('btnDismissEndpointWarning');
@@ -1347,6 +1357,11 @@
                         }
                     } catch (pollErr) {
                         console.error('Lỗi khi thăm dò trạng thái sau 409:', pollErr);
+                        // Lỗi mạng không bao giờ báo "đã thanh toán"
+                        if (typeof showToast === 'function') {
+                            showToast('Lỗi kết nối khi kiểm tra trạng thái đơn hàng. Vui lòng bấm thử lại.', 'warning');
+                        }
+                        return;
                     }
                 }
 
@@ -1356,7 +1371,7 @@
                 }
             } catch (err) {
                 console.error('Lỗi mạng khi xác nhận thanh toán:', err);
-                // Giữ nguyên trạng thái Pending để thu ngân có thể bấm thử lại
+                // Giữ nguyên trạng thái Pending để thu ngân có thể bấm thử lại — Lỗi mạng không bao giờ báo "đã thanh toán"
                 if (typeof showToast === 'function') {
                     showToast('Lỗi kết nối khi xác nhận thanh toán. Đơn hàng được giữ nguyên để bạn thử lại.', 'warning');
                 }
@@ -1384,53 +1399,96 @@
                 showToast(`Khách đã chuyển khoản thành công cho đơn ${currentOrder.orderCode}!`, 'success');
             }
 
-            // Gọi confirm payment để lấy dữ liệu hóa đơn hoàn chỉnh từ Backend
+            // CMS-POS-02: Không gọi POST /Pos/ConfirmPayment (write) cho đơn QR đã Paid.
+            // Thử đọc receipt từ endpoint đọc; nếu chưa có thì hiển thị trạng thái chưa tải được hóa đơn
             fetchReceiptAndShow(orderId, 'QR');
         }
 
         async function fetchReceiptAndShow(orderId, method) {
             if (typeof showLoading === 'function') showLoading('Đang tải hóa đơn bán lẻ...');
             try {
-                const response = await fetch(`/Pos/ConfirmPayment?orderId=${orderId}`, {
-                    method: 'POST',
-                    headers: {
-                        'RequestVerificationToken': getAntiForgeryToken()
-                    }
+                // Thử đọc hóa đơn chính thức qua GET /Orders/Receipt/{id} (read operation)
+                const response = await fetch(`/Orders/Receipt/${orderId}`, {
+                    headers: { 'Accept': 'application/json' }
                 });
 
                 const result = await response.json();
                 if (result.success && result.data) {
-                    onPaymentSuccess(result.data);
-                } else {
-                    // Fallback hiển thị hóa đơn với thông tin sẵn có
-                    onPaymentSuccess({
-                        orderCode: currentOrder.orderCode,
-                        createdAt: currentOrder.createdAt,
-                        completedAt: new Date().toISOString(),
-                        cashierName: 'Thu ngân',
-                        memberDisplayName: 'Thành viên',
-                        pointsEarned: Math.floor(currentOrder.totalAmount / 10000),
-                        items: currentOrder.items || [],
-                        subTotal: currentOrder.subTotal,
-                        discountAmount: currentOrder.discountAmount,
-                        pointsUsedAmount: currentOrder.pointsUsedAmount,
-                        totalAmount: currentOrder.totalAmount,
-                        paymentMethod: method
-                    });
+                    onPaymentSuccess(result.data, true);
+                    return;
                 }
             } catch (err) {
-                console.error('Lỗi khi lấy hóa đơn:', err);
+                console.warn('Endpoint đọc hóa đơn chưa có hoặc lỗi mạng (Issue #34):', err);
+            } finally {
+                if (typeof hideLoading === 'function') hideLoading();
+            }
+
+            // CMS-POS-02: Tuyệt đối không tự dựng hóa đơn giả ở client (không tự tạo completedAt, không tự tính pointsEarned)
+            // Hiển thị trạng thái "Đã thanh toán, chưa tải được hóa đơn chính thức" và khóa nút in
+            showPaidWithoutReceipt(currentOrder, method);
+        }
+
+        async function fetchOfficialReceipt(orderId) {
+            if (!orderId) return;
+            if (typeof showLoading === 'function') showLoading('Đang tải lại hóa đơn chính thức từ máy chủ...');
+            try {
+                const response = await fetch(`/Orders/Receipt/${orderId}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                const result = await response.json();
+                if (result.success && result.data) {
+                    onPaymentSuccess(result.data, true);
+                    if (typeof showToast === 'function') {
+                        showToast('Đã tải hóa đơn chính thức thành công!', 'success');
+                    }
+                } else {
+                    if (typeof showToast === 'function') {
+                        showToast(result.message || 'Chưa thể tải hóa đơn chính thức từ máy chủ (Chờ Issue #34).', 'warning');
+                    }
+                }
+            } catch (err) {
+                console.error('Lỗi khi tải lại hóa đơn:', err);
+                if (typeof showToast === 'function') {
+                    showToast('Lỗi kết nối khi tải lại hóa đơn.', 'danger');
+                }
             } finally {
                 if (typeof hideLoading === 'function') hideLoading();
             }
         }
 
-        function onPaymentSuccess(receiptData) {
+        function showPaidWithoutReceipt(order, method) {
+            if (!order) return;
             PosApp.TimerModule.stop();
             PosApp.PollModule.stopPolling();
             window.onbeforeunload = null;
 
-            renderReceipt(receiptData);
+            const cashierEl = document.getElementById('posCashierName');
+            const cashierName = cashierEl ? cashierEl.textContent.trim() : 'Thu ngân';
+
+            const unconfirmedReceipt = {
+                orderCode: order.orderCode,
+                createdAt: order.createdAt,
+                completedAt: null, // Không tự lấy new Date()
+                cashierName: cashierName,
+                memberDisplayName: PosApp.MemberModule.getMemberName() || 'Khách vãng lai',
+                pointsEarned: null, // Không tự tính pointsEarned ở client
+                items: order.items || PosApp.CartModule.getItems(),
+                subTotal: order.subTotal,
+                discountAmount: order.discountAmount,
+                pointsUsedAmount: order.pointsUsedAmount,
+                totalAmount: order.totalAmount,
+                paymentMethod: method
+            };
+
+            onPaymentSuccess(unconfirmedReceipt, false);
+        }
+
+        function onPaymentSuccess(receiptData, isOfficial = true) {
+            PosApp.TimerModule.stop();
+            PosApp.PollModule.stopPolling();
+            window.onbeforeunload = null;
+
+            renderReceipt(receiptData, isOfficial);
 
             const receiptModalEl = document.getElementById('receiptModal');
             if (receiptModalEl) {
@@ -1439,7 +1497,28 @@
             }
         }
 
-        function renderReceipt(receipt) {
+        function renderReceipt(receipt, isOfficial = true) {
+            // CMS-POS-02: Phân biệt hóa đơn chính thức từ máy chủ vs trạng thái chờ tải
+            const alertPending = document.getElementById('receiptPendingAlert');
+            const btnRetryReceipt = document.getElementById('btnRetryFetchReceipt');
+            const btnPrint = document.getElementById('btnPrintReceipt');
+
+            if (isOfficial) {
+                if (alertPending) alertPending.classList.add('d-none');
+                if (btnRetryReceipt) btnRetryReceipt.classList.add('d-none');
+                if (btnPrint) {
+                    btnPrint.disabled = false;
+                    btnPrint.title = '';
+                }
+            } else {
+                if (alertPending) alertPending.classList.remove('d-none');
+                if (btnRetryReceipt) btnRetryReceipt.classList.remove('d-none');
+                if (btnPrint) {
+                    btnPrint.disabled = true;
+                    btnPrint.title = 'Chưa thể in: Dữ liệu hóa đơn chính thức chưa được tải từ máy chủ.';
+                }
+            }
+
             // Thông tin cửa hàng (lấy từ Backend / appsettings)
             const storeNameEl = document.getElementById('receiptStoreName');
             const storeAddressEl = document.getElementById('receiptStoreAddress');
@@ -1455,9 +1534,9 @@
 
             document.getElementById('receiptOrderCode').textContent = receipt.orderCode || '--';
             document.getElementById('receiptCreatedAt').textContent = formatDateTime(receipt.createdAt);
-            document.getElementById('receiptCompletedAt').textContent = formatDateTime(receipt.completedAt);
+            document.getElementById('receiptCompletedAt').textContent = receipt.completedAt ? formatDateTime(receipt.completedAt) : '--/--/---- --:--';
             document.getElementById('receiptCashierName').textContent = receipt.cashierName || 'Thu ngân';
-            document.getElementById('receiptMemberName').textContent = receipt.memberDisplayName || 'Thành viên';
+            document.getElementById('receiptMemberName').textContent = receipt.memberDisplayName || 'Khách vãng lai';
 
             const pointsRow = document.getElementById('receiptPointsEarnedRow');
             const pointsSpan = document.getElementById('receiptPointsEarned');
