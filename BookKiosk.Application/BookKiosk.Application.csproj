@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.13" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.23.0" />
     <ProjectReference Include="..\BookKiosk.Domain\BookKiosk.Domain.csproj" />
     <PackageReference Include="AutoMapper" Version="13.0.1" />
   </ItemGroup>

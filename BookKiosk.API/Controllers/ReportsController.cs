@@ -6,7 +6,7 @@ namespace BookKiosk.API.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[Authorize]
+[Authorize(Roles = "Admin")]
 public class ReportsController : ControllerBase
 {
     private readonly IReportService _reportService;
