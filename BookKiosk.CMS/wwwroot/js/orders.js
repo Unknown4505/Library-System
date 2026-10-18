@@ -123,6 +123,21 @@
     }
 
     function renderReprintReceipt(receipt) {
+        const receiptArea = document.getElementById('receiptPrintArea');
+        if (receiptArea) receiptArea.setAttribute('data-receipt-official', 'true');
+
+        const alertPending = document.getElementById('receiptPendingAlert');
+        if (alertPending) alertPending.classList.add('d-none');
+
+        const unofficialNotice = document.getElementById('receiptUnofficialNotice');
+        if (unofficialNotice) unofficialNotice.classList.add('d-none');
+
+        const btnPrint = document.getElementById('btnPrintReceipt');
+        if (btnPrint) {
+            btnPrint.disabled = false;
+            btnPrint.title = '';
+        }
+
         const storeName = document.getElementById('receiptStoreName');
         const storeAddress = document.getElementById('receiptStoreAddress');
         const storeContact = document.getElementById('receiptStoreContact');
@@ -300,11 +315,26 @@
             btnConfirmCancel.addEventListener('click', submitCancelCounterOrder);
         }
 
-        // Nút In hóa đơn trong receipt modal
+        // Nút In hóa đơn trong receipt modal (CMS-POS-PRINT-01)
         const btnPrintReceipt = document.getElementById('btnPrintReceipt');
         if (btnPrintReceipt) {
             btnPrintReceipt.addEventListener('click', function () {
+                const receiptArea = document.getElementById('receiptPrintArea');
+                const isOfficial = receiptArea && receiptArea.getAttribute('data-receipt-official') === 'true';
+                if (!isOfficial) {
+                    alert('Chưa có hóa đơn chính thức - không dùng làm chứng từ.');
+                    return;
+                }
                 window.print();
+            });
+        }
+
+        // Reset marker khi đóng modal
+        const receiptModalEl = document.getElementById('receiptModal');
+        if (receiptModalEl) {
+            receiptModalEl.addEventListener('hidden.bs.modal', function () {
+                const receiptArea = document.getElementById('receiptPrintArea');
+                if (receiptArea) receiptArea.setAttribute('data-receipt-official', 'false');
             });
         }
     });

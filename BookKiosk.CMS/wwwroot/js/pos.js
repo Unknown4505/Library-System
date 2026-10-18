@@ -1045,19 +1045,61 @@
                 btnConfirmCancel.addEventListener('click', executeCancelOrder);
             }
 
-            // Nút In hóa đơn K80
+            // Nút In hóa đơn K80 (CMS-POS-PRINT-01: Chặn in khi chưa có hóa đơn chính thức)
             const btnPrint = document.getElementById('btnPrintReceipt');
             if (btnPrint) {
                 btnPrint.addEventListener('click', function () {
+                    const receiptArea = document.getElementById('receiptPrintArea');
+                    const isOfficial = receiptArea && receiptArea.getAttribute('data-receipt-official') === 'true';
+                    if (!isOfficial) {
+                        if (typeof showToast === 'function') {
+                            showToast('Chưa có hóa đơn chính thức - không dùng làm chứng từ.', 'warning');
+                        }
+                        return;
+                    }
                     window.print();
                 });
             }
 
-            // Nút Tạo đơn mới sau khi in bill
+            // Nút Tạo đơn mới sau khi in bill: Reset DOM và marker official
             const btnNewOrder = document.getElementById('btnReceiptNewOrder');
             if (btnNewOrder) {
-                btnNewOrder.addEventListener('click', resetToDraft);
+                btnNewOrder.addEventListener('click', function () {
+                    clearReceiptDom();
+                    resetToDraft();
+                });
             }
+
+            // Reset marker và DOM khi đóng modal hóa đơn
+            const receiptModalEl = document.getElementById('receiptModal');
+            if (receiptModalEl) {
+                receiptModalEl.addEventListener('hidden.bs.modal', function () {
+                    clearReceiptDom();
+                });
+            }
+
+            // CMS-POS-PRINT-01: Chặn mọi window.print() và dọn sạch DOM trước khi in nếu chưa chính thức
+            window.addEventListener('beforeprint', function () {
+                const receiptArea = document.getElementById('receiptPrintArea');
+                const isOfficial = receiptArea && receiptArea.getAttribute('data-receipt-official') === 'true';
+                if (!isOfficial) {
+                    clearReceiptDom();
+                }
+            });
+
+            const nativePrint = window.print.bind(window);
+            window.print = function () {
+                const receiptArea = document.getElementById('receiptPrintArea');
+                const isOfficial = receiptArea && receiptArea.getAttribute('data-receipt-official') === 'true';
+                if (!isOfficial) {
+                    console.warn('In bị chặn: Chưa có hóa đơn chính thức từ máy chủ.');
+                    if (typeof showToast === 'function') {
+                        showToast('Chưa có hóa đơn chính thức - không dùng làm chứng từ.', 'warning');
+                    }
+                    return;
+                }
+                nativePrint();
+            };
 
             // Nút Thử tải lại hóa đơn chính thức (CMS-POS-02)
             const btnRetryReceipt = document.getElementById('btnRetryFetchReceipt');
@@ -1466,25 +1508,52 @@
             PosApp.PollModule.stopPolling();
             window.onbeforeunload = null;
 
-            const cashierEl = document.getElementById('posCashierName');
-            const cashierName = cashierEl ? cashierEl.textContent.trim() : 'Thu ngân';
+            // CMS-POS-PRINT-01: Tuyệt đối KHÔNG đổ dữ liệu giỏ hàng, dòng sách, số tiền vào #receiptPrintArea khi chưa có hóa đơn chính thức
+            onPaymentSuccess(null, false);
+        }
 
-            const unconfirmedReceipt = {
-                orderCode: order.orderCode,
-                createdAt: order.createdAt,
-                completedAt: null, // Không tự lấy new Date()
-                cashierName: cashierName,
-                memberDisplayName: PosApp.MemberModule.getMemberName() || 'Khách vãng lai',
-                pointsEarned: null, // Không tự tính pointsEarned ở client
-                items: order.items || PosApp.CartModule.getItems(),
-                subTotal: order.subTotal,
-                discountAmount: order.discountAmount,
-                pointsUsedAmount: order.pointsUsedAmount,
-                totalAmount: order.totalAmount,
-                paymentMethod: method
-            };
+        function clearReceiptDom() {
+            const receiptArea = document.getElementById('receiptPrintArea');
+            if (receiptArea) receiptArea.setAttribute('data-receipt-official', 'false');
 
-            onPaymentSuccess(unconfirmedReceipt, false);
+            const unofficialNotice = document.getElementById('receiptUnofficialNotice');
+            if (unofficialNotice) unofficialNotice.classList.remove('d-none');
+
+            const orderCodeEl = document.getElementById('receiptOrderCode');
+            if (orderCodeEl) orderCodeEl.textContent = '--';
+
+            const createdAtEl = document.getElementById('receiptCreatedAt');
+            if (createdAtEl) createdAtEl.textContent = '--/--/---- --:--';
+
+            const completedAtEl = document.getElementById('receiptCompletedAt');
+            if (completedAtEl) completedAtEl.textContent = '--/--/---- --:--';
+
+            const cashierEl = document.getElementById('receiptCashierName');
+            if (cashierEl) cashierEl.textContent = '--';
+
+            const memberEl = document.getElementById('receiptMemberName');
+            if (memberEl) memberEl.textContent = '--';
+
+            const pointsRow = document.getElementById('receiptPointsEarnedRow');
+            if (pointsRow) pointsRow.classList.add('d-none');
+
+            const tbody = document.getElementById('receiptItemsBody');
+            if (tbody) tbody.innerHTML = '';
+
+            const subTotalEl = document.getElementById('receiptSubTotal');
+            if (subTotalEl) subTotalEl.textContent = '--';
+
+            const discountRow = document.getElementById('receiptDiscountRow');
+            if (discountRow) discountRow.classList.add('d-none');
+
+            const pointsUsedRow = document.getElementById('receiptPointsUsedRow');
+            if (pointsUsedRow) pointsUsedRow.classList.add('d-none');
+
+            const totalEl = document.getElementById('receiptTotalAmount');
+            if (totalEl) totalEl.textContent = '--';
+
+            const paymentMethodEl = document.getElementById('receiptPaymentMethod');
+            if (paymentMethodEl) paymentMethodEl.textContent = '--';
         }
 
         function onPaymentSuccess(receiptData, isOfficial = true) {
@@ -1502,108 +1571,117 @@
         }
 
         function renderReceipt(receipt, isOfficial = true) {
-            // CMS-POS-02: Phân biệt hóa đơn chính thức từ máy chủ vs trạng thái chờ tải
+            // CMS-POS-02 & CMS-POS-PRINT-01: Phân biệt hóa đơn chính thức vs chưa có hóa đơn chính thức
+            const receiptArea = document.getElementById('receiptPrintArea');
             const alertPending = document.getElementById('receiptPendingAlert');
             const btnRetryReceipt = document.getElementById('btnRetryFetchReceipt');
             const btnPrint = document.getElementById('btnPrintReceipt');
+            const unofficialNotice = document.getElementById('receiptUnofficialNotice');
 
-            if (isOfficial) {
+            if (isOfficial && receipt) {
+                if (receiptArea) receiptArea.setAttribute('data-receipt-official', 'true');
                 if (alertPending) alertPending.classList.add('d-none');
                 if (btnRetryReceipt) btnRetryReceipt.classList.add('d-none');
+                if (unofficialNotice) unofficialNotice.classList.add('d-none');
                 if (btnPrint) {
                     btnPrint.disabled = false;
                     btnPrint.title = '';
                 }
+
+                // Thông tin cửa hàng (lấy từ Backend / appsettings)
+                const storeNameEl = document.getElementById('receiptStoreName');
+                const storeAddressEl = document.getElementById('receiptStoreAddress');
+                const storeContactEl = document.getElementById('receiptStoreContact');
+                if (storeNameEl && receipt.storeName) storeNameEl.textContent = receipt.storeName;
+                if (storeAddressEl && receipt.storeAddress) storeAddressEl.textContent = receipt.storeAddress;
+                if (storeContactEl) {
+                    const contactParts = [];
+                    if (receipt.storeHotline) contactParts.push(`Hotline: ${receipt.storeHotline}`);
+                    if (receipt.storeWebsite) contactParts.push(`Web: ${receipt.storeWebsite}`);
+                    if (contactParts.length > 0) storeContactEl.textContent = contactParts.join(' - ');
+                }
+
+                document.getElementById('receiptOrderCode').textContent = receipt.orderCode || '--';
+                document.getElementById('receiptCreatedAt').textContent = formatDateTime(receipt.createdAt);
+                document.getElementById('receiptCompletedAt').textContent = receipt.completedAt ? formatDateTime(receipt.completedAt) : '--/--/---- --:--';
+                document.getElementById('receiptCashierName').textContent = receipt.cashierName || 'Thu ngân';
+                document.getElementById('receiptMemberName').textContent = receipt.memberDisplayName || 'Khách vãng lai';
+
+                const pointsRow = document.getElementById('receiptPointsEarnedRow');
+                const pointsSpan = document.getElementById('receiptPointsEarned');
+                if (receipt.pointsEarned && receipt.pointsEarned > 0) {
+                    pointsSpan.textContent = `+${receipt.pointsEarned} điểm`;
+                    pointsRow.classList.remove('d-none');
+                } else {
+                    pointsRow.classList.add('d-none');
+                }
+
+                // Render dòng sách (DOM an toàn, tránh innerHTML với text ngoài)
+                const tbody = document.getElementById('receiptItemsBody');
+                tbody.innerHTML = '';
+
+                const items = receipt.items || [];
+                items.forEach(item => {
+                    const tr = document.createElement('tr');
+
+                    const tdTitle = document.createElement('td');
+                    tdTitle.textContent = item.title || `Sách #${item.bookId}`;
+
+                    const tdQty = document.createElement('td');
+                    tdQty.className = 'text-center';
+                    tdQty.textContent = (item.quantity || 1).toString();
+
+                    const tdPrice = document.createElement('td');
+                    tdPrice.className = 'text-end';
+                    tdPrice.textContent = formatMoneyVnd(item.unitPrice || 0);
+
+                    const tdTotal = document.createElement('td');
+                    tdTotal.className = 'text-end fw-bold';
+                    tdTotal.textContent = formatMoneyVnd(item.lineTotal || (item.unitPrice * item.quantity));
+
+                    tr.appendChild(tdTitle);
+                    tr.appendChild(tdQty);
+                    tr.appendChild(tdPrice);
+                    tr.appendChild(tdTotal);
+                    tbody.appendChild(tr);
+                });
+
+                // Totals
+                document.getElementById('receiptSubTotal').textContent = formatMoneyVnd(receipt.subTotal);
+
+                const discountRow = document.getElementById('receiptDiscountRow');
+                const discountSpan = document.getElementById('receiptDiscountAmount');
+                if (receipt.discountAmount > 0) {
+                    discountSpan.textContent = '-' + formatMoneyVnd(receipt.discountAmount);
+                    discountRow.classList.remove('d-none');
+                } else {
+                    discountRow.classList.add('d-none');
+                }
+
+                const pointsUsedRow = document.getElementById('receiptPointsUsedRow');
+                const pointsUsedSpan = document.getElementById('receiptPointsUsedAmount');
+                if (receipt.pointsUsedAmount > 0) {
+                    pointsUsedSpan.textContent = '-' + formatMoneyVnd(receipt.pointsUsedAmount);
+                    pointsUsedRow.classList.remove('d-none');
+                } else {
+                    pointsUsedRow.classList.add('d-none');
+                }
+
+                document.getElementById('receiptTotalAmount').textContent = formatMoneyVnd(receipt.totalAmount);
+                document.getElementById('receiptPaymentMethod').textContent = receipt.paymentMethod === 'QR' ? 'Chuyển khoản QR' : 'Tiền mặt';
             } else {
+                if (receiptArea) receiptArea.setAttribute('data-receipt-official', 'false');
                 if (alertPending) alertPending.classList.remove('d-none');
                 if (btnRetryReceipt) btnRetryReceipt.classList.remove('d-none');
+                if (unofficialNotice) unofficialNotice.classList.remove('d-none');
                 if (btnPrint) {
                     btnPrint.disabled = true;
                     btnPrint.title = 'Chưa thể in: Dữ liệu hóa đơn chính thức chưa được tải từ máy chủ.';
                 }
+
+                // CMS-POS-PRINT-01: Tuyệt đối không đổ dữ liệu đơn vào #receiptPrintArea
+                clearReceiptDom();
             }
-
-            // Thông tin cửa hàng (lấy từ Backend / appsettings)
-            const storeNameEl = document.getElementById('receiptStoreName');
-            const storeAddressEl = document.getElementById('receiptStoreAddress');
-            const storeContactEl = document.getElementById('receiptStoreContact');
-            if (storeNameEl && receipt.storeName) storeNameEl.textContent = receipt.storeName;
-            if (storeAddressEl && receipt.storeAddress) storeAddressEl.textContent = receipt.storeAddress;
-            if (storeContactEl) {
-                const contactParts = [];
-                if (receipt.storeHotline) contactParts.push(`Hotline: ${receipt.storeHotline}`);
-                if (receipt.storeWebsite) contactParts.push(`Web: ${receipt.storeWebsite}`);
-                if (contactParts.length > 0) storeContactEl.textContent = contactParts.join(' - ');
-            }
-
-            document.getElementById('receiptOrderCode').textContent = receipt.orderCode || '--';
-            document.getElementById('receiptCreatedAt').textContent = formatDateTime(receipt.createdAt);
-            document.getElementById('receiptCompletedAt').textContent = receipt.completedAt ? formatDateTime(receipt.completedAt) : '--/--/---- --:--';
-            document.getElementById('receiptCashierName').textContent = receipt.cashierName || 'Thu ngân';
-            document.getElementById('receiptMemberName').textContent = receipt.memberDisplayName || 'Khách vãng lai';
-
-            const pointsRow = document.getElementById('receiptPointsEarnedRow');
-            const pointsSpan = document.getElementById('receiptPointsEarned');
-            if (receipt.pointsEarned && receipt.pointsEarned > 0) {
-                pointsSpan.textContent = `+${receipt.pointsEarned} điểm`;
-                pointsRow.classList.remove('d-none');
-            } else {
-                pointsRow.classList.add('d-none');
-            }
-
-            // Render dòng sách (DOM an toàn, tránh innerHTML với text ngoài)
-            const tbody = document.getElementById('receiptItemsBody');
-            tbody.innerHTML = '';
-
-            const items = receipt.items || [];
-            items.forEach(item => {
-                const tr = document.createElement('tr');
-
-                const tdTitle = document.createElement('td');
-                tdTitle.textContent = item.title || `Sách #${item.bookId}`;
-
-                const tdQty = document.createElement('td');
-                tdQty.className = 'text-center';
-                tdQty.textContent = (item.quantity || 1).toString();
-
-                const tdPrice = document.createElement('td');
-                tdPrice.className = 'text-end';
-                tdPrice.textContent = formatMoneyVnd(item.unitPrice || 0);
-
-                const tdTotal = document.createElement('td');
-                tdTotal.className = 'text-end fw-bold';
-                tdTotal.textContent = formatMoneyVnd(item.lineTotal || (item.unitPrice * item.quantity));
-
-                tr.appendChild(tdTitle);
-                tr.appendChild(tdQty);
-                tr.appendChild(tdPrice);
-                tr.appendChild(tdTotal);
-                tbody.appendChild(tr);
-            });
-
-            // Totals
-            document.getElementById('receiptSubTotal').textContent = formatMoneyVnd(receipt.subTotal);
-
-            const discountRow = document.getElementById('receiptDiscountRow');
-            const discountSpan = document.getElementById('receiptDiscountAmount');
-            if (receipt.discountAmount > 0) {
-                discountSpan.textContent = '-' + formatMoneyVnd(receipt.discountAmount);
-                discountRow.classList.remove('d-none');
-            } else {
-                discountRow.classList.add('d-none');
-            }
-
-            const pointsUsedRow = document.getElementById('receiptPointsUsedRow');
-            const pointsUsedSpan = document.getElementById('receiptPointsUsedAmount');
-            if (receipt.pointsUsedAmount > 0) {
-                pointsUsedSpan.textContent = '-' + formatMoneyVnd(receipt.pointsUsedAmount);
-                pointsUsedRow.classList.remove('d-none');
-            } else {
-                pointsUsedRow.classList.add('d-none');
-            }
-
-            document.getElementById('receiptTotalAmount').textContent = formatMoneyVnd(receipt.totalAmount);
-            document.getElementById('receiptPaymentMethod').textContent = receipt.paymentMethod === 'QR' ? 'Chuyển khoản QR' : 'Tiền mặt';
         }
 
         async function executeCancelOrder() {

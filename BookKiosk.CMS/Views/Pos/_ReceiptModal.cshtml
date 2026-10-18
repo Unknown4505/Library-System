@@ -16,7 +16,12 @@
                 </div>
 
                 <!-- Khu vực in hóa đơn (Receipt Print Area K80) -->
-                <div id="receiptPrintArea" class="receipt-k80 shadow-sm border">
+                <div id="receiptPrintArea" class="receipt-k80 shadow-sm border" data-receipt-official="false">
+                    <!-- Thông báo cố định khi in chưa có hóa đơn chính thức (CMS-POS-PRINT-01) -->
+                    <div id="receiptUnofficialNotice" class="receipt-unofficial-notice d-none">
+                        Chưa có hóa đơn chính thức - không dùng làm chứng từ
+                    </div>
+
                     <div class="receipt-header">
                         <div class="receipt-title" id="receiptStoreName">NHÀ SÁCH BOOKKIOSK</div>
                         <div class="receipt-subtitle" id="receiptStoreAddress">Điểm bán lẻ Kiosk & Quầy thu ngân</div>
