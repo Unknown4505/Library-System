@@ -4,6 +4,7 @@ using BookKiosk.Application.Interfaces.Repositories;
 using BookKiosk.Application.Interfaces.Services;
 using BookKiosk.Domain.Entities;
 using BookKiosk.Domain.Enums;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,19 +34,22 @@ public class OrderService : IOrderService
     private readonly IPromotionRepository _promotionRepository;
     private readonly IMemberRepository _memberRepository;
     private readonly IPaymentRepository _paymentRepository;
+    private readonly IConfiguration? _configuration;
 
     public OrderService(
         IUnitOfWork unitOfWork,
         IOrderRepository orderRepository,
         IPromotionRepository promotionRepository,
         IMemberRepository memberRepository,
-        IPaymentRepository paymentRepository)
+        IPaymentRepository paymentRepository,
+        IConfiguration? configuration = null)
     {
         _unitOfWork = unitOfWork;
         _orderRepository = orderRepository;
         _promotionRepository = promotionRepository;
         _memberRepository = memberRepository;
         _paymentRepository = paymentRepository;
+        _configuration = configuration;
     }
 
     public async Task<CheckoutResponseDto> CheckoutKioskAsync(CheckoutRequestDto request)
@@ -477,8 +481,16 @@ public class OrderService : IOrderService
             string? sepayQrUrl = null;
             if (paymentMethod == PaymentMethod.QR)
             {
-                expiresAt = order.CreatedAt.AddMinutes(10);
-                sepayQrUrl = $"https://qr.sepay.vn/img?acc=0123456789&bank=Vietcombank&amount={(long)order.TotalAmount}&des={order.OrderCode}";
+                int timeoutMinutes = 4;
+                if (_configuration?["OrderSettings:OrderTimeoutMinutes"] != null &&
+                    int.TryParse(_configuration["OrderSettings:OrderTimeoutMinutes"], out var parsedTimeout))
+                {
+                    timeoutMinutes = parsedTimeout;
+                }
+                expiresAt = order.CreatedAt.AddMinutes(timeoutMinutes);
+                var accountNumber = _configuration?["SePay:AccountNumber"] ?? "0366994409";
+                var bankCode = _configuration?["SePay:BankCode"] ?? _configuration?["SePay:BankName"] ?? "MB";
+                sepayQrUrl = $"https://qr.sepay.vn/img?acc={accountNumber}&bank={bankCode}&amount={(long)order.TotalAmount}&des={order.OrderCode}";
             }
 
             return new CounterCheckoutResponseDto
@@ -518,6 +530,16 @@ public class OrderService : IOrderService
         // Idempotency: nếu đơn đã Paid, trả về hóa đơn hiện tại
         if (order.OrderStatus == OrderStatus.Paid && order.CompletedAt.HasValue)
         {
+            return BuildPosReceipt(order);
+        }
+
+        // Chặn thẳng đơn QR tại luồng thanh toán tiền mặt
+        if (order.PaymentMethod == PaymentMethod.QR)
+        {
+            if (order.OrderStatus != OrderStatus.Paid)
+            {
+                throw new InvalidOperationException("Đơn hàng thanh toán bằng mã QR chưa hoàn tất thanh toán qua hệ thống. Không thể chốt thanh toán tiền mặt tại quầy.");
+            }
             return BuildPosReceipt(order);
         }
 

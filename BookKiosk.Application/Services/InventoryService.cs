@@ -103,6 +103,11 @@ public class InventoryService : IInventoryService
         if (book == null)
             throw new KeyNotFoundException($"Không tìm thấy sách với ID {dto.BookId}.");
 
+        if (dto.ActualQuantity < book.ReservedQuantity)
+        {
+            throw new InvalidOperationException($"Số lượng tồn kho thực tế ({dto.ActualQuantity}) không thể nhỏ hơn số lượng đang giữ chỗ ({book.ReservedQuantity}) cho các đơn hàng chưa hoàn tất. Vui lòng đợi các đơn hàng được xử lý hoặc hủy trước khi điều chỉnh.");
+        }
+
         await _unitOfWork.BeginTransactionAsync();
         try
         {

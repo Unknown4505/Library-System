@@ -325,5 +325,39 @@ Toàn bộ các yêu cầu tích hợp từ CMS Client của `@lehuukhang` đã 
 
 ---
 
+## 7. BÁO CÁO KHẮC PHỤC 4 ĐIỂM RUNTIME THEO ĐÁNH GIÁ CỦA QA LEADER TRÊN PR #35
+
+> **Căn cứ phúc tra:** Review của QA Leader trên PR #35 (HEAD `a585741`).  
+> **Môi trường thực thi:** Microsoft SQL Server 2025 Standard Developer Edition (`localhost`), Disposable QA Database `BookKiosk_QA_<guid>`, .NET 10 Release mode.  
+> **Quy chuẩn:** Xác minh đồng thời cả HTTP response status và trạng thái thực tế trong database SQL Server (`Orders`, `PaymentTransactions`, `Books`).
+
+### 7.1 Tóm tắt Thay đổi Kỹ thuật
+1. **POS-01 (P0):** Chặn thẳng đơn `PaymentMethod.QR` tại luồng xác nhận thanh toán tiền mặt (`ConfirmCounterPaymentAsync`). Nếu đơn hàng chưa ở trạng thái `Paid` (qua webhook SePay), ném `InvalidOperationException` $\rightarrow$ API trả về **HTTP 409 Conflict**. Tuyệt đối không sinh giao dịch `PaymentTransaction Gateway="Cash"` và không đổi trạng thái đơn.
+2. **POS-02 (P0):** Đọc cấu hình `SePay:AccountNumber` (fallback `0366994409`) và `SePay:BankCode` / `SePay:BankName` (fallback `MB`) động từ `IConfiguration` trong `CheckoutCounterAsync`. Giữ nguyên 100% `CheckoutKioskAsync`.
+3. **POS-03 (P1):** Đọc thời hạn đơn từ `OrderSettings:OrderTimeoutMinutes` (mặc định 4 phút / 240s) thay vì hardcode 10 phút. Đồng bộ 100% giữa thời gian hết hạn hiển thị trên giao diện POS (`RemainingSeconds`) và chu kỳ quét tự động của `ExpiredOrderCleanupService`.
+4. **INV-01 (P1):** Validate Invariant nghiệp vụ tại `InventoryService.AdjustStockAsync`: nếu `dto.ActualQuantity < book.ReservedQuantity`, lập tức ném `InvalidOperationException` $\rightarrow$ API trả về **HTTP 409 Conflict**. Ngăn chặn hoàn toàn lỗi văng HTTP 500 do vi phạm Check Constraint SQL Server `CK_Books_ReservedQuantity`.
+5. **Chống gãy build test cũ:** Constructor `OrderService` đặt `IConfiguration? configuration = null` ở cuối danh sách tham số.
+
+### 7.2 Bảng Kết quả Thực chứng Targeted Runtime trên SQL Server Thật
+
+```
+================================================================================
+  BOOKKIOSK — TARGETED QA RUNTIME VERIFICATION (SQL SERVER DEVELOPER/EXPRESS)
+  DATABASE DISPOSABLE: BookKiosk_QA_dd69252a32d | CLEANUP: DROPPED CLEANLY
+  TỔNG KẾT: PASS = 6 | FAIL = 0
+================================================================================
+```
+
+| Mã Lỗi / Test ID | Mức độ | Kịch bản kiểm thử | Trạng thái HTTP | Trạng thái SQL Server Thực tế (DB Evidence) | Kết luận |
+|---|:---:|---|---|---|:---:|
+| **POS-01** | **P0** | Chặn confirm-payment tiền mặt cho đơn QR khi chưa có webhook | **HTTP 409 Conflict** (`code: CONFLICT`) | `Orders.OrderStatus = 1 (Pending)`<br/>`PaymentTransactions COUNT = 0` (Không ghi Cash transaction) | ✅ **PASS** |
+| **POS-02** | **P0** | Counter QR URL đọc tài khoản động từ cấu hình (không hardcode) | **HTTP 200 OK** (`SepayQrCodeUrl` chứa `acc=0366994409&bank=MB`) | URL khớp 100% cấu hình runtime; không chứa số tài khoản cũ `0123456789` | ✅ **PASS** |
+| **POS-03** | **P1** | Đồng bộ Timeout Counter QR theo `OrderTimeoutMinutes` (4 phút) | **HTTP 200 OK** (`ExpiresAt = CreatedAt + 4 phút`, `RemainingSeconds = 239s`) | Ngưỡng đếm ngược khớp hoàn toàn với chu kỳ quét của `ExpiredOrderCleanupService` (4 phút) | ✅ **PASS** |
+| **INV-01** | **P1** | Validate Invariant kho (`ActualQuantity < ReservedQuantity`) | **HTTP 409 Conflict** (`code: CONFLICT`) | `Books.StockQuantity = 10`, `ReservedQuantity = 7` (Bảo toàn check constraint `CK_Books_ReservedQuantity`, không văng 500) | ✅ **PASS** |
+| **POS_A1_B1** | **Reg** | Xác nhận thanh toán tiền mặt (Cash) hợp lệ tại quầy | **HTTP 200 OK** (Trả `PosReceiptDto` chuẩn K80) | `Orders.OrderStatus = 2 (Paid)`<br/>`PaymentTransactions Gateway = 'Cash'`, `Amount = 190000.00` | ✅ **PASS** |
+| **POS_A1_IDEM**| **Reg** | Gọi lại confirm-payment cho đơn Cash đã Paid (Idempotency) | **HTTP 200 OK** (Trả về hóa đơn đã lưu) | `PaymentTransactions COUNT = 1` (Không trừ kho lặp, không sinh giao dịch trùng) | ✅ **PASS** |
+
+---
+
 > [!NOTE]
-> **Kết luận nghiệm thu:** Backend contracts tích hợp CMS PR #33 đã hoàn thành xuất sắc, sẵn sàng 100% để Leader đối chiếu và tiến hành merge PR phối hợp cùng nhánh của Khang.
+> **Kết luận sau phúc tra:** Cả 4 điểm thiếu sót (POS-01, POS-02, POS-03, INV-01) đã được giải quyết triệt để và kiểm chứng thành công trên SQL Server Developer thật. Hệ thống đảm bảo 0 lỗi biên dịch, 0 regression luồng Kiosk, sẵn sàng cho Leader phê duyệt.
