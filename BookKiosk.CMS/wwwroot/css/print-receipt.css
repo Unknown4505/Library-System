@@ -1,0 +1,192 @@
+/* ====================================================================
+   HÓA ĐƠN IN NHIỆT KHỔ K80 (80mm) - STYLESHEET
+   Áp dụng cho máy in hóa đơn nhiệt tiêu chuẩn POS
+   ==================================================================== */
+
+.receipt-k80 {
+    width: 80mm;
+    max-width: 80mm;
+    margin: 0 auto;
+    padding: 10px 5px;
+    font-family: 'Courier New', Courier, monospace, 'Segoe UI', Tahoma, sans-serif;
+    font-size: 12px;
+    color: #000000;
+    line-height: 1.4;
+    background: #ffffff;
+}
+
+.receipt-unofficial-notice {
+    font-size: 13px;
+    font-weight: bold;
+    text-align: center;
+    padding: 24px 8px;
+    line-height: 1.5;
+    color: #000000;
+}
+
+.receipt-header {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.receipt-title {
+    font-size: 16px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.receipt-subtitle {
+    font-size: 11px;
+    color: #333333;
+}
+
+.receipt-divider {
+    border-top: 1px dashed #000000;
+    margin: 6px 0;
+}
+
+.receipt-double-divider {
+    border-top: 2px solid #000000;
+    margin: 6px 0;
+}
+
+.receipt-info-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    margin-bottom: 2px;
+}
+
+.receipt-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6px 0;
+}
+
+.receipt-table th {
+    font-size: 11px;
+    border-bottom: 1px dashed #000000;
+    padding: 4px 0;
+    text-align: left;
+}
+
+.receipt-table td {
+    font-size: 11px;
+    padding: 4px 0;
+    vertical-align: top;
+}
+
+.receipt-totals {
+    margin-top: 4px;
+}
+
+.receipt-total-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3px;
+    font-size: 12px;
+}
+
+.receipt-final-amount {
+    font-size: 15px;
+    font-weight: bold;
+}
+
+.receipt-footer {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 11px;
+}
+
+/* @media print: Chỉ in nội dung hóa đơn K80, ẩn toàn bộ giao diện CMS */
+@media print {
+    body * {
+        visibility: hidden !important;
+    }
+
+    #receiptPrintArea, #receiptPrintArea * {
+        visibility: visible !important;
+    }
+
+    #receiptPrintArea {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 80mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+    }
+
+    /* KHI CÓ HÓA ĐƠN CHÍNH THỨC (data-receipt-official="true"):
+       - Ẩn hoàn toàn thông báo unofficial
+       - Hiển thị đầy đủ thông tin hóa đơn
+    */
+    #receiptPrintArea[data-receipt-official="true"] .receipt-unofficial-notice {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    #receiptPrintArea[data-receipt-official="true"] .receipt-header,
+    #receiptPrintArea[data-receipt-official="true"] .receipt-info,
+    #receiptPrintArea[data-receipt-official="true"] .receipt-totals,
+    #receiptPrintArea[data-receipt-official="true"] .receipt-footer,
+    #receiptPrintArea[data-receipt-official="true"] .receipt-divider,
+    #receiptPrintArea[data-receipt-official="true"] .receipt-double-divider {
+        display: block !important;
+        visibility: visible !important;
+    }
+
+    #receiptPrintArea[data-receipt-official="true"] .receipt-table {
+        display: table !important;
+        visibility: visible !important;
+    }
+
+    /* KHI CHƯA CÓ HÓA ĐƠN CHÍNH THỨC (UNOFFICIAL hoặc chưa có marker true):
+       - Ẩn hoàn toàn header, thông tin đơn, bảng sản phẩm, tổng tiền, footer
+       - CHỈ HIỆN DUY NHẤT dòng thông báo cố định: "Chưa có hóa đơn chính thức - không dùng làm chứng từ"
+    */
+    #receiptPrintArea:not([data-receipt-official="true"]) .receipt-header,
+    #receiptPrintArea:not([data-receipt-official="true"]) .receipt-info,
+    #receiptPrintArea:not([data-receipt-official="true"]) .receipt-table,
+    #receiptPrintArea:not([data-receipt-official="true"]) .receipt-totals,
+    #receiptPrintArea:not([data-receipt-official="true"]) .receipt-footer,
+    #receiptPrintArea:not([data-receipt-official="true"]) .receipt-divider,
+    #receiptPrintArea:not([data-receipt-official="true"]) .receipt-double-divider {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    #receiptPrintArea:not([data-receipt-official="true"]) .receipt-unofficial-notice {
+        display: block !important;
+        visibility: visible !important;
+        width: 80mm !important;
+        font-family: 'Courier New', Courier, monospace, 'Segoe UI', Tahoma, sans-serif !important;
+        font-size: 13px !important;
+        font-weight: bold !important;
+        text-align: center !important;
+        padding: 30px 5px !important;
+        color: #000000 !important;
+        line-height: 1.5 !important;
+    }
+
+    .modal-backdrop, .modal-header, .modal-footer, .btn-close {
+        display: none !important;
+    }
+
+    .modal {
+        position: static !important;
+        overflow: visible !important;
+    }
+
+    .modal-dialog {
+        margin: 0 !important;
+        max-width: 80mm !important;
+    }
+
+    .modal-content {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}

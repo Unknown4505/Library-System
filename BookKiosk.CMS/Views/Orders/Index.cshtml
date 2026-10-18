@@ -1,0 +1,402 @@
+@model BookKiosk.CMS.ViewModels.Orders.OrderListViewModel
+@using BookKiosk.CMS.Helpers
+@using BookKiosk.CMS.Models.Api.Orders
+
+@{
+    ViewData["Title"] = "Quản lý Hóa đơn & Đối soát";
+    var filter = Model.Filter;
+    var activeTab = Model.ActiveTab;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/orders.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/pos.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/print-receipt.css" asp-append-version="true" />
+}
+
+<div class="container-fluid px-4 py-3">
+    <!-- Header Page -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800 fw-bold">
+                <i class="fas fa-file-invoice-dollar text-primary me-2"></i>Quản lý Hóa đơn & Đối soát
+            </h1>
+            <p class="text-muted small mb-0">Theo dõi toàn bộ lịch sử đơn hàng Kiosk, POS quầy và xử lý đối soát lệch tiền trong ngày.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/Pos" class="btn btn-primary fw-semibold shadow-sm">
+                <i class="fas fa-cash-register me-1"></i>Mở màn hình POS
+            </a>
+        </div>
+    </div>
+
+    <!-- Cảnh báo Endpoint Chưa Sẵn Sàng (Nếu Backend chưa có route trên main) -->
+    @if (Model.IsEndpointUnavailable)
+    {
+        <div class="alert alert-danger border-danger-subtle shadow-sm mb-4">
+            <div class="d-flex">
+                <div class="me-3 fs-3 text-danger"><i class="fas fa-exclamation-triangle"></i></div>
+                <div>
+                    <h5 class="alert-heading fs-6 fw-bold mb-1">Route Backend Chưa Sẵn Sàng (404/405)</h5>
+                    <p class="small mb-1">@Model.EndpointMessage</p>
+                    <div class="small text-muted">
+                        <em>Gợi ý phát triển: Bạn có thể bật cờ <code>"Cms:UseMockApi": true</code> trong appsettings.json để trải nghiệm đầy đủ giao diện với dữ liệu giả lập chuẩn Gate H5.</em>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- 1. HỆ THỐNG TAB LỌC DANH SÁCH -->
+    <ul class="nav nav-tabs order-tabs mb-3 border-bottom" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link @(activeTab == "all" ? "active" : "")" href="/Orders?tab=all">
+                <i class="fas fa-list me-1"></i>Tất cả hóa đơn
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(activeTab == "support" ? "active" : "")" href="/Orders?tab=support">
+                <i class="fas fa-exclamation-triangle text-danger me-1"></i>Cần hỗ trợ (Đối soát)
+                @if (Model.NeedsSupportCount > 0)
+                {
+                    <span class="badge bg-danger rounded-pill ms-1">@Model.NeedsSupportCount</span>
+                }
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(activeTab == "kiosk" ? "active" : "")" href="/Orders?tab=kiosk">
+                <i class="fas fa-desktop me-1"></i>Đơn Kiosk
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(activeTab == "counter" ? "active" : "")" href="/Orders?tab=counter">
+                <i class="fas fa-cash-register me-1"></i>Đơn Quầy (POS)
+            </a>
+        </li>
+    </ul>
+
+    <!-- 2. BỘ LỌC TÌM KIẾM (FILTER CARD) -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-3">
+            <form method="get" action="/Orders" class="row g-2 align-items-end">
+                <input type="hidden" name="tab" value="@activeTab" />
+                @if (activeTab == "support")
+                {
+                    <input type="hidden" name="needsSupport" value="true" />
+                }
+
+                <!-- Tìm theo mã đơn hàng -->
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold text-dark mb-1">Mã đơn hàng:</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="orderCode" class="form-control" 
+                               value="@filter.OrderCode" 
+                               placeholder="VD: ORD-20261101-0105..." />
+                    </div>
+                </div>
+
+                <!-- Lọc trạng thái -->
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold text-dark mb-1">Trạng thái:</label>
+                    <select name="status" class="form-select form-select-sm">
+                        <option value="">-- Tất cả trạng thái --</option>
+                        <option value="1" selected="@(filter.Status == OrderStatus.Pending)">Chờ thanh toán (Pending)</option>
+                        <option value="2" selected="@(filter.Status == OrderStatus.Paid)">Đã thanh toán (Paid)</option>
+                        <option value="3" selected="@(filter.Status == OrderStatus.Cancelled)">Đã hủy (Cancelled)</option>
+                    </select>
+                </div>
+
+                <!-- Lọc phương thức thanh toán -->
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold text-dark mb-1">Thanh toán:</label>
+                    <select name="paymentMethod" class="form-select form-select-sm">
+                        <option value="">-- Tất cả PTTT --</option>
+                        <option value="1" selected="@(filter.PaymentMethod == PaymentMethod.Cash)">Tiền mặt</option>
+                        <option value="2" selected="@(filter.PaymentMethod == PaymentMethod.QR)">Chuyển khoản QR</option>
+                    </select>
+                </div>
+
+                <!-- Từ ngày -->
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold text-dark mb-1">Từ ngày:</label>
+                    <input type="date" name="fromDate" class="form-control form-control-sm" 
+                           value="@(filter.FromDate?.ToString("yyyy-MM-dd"))" />
+                </div>
+
+                <!-- Đến ngày -->
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold text-dark mb-1">Đến ngày:</label>
+                    <input type="date" name="toDate" class="form-control form-control-sm" 
+                           value="@(filter.ToDate?.ToString("yyyy-MM-dd"))" />
+                </div>
+
+                <!-- Nút thao tác lọc -->
+                <div class="col-md-1 d-flex gap-1">
+                    <button type="submit" class="btn btn-sm btn-primary w-100 fw-semibold" title="Áp dụng bộ lọc">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                    <a href="/Orders?tab=@activeTab" class="btn btn-sm btn-outline-secondary" title="Đặt lại bộ lọc">
+                        <i class="fas fa-undo"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. BẢNG DANH SÁCH HÓA ĐƠN ĐƠN HÀNG -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover orders-table mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 170px;">Mã đơn hàng</th>
+                            <th style="width: 110px;">Kênh bán</th>
+                            <th style="width: 160px;">Thời gian tạo</th>
+                            <th style="width: 120px;">Khách hàng</th>
+                            <th style="width: 120px;">PTTT</th>
+                            <th class="text-end" style="width: 130px;">Tổng tiền</th>
+                            <th class="text-center" style="width: 140px;">Trạng thái</th>
+                            <th class="text-center" style="width: 150px;">Đối soát</th>
+                            <th class="text-center" style="width: 130px;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Orders.Items != null && Model.Orders.Items.Any())
+                        {
+                            foreach (var item in Model.Orders.Items)
+                            {
+                                <tr>
+                                    <!-- Mã đơn hàng -->
+                                    <td>
+                                        <a href="javascript:void(0)" class="order-code-link btn-view-order-detail" data-order-id="@item.OrderId">
+                                            @item.OrderCode
+                                        </a>
+                                    </td>
+
+                                    <!-- Kênh bán hàng -->
+                                    <td>
+                                        @if (item.SaleChannel == SaleChannel.Kiosk)
+                                        {
+                                            <span class="badge badge-channel-kiosk"><i class="fas fa-desktop me-1"></i>Kiosk</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-channel-counter"><i class="fas fa-cash-register me-1"></i>Quầy</span>
+                                        }
+                                    </td>
+
+                                    <!-- Thời gian tạo -->
+                                    <td>
+                                        <span class="small text-dark d-block">@DateTimeHelper.FormatVietnamDateTime(item.CreatedAt)</span>
+                                    </td>
+
+                                    <!-- Khách hàng -->
+                                    <td>
+                                        @if (item.HasMember)
+                                        {
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle small">
+                                                <i class="fas fa-user-check me-1"></i>Thành viên
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small fst-italic">Vãng lai</span>
+                                        }
+                                    </td>
+
+                                    <!-- Phương thức thanh toán -->
+                                    <td>
+                                        @if (item.PaymentMethod == PaymentMethod.QR)
+                                        {
+                                            <span class="small text-primary fw-semibold"><i class="fas fa-qrcode me-1"></i>QR SePay</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="small text-secondary fw-semibold"><i class="fas fa-money-bill-wave me-1"></i>Tiền mặt</span>
+                                        }
+                                    </td>
+
+                                    <!-- Tổng tiền -->
+                                    <td class="text-end font-monospace fw-bold text-dark">
+                                        @MoneyHelper.FormatVnd(item.TotalAmount)
+                                    </td>
+
+                                    <!-- Trạng thái -->
+                                    <td class="text-center">
+                                        @if (item.OrderStatus == OrderStatus.Paid)
+                                        {
+                                            <span class="badge badge-status-paid"><i class="fas fa-check-circle me-1"></i>Đã thanh toán</span>
+                                        }
+                                        else if (item.OrderStatus == OrderStatus.Pending)
+                                        {
+                                            <span class="badge badge-status-pending"><i class="fas fa-clock me-1"></i>Chờ thanh toán</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-status-cancelled"><i class="fas fa-times-circle me-1"></i>Đã hủy</span>
+                                        }
+                                    </td>
+
+                                    <!-- Đối soát / Cần hỗ trợ -->
+                                    <td class="text-center">
+                                        @if (item.NeedsSupport.HasValue)
+                                        {
+                                            if (item.NeedsSupport.Value)
+                                            {
+                                                <span class="badge badge-needs-support" title="Đơn hàng có giao dịch tiền vào nhưng chưa Paid">
+                                                    <i class="fas fa-exclamation-triangle me-1"></i>Cần đối soát
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-light text-secondary border">Bình thường</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-muted border" title="Backend chưa trả cờ NeedsSupport trong danh sách">
+                                                Chưa hỗ trợ
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <!-- Thao tác -->
+                                    <td class="text-center">
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                                <li>
+                                                    <a class="dropdown-item btn-view-order-detail" href="javascript:void(0)" data-order-id="@item.OrderId">
+                                                        <i class="fas fa-eye text-primary me-2"></i>Xem chi tiết
+                                                    </a>
+                                                </li>
+                                                @if (item.OrderStatus == OrderStatus.Paid)
+                                                {
+                                                    <li>
+                                                        <a class="dropdown-item btn-reprint-receipt" href="javascript:void(0)" data-order-id="@item.OrderId">
+                                                            <i class="fas fa-print text-success me-2"></i>In lại hóa đơn
+                                                        </a>
+                                                    </li>
+                                                }
+                                                @if (item.SaleChannel == SaleChannel.Counter && item.OrderStatus == OrderStatus.Pending)
+                                                {
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <a class="dropdown-item text-danger btn-cancel-counter-order" href="javascript:void(0)" 
+                                                           data-order-id="@item.OrderId" data-order-code="@item.OrderCode">
+                                                            <i class="fas fa-ban me-2"></i>Hủy đơn quầy
+                                                        </a>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="9" class="text-center py-5 text-muted">
+                                    <div class="mb-2"><i class="fas fa-receipt fs-1 text-secondary opacity-50"></i></div>
+                                    <div class="fw-semibold">Không tìm thấy đơn hàng nào phù hợp với bộ lọc.</div>
+                                    @if (activeTab == "support")
+                                    {
+                                        <div class="small text-muted mt-1">Tuyệt vời! Hệ thống không ghi nhận đơn hàng nào bị lệch tiền cần xử lý.</div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- PHÂN TRANG (PAGINATION) -->
+            @if (Model.Orders.TotalPages > 1)
+            {
+                <div class="p-3 border-top d-flex justify-content-between align-items-center">
+                    <span class="small text-muted">
+                        Hiển thị trang <strong>@Model.Orders.Page</strong> / <strong>@Model.Orders.TotalPages</strong> (Tổng cộng <strong>@Model.Orders.TotalCount</strong> đơn)
+                    </span>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item @(Model.Orders.HasPreviousPage ? "" : "disabled")">
+                                <a class="page-link" href="/Orders?tab=@activeTab&page=@(Model.Orders.Page - 1)&orderCode=@filter.OrderCode&status=@((int?)filter.Status)&channel=@((int?)filter.Channel)&paymentMethod=@((int?)filter.PaymentMethod)">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                            @for (int p = 1; p <= Model.Orders.TotalPages; p++)
+                            {
+                                <li class="page-item @(p == Model.Orders.Page ? "active" : "")">
+                                    <a class="page-link" href="/Orders?tab=@activeTab&page=@p&orderCode=@filter.OrderCode&status=@((int?)filter.Status)&channel=@((int?)filter.Channel)&paymentMethod=@((int?)filter.PaymentMethod)">
+                                        @p
+                                    </a>
+                                </li>
+                            }
+                            <li class="page-item @(Model.Orders.HasNextPage ? "" : "disabled")">
+                                <a class="page-link" href="/Orders?tab=@activeTab&page=@(Model.Orders.Page + 1)&orderCode=@filter.OrderCode&status=@((int?)filter.Status)&channel=@((int?)filter.Channel)&paymentMethod=@((int?)filter.PaymentMethod)">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================== -->
+<!-- 4. CÁC MODAL HỆ THỐNG (CHI TIẾT, IN BILL, HỦY ĐƠN)              -->
+<!-- ============================================================== -->
+
+<!-- 4.1 Modal Chi tiết & Đối soát đơn hàng -->
+<div class="modal fade" id="orderDetailModal" tabindex="-1" aria-labelledby="orderDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow" id="orderDetailModalContent">
+            <!-- AJAX partial render tại đây -->
+        </div>
+    </div>
+</div>
+
+<!-- 4.2 Modal In lại Hóa đơn K80 (Tái sử dụng modal POS) -->
+<partial name="~/Views/Pos/_ReceiptModal.cshtml" />
+
+<!-- 4.3 Modal Xác nhận hủy đơn Quầy -->
+<div class="modal fade" id="cancelCounterOrderModal" tabindex="-1" aria-labelledby="cancelCounterOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white py-2">
+                <h5 class="modal-title fs-6 fw-bold" id="cancelCounterOrderModalLabel">
+                    <i class="fas fa-exclamation-triangle me-1"></i>Xác nhận hủy đơn hàng quầy
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body p-3">
+                <p class="mb-2">Bạn có chắc chắn muốn hủy đơn hàng quầy <strong id="cancelOrderModalCode" class="text-danger font-monospace">ORD-XXXXXXXX</strong>?</p>
+                <div class="small bg-light p-2 rounded border border-warning text-dark mb-2">
+                    <i class="fas fa-info-circle text-warning me-1"></i>
+                    <strong>Lưu ý:</strong> Đơn hàng sẽ được chuyển sang trạng thái <code>Cancelled</code> và toàn bộ số lượng sách giữ chỗ sẽ được nhả lại cho kho. Thao tác này <strong>không hỗ trợ hoàn tiền tự động</strong>.
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Bỏ qua</button>
+                <button type="button" class="btn btn-danger btn-sm fw-semibold" id="btnConfirmCancelCounterOrder">
+                    <i class="fas fa-ban me-1"></i>Xác nhận hủy đơn
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form id="antiForgeryForm" style="display:none;">
+    @Html.AntiForgeryToken()
+</form>
+
+@section Scripts {
+    <script src="~/js/orders.js" asp-append-version="true"></script>
+}

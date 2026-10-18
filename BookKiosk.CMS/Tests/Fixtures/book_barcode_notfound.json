@@ -1,0 +1,6 @@
+{
+  "success": false,
+  "code": "NOT_FOUND",
+  "message": "Không tìm thấy sách với mã vạch: 9999999999",
+  "data": null
+}

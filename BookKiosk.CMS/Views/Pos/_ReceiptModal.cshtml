@@ -1,0 +1,127 @@
+@* Modal Hiển thị và In Hóa đơn K80 *@
+<div class="modal fade" id="receiptModal" tabindex="-1" aria-labelledby="receiptModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white py-2">
+                <h5 class="modal-title fs-6 fw-bold" id="receiptModalLabel">
+                    <i class="fas fa-check-circle me-1"></i>Thanh toán thành công — Hóa đơn bán hàng
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body p-3 bg-light">
+                <!-- Cảnh báo khi đơn đã thanh toán nhưng chưa lấy được hóa đơn chính thức từ máy chủ (CMS-POS-02) -->
+                <div id="receiptPendingAlert" class="alert alert-warning d-none mb-3 py-2 px-3 small shadow-sm">
+                    <div class="fw-bold"><i class="fas fa-exclamation-triangle me-1"></i>Đã thanh toán — Chưa tải được hóa đơn chính thức</div>
+                    <div class="text-muted mt-1">Đơn hàng đã được xác nhận thanh toán, nhưng hệ thống chưa lấy được dữ liệu hóa đơn chính thức từ máy chủ. Nút in tạm thời bị khóa.</div>
+                </div>
+
+                <!-- Khu vực in hóa đơn (Receipt Print Area K80) -->
+                <div id="receiptPrintArea" class="receipt-k80 shadow-sm border" data-receipt-official="false">
+                    <!-- Thông báo cố định khi in chưa có hóa đơn chính thức (CMS-POS-PRINT-01) -->
+                    <div id="receiptUnofficialNotice" class="receipt-unofficial-notice d-none">
+                        Chưa có hóa đơn chính thức - không dùng làm chứng từ
+                    </div>
+
+                    <div class="receipt-header">
+                        <div class="receipt-title" id="receiptStoreName">NHÀ SÁCH BOOKKIOSK</div>
+                        <div class="receipt-subtitle" id="receiptStoreAddress">Điểm bán lẻ Kiosk & Quầy thu ngân</div>
+                        <div class="receipt-subtitle" id="receiptStoreContact">Hotline: 1900 6868 - Web: bookkiosk.vn</div>
+                        <div class="receipt-divider"></div>
+                        <div class="fw-bold" style="font-size: 13px;">HÓA ĐƠN BÁN LẺ</div>
+                    </div>
+
+                    <div class="receipt-info">
+                        <div class="receipt-info-row">
+                            <span>Mã đơn:</span>
+                            <strong id="receiptOrderCode">ORD-XXXXXXXX</strong>
+                        </div>
+                        <div class="receipt-info-row">
+                            <span>Ngày tạo:</span>
+                            <span id="receiptCreatedAt">--/--/---- --:--</span>
+                        </div>
+                        <div class="receipt-info-row">
+                            <span>Thanh toán:</span>
+                            <span id="receiptCompletedAt">--/--/---- --:--</span>
+                        </div>
+                        <div class="receipt-info-row">
+                            <span>Thu ngân:</span>
+                            <span id="receiptCashierName">Thu ngân</span>
+                        </div>
+                        <div class="receipt-info-row">
+                            <span>Khách hàng:</span>
+                            <span id="receiptMemberName">Thành viên</span>
+                        </div>
+                        <div class="receipt-info-row" id="receiptPointsEarnedRow">
+                            <span>Điểm tích lũy:</span>
+                            <span id="receiptPointsEarned">+0 điểm</span>
+                        </div>
+                    </div>
+
+                    <div class="receipt-divider"></div>
+
+                    <!-- Danh sách sản phẩm -->
+                    <table class="receipt-table">
+                        <thead>
+                            <tr>
+                                <th>Tên sách</th>
+                                <th class="text-center" style="width: 25px;">SL</th>
+                                <th class="text-end" style="width: 60px;">Đ.Giá</th>
+                                <th class="text-end" style="width: 70px;">T.Tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody id="receiptItemsBody">
+                            <!-- JS render các dòng sách -->
+                        </tbody>
+                    </table>
+
+                    <div class="receipt-divider"></div>
+
+                    <!-- Bảng tổng tiền -->
+                    <div class="receipt-totals">
+                        <div class="receipt-total-row">
+                            <span>Tạm tính (niêm yết):</span>
+                            <span id="receiptSubTotal">0 ₫</span>
+                        </div>
+                        <div class="receipt-total-row" id="receiptDiscountRow">
+                            <span>Giảm khuyến mãi:</span>
+                            <span id="receiptDiscountAmount">-0 ₫</span>
+                        </div>
+                        <div class="receipt-total-row" id="receiptPointsUsedRow">
+                            <span>Trừ điểm thành viên:</span>
+                            <span id="receiptPointsUsedAmount">-0 ₫</span>
+                        </div>
+                        <div class="receipt-double-divider"></div>
+                        <div class="receipt-total-row receipt-final-amount">
+                            <span>THỰC TRẢ:</span>
+                            <span id="receiptTotalAmount">0 ₫</span>
+                        </div>
+                        <div class="receipt-total-row" style="margin-top: 4px;">
+                            <span>Phương thức:</span>
+                            <span id="receiptPaymentMethod" class="fw-bold">Tiền mặt</span>
+                        </div>
+                    </div>
+
+                    <div class="receipt-divider"></div>
+
+                    <div class="receipt-footer">
+                        <div>Cảm ơn Quý khách & Hẹn gặp lại!</div>
+                        <div style="font-size: 10px; color: #555555; margin-top: 2px;">(Hóa đơn điện tử khởi tạo từ hệ thống POS BookKiosk)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-between py-2">
+                <button type="button" class="btn btn-outline-secondary" id="btnReceiptNewOrder" data-bs-dismiss="modal">
+                    <i class="fas fa-plus me-1"></i>Đơn mới
+                </button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-primary d-none" id="btnRetryFetchReceipt">
+                        <i class="fas fa-sync-alt me-1"></i>Thử tải lại hóa đơn
+                    </button>
+                    <button type="button" class="btn btn-primary px-3 fw-semibold" id="btnPrintReceipt">
+                        <i class="fas fa-print me-1"></i>In hóa đơn K80
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

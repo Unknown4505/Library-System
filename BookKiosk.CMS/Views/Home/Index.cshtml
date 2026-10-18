@@ -1,8 +1,105 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@{
+    ViewData["Title"] = "Dashboard - BookKiosk CMS";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0 fw-bold text-dark">
+            <i class="fas fa-tachometer-alt me-2 text-primary"></i>Dashboard
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb small mb-0">
+                <li class="breadcrumb-item active">Tổng quan hệ thống</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="text-muted small">
+        <i class="fas fa-sync-alt me-1"></i>
+        Cập nhật: @DateTimeHelper.FormatVietnamDateTime(DateTime.UtcNow)
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-start border-primary border-4 shadow-sm h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-uppercase fw-bold text-primary small mb-1">Doanh thu hôm nay</div>
+                    <div class="h4 mb-0 fw-bold text-dark">---</div>
+                    <div class="text-muted small mt-1">Đang tải dữ liệu...</div>
+                </div>
+                <div class="text-primary opacity-50">
+                    <i class="fas fa-dollar-sign fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-start border-success border-4 shadow-sm h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-uppercase fw-bold text-success small mb-1">Đơn hàng hôm nay</div>
+                    <div class="h4 mb-0 fw-bold text-dark">---</div>
+                    <div class="text-muted small mt-1">Đang tải dữ liệu...</div>
+                </div>
+                <div class="text-success opacity-50">
+                    <i class="fas fa-shopping-cart fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-start border-warning border-4 shadow-sm h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-uppercase fw-bold text-warning small mb-1">Sách sắp hết</div>
+                    <div class="h4 mb-0 fw-bold text-dark">---</div>
+                    <div class="text-muted small mt-1">Đang tải dữ liệu...</div>
+                </div>
+                <div class="text-warning opacity-50">
+                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-start border-info border-4 shadow-sm h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-uppercase fw-bold text-info small mb-1">Kiosk hoạt động</div>
+                    <div class="h4 mb-0 fw-bold text-dark">---</div>
+                    <div class="text-muted small mt-1">Đang tải dữ liệu...</div>
+                </div>
+                <div class="text-info opacity-50">
+                    <i class="fas fa-desktop fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Placeholder cho biểu đồ và dữ liệu -->
+<div class="row g-3">
+    <div class="col-xl-8">
+        <div class="card shadow-sm">
+            <div class="card-header fw-bold">
+                <i class="fas fa-chart-bar me-2"></i>Doanh thu theo ngày (7 ngày gần nhất)
+            </div>
+            <div class="card-body">
+                <partial name="_EmptyState" model="@("Dữ liệu biểu đồ doanh thu sẽ được tích hợp từ Backend API. Tuần 7 sẽ hoàn thiện tính năng này.")" />
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="card shadow-sm">
+            <div class="card-header fw-bold">
+                <i class="fas fa-chart-pie me-2"></i>Trạng thái Kiosk
+            </div>
+            <div class="card-body">
+                <partial name="_EmptyState" model="@("Dữ liệu giám sát Kiosk sẽ được tích hợp ở Tuần 7.")" />
+            </div>
+        </div>
+    </div>
 </div>

@@ -1,0 +1,236 @@
+@model BookKiosk.CMS.ViewModels.Orders.OrderDetailViewModel
+@using BookKiosk.CMS.Helpers
+@using BookKiosk.CMS.Models.Api.Orders
+@using BookKiosk.CMS.ViewModels.Orders
+
+@{
+    var order = Model.Order;
+    decimal totalPaid = order?.Payments?.Sum(p => p.Amount) ?? 0m;
+    decimal discrepancy = (order != null) ? order.TotalAmount - totalPaid : 0m;
+}
+
+@if (Model.State == DetailsState.EndpointUnavailable)
+{
+    <div class="alert alert-warning border-warning-subtle small mb-3 shadow-sm">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Endpoint máy chủ chưa sẵn sàng:</strong> @Model.EndpointMessage
+    </div>
+}
+else if (Model.State == DetailsState.NotFound || order == null)
+{
+    <div class="alert alert-warning border-warning-subtle small mb-3 shadow-sm">
+        <i class="fas fa-exclamation-circle me-2"></i>
+        <strong>Không tìm thấy thông tin đơn hàng:</strong> @(Model.EndpointMessage ?? "Đơn hàng không tồn tại trong hệ thống.")
+    </div>
+}
+else if (Model.State == DetailsState.Found && order != null)
+{
+    <!-- 1. BẢNG CẢNH BÁO ĐỐI SOÁT LỆCH TIỀN (NẾU CÓ) -->
+    @if (order.IsPaymentMismatch)
+    {
+        <div class="reconciliation-card shadow-sm mb-3">
+            <div class="d-flex align-items-center mb-2">
+                <i class="fas fa-exclamation-circle text-danger fs-5 me-2"></i>
+                <div class="reconciliation-title mb-0">CẢNH BÁO ĐỐI SOÁT: SỐ TIỀN CHUYỂN KHOẢN KHÔNG KHỚP</div>
+            </div>
+            <p class="small text-muted mb-2">
+                Giao dịch ngân hàng ghi nhận số tiền chuyển khoản không khớp với tổng tiền đơn hàng. 
+                Theo quy định bảo mật & SLA: Nhân viên đối soát tài khoản và xử lý trong ngày.
+            </p>
+            <div class="row g-2 text-center">
+                <div class="col-4">
+                    <div class="reconciliation-stat-box">
+                        <div class="reconciliation-stat-label">Cần thanh toán</div>
+                        <div class="reconciliation-stat-val text-dark">@MoneyHelper.FormatVnd(order.TotalAmount)</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="reconciliation-stat-box">
+                        <div class="reconciliation-stat-label">Thực nhận (SePay)</div>
+                        <div class="reconciliation-stat-val text-primary">@MoneyHelper.FormatVnd(totalPaid)</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="reconciliation-stat-box">
+                        <div class="reconciliation-stat-label">Chênh lệch</div>
+                        <div class="reconciliation-stat-val @(discrepancy > 0 ? "text-danger" : "text-success")">
+                            @(discrepancy > 0 ? $"-{MoneyHelper.FormatVnd(discrepancy)}" : $"+{MoneyHelper.FormatVnd(Math.Abs(discrepancy))}")
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- 2. THẺ TỔNG QUAN TRẠNG THÁI & TÀI CHÍNH -->
+    <div class="order-status-card mb-3">
+        <div class="row align-items-center">
+            <div class="col-md-6 mb-2 mb-md-0">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fs-6 fw-bold">Trạng thái:</span>
+                    @if (order.OrderStatus == OrderStatus.Paid)
+                    {
+                        <span class="badge bg-success px-2 py-1 fs-6"><i class="fas fa-check-circle me-1"></i>Đã thanh toán (Paid)</span>
+                    }
+                    else if (order.OrderStatus == OrderStatus.Pending)
+                    {
+                        <span class="badge bg-warning text-dark px-2 py-1 fs-6"><i class="fas fa-clock me-1"></i>Chờ thanh toán (Pending)</span>
+                    }
+                    else if (order.OrderStatus == OrderStatus.Cancelled)
+                    {
+                        <span class="badge bg-danger px-2 py-1 fs-6"><i class="fas fa-times-circle me-1"></i>Đã hủy (Cancelled)</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary px-2 py-1 fs-6">@order.OrderStatus</span>
+                    }
+                </div>
+                <div class="text-muted small mt-1">
+                    Kênh bán: <strong>@(order.SaleChannel == SaleChannel.Kiosk ? "Trạm Kiosk" : "Quầy thu ngân (Counter)")</strong>
+                </div>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <div class="small text-muted">Tổng giá trị đơn hàng</div>
+                <div class="fs-4 fw-bold text-primary">@MoneyHelper.FormatVnd(order.TotalAmount)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. THÔNG TIN KHÁCH HÀNG & THỜI GIAN -->
+    <div class="bg-light p-3 rounded border mb-3 small">
+        <div class="row g-2">
+            <div class="col-sm-6">
+                <div><span class="text-muted">Mã đơn hàng:</span> <strong class="font-monospace">@order.OrderCode</strong></div>
+                <div class="mt-1"><span class="text-muted">Thời gian tạo:</span> @DateTimeHelper.FormatVietnamDateTime(order.CreatedAt)</div>
+                <div class="mt-1"><span class="text-muted">Hoàn thành:</span> @(order.CompletedAt.HasValue ? DateTimeHelper.FormatVietnamDateTime(order.CompletedAt.Value) : "--")</div>
+            </div>
+            <div class="col-sm-6">
+                <div><span class="text-muted">Thu ngân:</span> <strong>@(order.CashierName ?? "Thu ngân")</strong></div>
+                <div class="mt-1"><span class="text-muted">Phương thức thanh toán:</span> <strong>@(order.PaymentMethod == PaymentMethod.QR ? "Chuyển khoản QR" : "Tiền mặt")</strong></div>
+                <div class="mt-1"><span class="text-muted">Khách hàng thành viên:</span> 
+                    @if (!string.IsNullOrWhiteSpace(order.MemberName))
+                    {
+                        <strong>@order.MemberName</strong>
+                        @if (!string.IsNullOrWhiteSpace(order.MemberPhone))
+                        {
+                            <span class="text-muted font-monospace ms-1">(@PhoneHelper.MaskPhone(order.MemberPhone))</span>
+                        }
+                    }
+                    else
+                    {
+                        <span class="text-muted fst-italic">Khách vãng lai</span>
+                    }
+                </div>
+                @if (order.PointsEarned.HasValue && order.PointsEarned.Value > 0)
+                {
+                    <div class="mt-1"><span class="text-muted">Điểm tích lũy nhận được:</span> <strong class="text-success">+@order.PointsEarned.Value điểm</strong></div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. DANH SÁCH SÁCH ĐÃ MUA (SNAPSHOT BẤT BIẾN) -->
+    <h6 class="fw-bold mb-2 text-dark fs-6">
+        <i class="fas fa-book me-1 text-primary"></i>Danh sách sách trong đơn (Snapshot tại thời điểm mua)
+    </h6>
+    <div class="table-responsive border rounded mb-3 bg-white">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light small">
+                <tr>
+                    <th class="ps-3" style="width: 40px;">#</th>
+                    <th>Tên sách</th>
+                    <th class="text-center" style="width: 80px;">Số lượng</th>
+                    <th class="text-end" style="width: 120px;">Đơn giá</th>
+                    <th class="text-end pe-3" style="width: 130px;">Thành tiền</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{ int idx = 1; }
+                @foreach (var item in order.Items)
+                {
+                    <tr>
+                        <td class="ps-3 text-muted small">@idx</td>
+                        <td>
+                            <div class="fw-semibold text-dark">@item.BookTitle</div>
+                            <div class="small text-muted font-monospace">Mã: #@item.BookId</div>
+                        </td>
+                        <td class="text-center font-monospace fw-semibold">@item.Quantity</td>
+                        <td class="text-end">@MoneyHelper.FormatVnd(item.UnitPriceAtTime)</td>
+                        <td class="text-end pe-3 fw-bold text-dark">@MoneyHelper.FormatVnd(item.LineTotal)</td>
+                    </tr>
+                    idx++;
+                }
+            </tbody>
+            <tfoot class="table-light border-top">
+                <tr>
+                    <td colspan="4" class="text-end small">Tạm tính (Tổng niêm yết):</td>
+                    <td class="text-end pe-3">@MoneyHelper.FormatVnd(order.SubTotal)</td>
+                </tr>
+                @if (order.DiscountAmount > 0)
+                {
+                    <tr>
+                        <td colspan="4" class="text-end small text-success">Giảm giá khuyến mãi:</td>
+                        <td class="text-end pe-3 text-success">-@MoneyHelper.FormatVnd(order.DiscountAmount)</td>
+                    </tr>
+                }
+                @if (order.PointsUsedAmount > 0)
+                {
+                    <tr>
+                        <td colspan="4" class="text-end small text-info">Giảm trừ điểm thành viên (@order.PointsUsed điểm):</td>
+                        <td class="text-end pe-3 text-info">-@MoneyHelper.FormatVnd(order.PointsUsedAmount)</td>
+                    </tr>
+                }
+                <tr class="fw-bold fs-6">
+                    <td colspan="4" class="text-end text-dark">Tổng tiền thực trả:</td>
+                    <td class="text-end pe-3 text-primary">@MoneyHelper.FormatVnd(order.TotalAmount)</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- 5. LỊCH SỬ GIAO DỊCH THANH TOÁN (PAYMENT TRANSACTIONS) -->
+    <h6 class="fw-bold mb-2 text-dark fs-6">
+        <i class="fas fa-history text-secondary me-1"></i>Lịch sử giao dịch thanh toán / Webhook SePay:
+    </h6>
+    @if (order.Payments != null && order.Payments.Any())
+    {
+        <div class="table-responsive border rounded shadow-sm mb-2 bg-white">
+            <table class="table table-sm table-striped align-middle mb-0 small">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Cổng thanh toán</th>
+                        <th>Mã tham chiếu (RefCode)</th>
+                        <th>Thời gian giao dịch</th>
+                        <th class="text-end pe-3">Số tiền ghi nhận</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in order.Payments)
+                    {
+                        <tr>
+                            <td class="ps-3"><span class="badge bg-primary-subtle text-primary border border-primary-subtle">@p.Gateway</span></td>
+                            <td class="font-monospace fw-bold">@p.ReferenceCode</td>
+                            <td>@DateTimeHelper.FormatVietnamDateTime(p.CreatedAt)</td>
+                            <td class="text-end pe-3 font-monospace fw-bold text-success">@MoneyHelper.FormatVnd(p.Amount)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-light border small text-muted mb-2">
+            <i class="fas fa-info-circle me-1"></i>Chưa ghi nhận giao dịch thanh toán điện tử nào cho đơn hàng này.
+        </div>
+    }
+
+    <!-- 6. LƯU Ý BẢO MẬT & QUYỀN HẠN TỪ TECH LEAD -->
+    @if (order.SaleChannel == SaleChannel.Kiosk)
+    {
+        <div class="small bg-white p-2 rounded border border-secondary-subtle text-secondary mt-3">
+            <i class="fas fa-shield-alt text-primary me-1"></i>
+            <strong>Quy định nghiệp vụ Kiosk:</strong> Hệ thống hiện tại chỉ hỗ trợ xem và đối soát đối với đơn hàng Kiosk. Backend chưa hỗ trợ route hủy đơn Kiosk cho nhân viên để đảm bảo an toàn kho hàng.
+        </div>
+    }
+}

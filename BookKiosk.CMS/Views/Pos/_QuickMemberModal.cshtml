@@ -1,0 +1,56 @@
+@* Modal Đăng ký nhanh thành viên tại quầy *@
+<div class="modal fade" id="quickMemberModal" tabindex="-1" aria-labelledby="quickMemberModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow border-0 rounded-3">
+            <div class="modal-header bg-light border-bottom py-3">
+                <h5 class="modal-title fw-bold text-dark" id="quickMemberModalLabel">
+                    <i class="fas fa-user-plus text-primary me-2"></i>Đăng ký Thành viên mới tại quầy
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="quickMemberForm" onsubmit="return false;">
+                    @Html.AntiForgeryToken()
+                    <div id="quickMemberErrorAlert" class="alert alert-danger py-2 px-3 small d-none" role="alert"></div>
+
+                    <!-- Số điện thoại -->
+                    <div class="mb-3">
+                        <label for="quickMemberPhone" class="form-label fw-semibold text-dark">
+                            Số điện thoại di động <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white">
+                                <i class="fas fa-phone text-muted"></i>
+                            </span>
+                            <input type="tel" class="form-control" id="quickMemberPhone" 
+                                   placeholder="Ví dụ: 0912345678" maxlength="10" required autocomplete="off" />
+                        </div>
+                        <div class="form-text small">Số điện thoại là mã định danh dùng để tích và dùng điểm.</div>
+                    </div>
+
+                    <!-- Họ và tên -->
+                    <div class="mb-3">
+                        <label for="quickMemberName" class="form-label fw-semibold text-dark">
+                            Họ và tên thành viên <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white">
+                                <i class="fas fa-user text-muted"></i>
+                            </span>
+                            <input type="text" class="form-control" id="quickMemberName" 
+                                   placeholder="Ví dụ: Nguyễn Văn A" maxlength="255" required autocomplete="off" />
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-top bg-light py-2">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Hủy
+                </button>
+                <button type="button" class="btn btn-primary px-4 fw-semibold" id="btnSubmitQuickMember">
+                    <i class="fas fa-save me-1"></i>Lưu & Chọn thành viên
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
