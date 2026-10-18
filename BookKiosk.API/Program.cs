@@ -37,9 +37,13 @@ try
     builder.Services.AddScoped<BookKiosk.Application.Services.IReportService, BookKiosk.Application.Services.ReportService>();
     builder.Services.AddScoped<BookKiosk.Application.Services.IInventoryService, BookKiosk.Application.Services.InventoryService>();
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Services.IKioskService, BookKiosk.Application.Services.KioskService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IAuthService, BookKiosk.Application.Services.AuthService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.ISupplierService, BookKiosk.Application.Services.SupplierService>();
 
     // Đăng ký Unit Of Work & Repositories (Thien33)
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IUnitOfWork, BookKiosk.Infrastructure.Repositories.UnitOfWork>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IUserRepository, BookKiosk.Infrastructure.Repositories.UserRepository>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.ISupplierRepository, BookKiosk.Infrastructure.Repositories.SupplierRepository>();
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IMemberRepository, BookKiosk.Infrastructure.Repositories.MemberRepository>();
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IPromotionRepository, BookKiosk.Infrastructure.Repositories.PromotionRepository>();
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IReportRepository, BookKiosk.Infrastructure.Repositories.ReportRepository>();

@@ -12,6 +12,22 @@ public interface IUnitOfWork : System.IDisposable
     Task<int> SaveChangesAsync();
 }
 
+public interface IUserRepository
+{
+    Task<User?> GetByUsernameAsync(string username);
+    Task<User?> GetByIdAsync(int id);
+}
+
+public interface ISupplierRepository
+{
+    Task<IEnumerable<Supplier>> GetAllAsync();
+    Task<Supplier?> GetByIdAsync(int id);
+    Task<bool> HasLinkedReceiptsAsync(int id);
+    Task AddAsync(Supplier supplier);
+    Task UpdateAsync(Supplier supplier);
+    Task DeleteAsync(Supplier supplier);
+}
+
 public interface IMemberRepository
 {
     Task<Member?> GetByPhoneAsync(string phone);
@@ -30,6 +46,7 @@ public interface IPromotionRepository
     Task<IEnumerable<Promotion>> GetAllAsync();
     Task<Promotion?> GetByIdAsync(int id);
     Task AddAsync(Promotion promotion);
+    Task<bool> ToggleActiveAsync(int id, bool isActive);
 }
 
 public interface IReportRepository
@@ -42,6 +59,10 @@ public interface IInventoryRepository
 {
     Task AddImportReceiptAsync(ImportReceipt receipt);
     Task<Book?> GetBookByIdAsync(int bookId);
+    Task<IEnumerable<Book>> GetStockAsync(bool lowOnly = false, string? keyword = null);
+    Task<bool> AdjustStockAsync(int bookId, int actualQuantity);
+    Task<(IEnumerable<ImportReceipt> Items, int TotalCount)> GetReceiptsPagedAsync(int? supplierId, System.DateTime? fromDate, System.DateTime? toDate, int page, int pageSize);
+    Task<ImportReceipt?> GetReceiptDetailAsync(int id);
 }
 
 public interface IOrderRepository
@@ -57,6 +78,11 @@ public interface IOrderRepository
     Task<Order?> GetOrderByIdAsync(int orderId);
     /// <summary>Đọc trạng thái order mới nhất từ DB, bỏ qua EF tracking cache. Dùng sau rollback để xác định trạng thái thật (F01).</summary>
     Task<Order?> GetOrderByCodeNoTrackingAsync(string orderCode);
+    /// <summary>Đọc dữ liệu hóa đơn snapshot cho đơn hàng đã thanh toán kèm OrderDetails và Book (AsNoTracking).</summary>
+    Task<Order?> GetReceiptOrderByIdAsync(int orderId);
+    Task ReleaseReservedQuantityAsync(int bookId, int quantity);
+    Task<(IEnumerable<Order> Items, int TotalCount)> GetOrdersPagedAsync(System.DateTime? fromDate, System.DateTime? toDate, BookKiosk.Domain.Enums.OrderStatus? status, BookKiosk.Domain.Enums.SaleChannel? channel, BookKiosk.Domain.Enums.PaymentMethod? paymentMethod, string? keyword, bool? needsSupportOnly, int page, int pageSize);
+    Task<Order?> GetOrderDetailWithRelationsAsync(int orderId);
 }
 
 public interface IPaymentRepository
@@ -72,3 +98,4 @@ public interface IKioskRepository
     Task AddIncidentAsync(KioskIncident incident);
     Task<KioskIncident?> GetOpenIncidentAsync(int kioskId, string errorCode);
 }
+
