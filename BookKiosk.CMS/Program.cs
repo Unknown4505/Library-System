@@ -15,7 +15,7 @@ builder.Services.AddTransient<JwtDelegatingHandler>();
 
 // 4. Kiểm tra an toàn cờ Mock & Đăng ký Typed HttpClient cho API Backend & POS
 var useMockApi = builder.Configuration.GetValue<bool>("Cms:UseMockApi");
-if (builder.Environment.IsProduction() && useMockApi)
+if ((builder.Environment.IsProduction() || builder.Environment.IsEnvironment("Release")) && useMockApi)
 {
     throw new InvalidOperationException("NGUY HIỂM: Không được phép bật cờ Cms:UseMockApi trên môi trường Production/Release!");
 }
@@ -33,6 +33,7 @@ if (useMockApi)
 {
     builder.Services.AddSingleton<IPosApi, MockPosApi>();
     builder.Services.AddSingleton<IOrderApi, MockOrderApi>();
+    builder.Services.AddSingleton<IReportApi, MockReportApi>();
 }
 else
 {

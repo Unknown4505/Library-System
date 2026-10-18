@@ -1,8 +1,15 @@
+using System;
+using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using BookKiosk.CMS.Models.Reports;
 using BookKiosk.CMS.Services;
 using FluentAssertions;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -163,6 +170,66 @@ namespace BookKiosk.Tests.Cms
             result.Success.Should().BeFalse();
             result.IsEndpointUnavailable.Should().BeTrue();
             result.StatusCode.Should().Be(404);
+        }
+
+        [Fact]
+        public async Task MockReportApi_GetRevenueByMonthAsync_Returns12MonthsWithPositiveRevenue()
+        {
+            // Arrange
+            var mockApi = new MockReportApi();
+
+            // Act
+            var result = await mockApi.GetRevenueByMonthAsync(2026);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.Year.Should().Be(2026);
+            result.Data.MonthlyData.Should().HaveCount(12);
+
+            for (int m = 1; m <= 12; m++)
+            {
+                var item = result.Data.MonthlyData.FirstOrDefault(i => i.Month == m);
+                item.Should().NotBeNull();
+                item!.Revenue.Should().BeGreaterThan(0m);
+                item.TotalOrders.Should().BeGreaterThan(0);
+            }
+        }
+
+        [Fact]
+        public async Task MockReportApi_GetTopSellingBooksAsync_ReturnsTop10Books()
+        {
+            // Arrange
+            var mockApi = new MockReportApi();
+
+            // Act
+            var result = await mockApi.GetTopSellingBooksAsync(10);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            var list = result.Data!.ToList();
+            list.Should().HaveCount(10);
+            list[0].TotalSold.Should().BeGreaterThan(0);
+            list[0].TotalRevenue.Should().BeGreaterThan(0m);
+        }
+
+        [Theory]
+        [InlineData("Production")]
+        [InlineData("Release")]
+        public void ReleaseGuard_RefusesStartup_WhenUseMockApiIsTrue(string environmentName)
+        {
+            // Arrange
+            var factory = new CustomWebApplicationFactory().WithWebHostBuilder(builder =>
+            {
+                builder.UseEnvironment(environmentName);
+                builder.UseSetting("Cms:UseMockApi", "true");
+            });
+
+            // Act & Assert
+            Action act = () => factory.CreateClient();
+            act.Should().Throw<Exception>()
+               .Where(e => e.Message.Contains("Cms:UseMockApi") || (e.InnerException != null && e.InnerException.Message.Contains("Cms:UseMockApi")));
         }
     }
 }
