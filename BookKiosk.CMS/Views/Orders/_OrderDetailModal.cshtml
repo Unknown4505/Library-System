@@ -1,9 +1,10 @@
 @model BookKiosk.CMS.ViewModels.Orders.OrderDetailViewModel
 @using BookKiosk.CMS.Models.Api.Orders
+@using BookKiosk.CMS.ViewModels.Orders
 
 @{
     var order = Model.Order;
-    var orderTitle = !string.IsNullOrWhiteSpace(order?.OrderCode) ? order.OrderCode : "Chi tiết";
+    var orderTitle = (Model.State == DetailsState.Found && !string.IsNullOrWhiteSpace(order?.OrderCode)) ? order.OrderCode : "Chi tiết";
 }
 
 <div class="modal-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
@@ -22,7 +23,7 @@
         <i class="fas fa-times me-1"></i>Đóng
     </button>
     <div class="d-flex gap-2">
-        @if (order != null && order.SaleChannel == SaleChannel.Counter && order.OrderStatus == OrderStatus.Pending)
+        @if (Model.CanCancel && order != null)
         {
             <form asp-action="CancelCounterOrder" asp-route-id="@order.OrderId" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn hủy đơn hàng này và nhả kho giữ chỗ?');">
                 @Html.AntiForgeryToken()
@@ -32,7 +33,7 @@
             </form>
         }
 
-        @if (order != null && order.OrderStatus == OrderStatus.Paid)
+        @if (Model.State == DetailsState.Found && order != null && order.OrderStatus == OrderStatus.Paid)
         {
             <button type="button" class="btn btn-primary btn-sm fw-semibold btn-print-from-detail" data-order-id="@order.OrderId">
                 <i class="fas fa-print me-1"></i>In lại hóa đơn K80

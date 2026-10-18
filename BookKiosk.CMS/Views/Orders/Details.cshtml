@@ -1,9 +1,12 @@
 @model BookKiosk.CMS.ViewModels.Orders.OrderDetailViewModel
 @using BookKiosk.CMS.Models.Api.Orders
+@using BookKiosk.CMS.ViewModels.Orders
 @{
     var order = Model.Order;
     var orderCode = order?.OrderCode;
-    ViewData["Title"] = !string.IsNullOrWhiteSpace(orderCode) ? $"Chi tiết đơn hàng {orderCode}" : "Chi tiết đơn hàng";
+    ViewData["Title"] = Model.State == DetailsState.Found && !string.IsNullOrWhiteSpace(orderCode) 
+        ? $"Chi tiết đơn hàng {orderCode}" 
+        : (Model.State == DetailsState.NotFound ? "Không tìm thấy đơn hàng" : "Chi tiết đơn hàng");
 }
 
 @section Styles {
@@ -16,7 +19,7 @@
         <ol class="breadcrumb small mb-0">
             <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index" class="text-decoration-none">Trang chủ</a></li>
             <li class="breadcrumb-item"><a asp-action="Index" class="text-decoration-none">Đơn hàng & Hóa đơn</a></li>
-            <li class="breadcrumb-item active" aria-current="page">@(orderCode ?? "Chi tiết")</li>
+            <li class="breadcrumb-item active" aria-current="page">@(Model.State == DetailsState.Found && !string.IsNullOrWhiteSpace(orderCode) ? orderCode : "Chi tiết")</li>
         </ol>
     </nav>
 
@@ -24,7 +27,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
         <div>
             <h1 class="h4 fw-bold text-dark mb-1">
-                <i class="fas fa-file-invoice text-primary me-2"></i>Chi tiết đơn hàng: <span class="font-monospace text-primary">@(orderCode ?? "Thông tin đơn")</span>
+                <i class="fas fa-file-invoice text-primary me-2"></i>Chi tiết đơn hàng: <span class="font-monospace text-primary">@(Model.State == DetailsState.Found && !string.IsNullOrWhiteSpace(orderCode) ? orderCode : "Thông tin đơn")</span>
             </h1>
             <p class="text-muted small mb-0">Xem toàn bộ thông tin tài chính, snapshot sách đã mua và lịch sử đối soát giao dịch.</p>
         </div>
@@ -32,7 +35,7 @@
             <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-arrow-left me-1"></i>Quay lại danh sách
             </a>
-            @if (order != null && order.SaleChannel == SaleChannel.Counter && order.OrderStatus == OrderStatus.Pending)
+            @if (Model.CanCancel && order != null)
             {
                 <form asp-action="CancelCounterOrder" asp-route-id="@order.OrderId" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn hủy đơn hàng này và nhả kho giữ chỗ?');">
                     @Html.AntiForgeryToken()
@@ -41,7 +44,7 @@
                     </button>
                 </form>
             }
-            @if (order != null && order.OrderStatus == OrderStatus.Paid)
+            @if (Model.State == DetailsState.Found && order != null && order.OrderStatus == OrderStatus.Paid)
             {
                 <button type="button" class="btn btn-primary btn-sm fw-semibold btn-print-from-detail" data-order-id="@order.OrderId">
                     <i class="fas fa-print me-1"></i>In lại hóa đơn K80
@@ -50,13 +53,13 @@
         </div>
     </div>
 
-    @if (order == null && !Model.IsEndpointUnavailable)
+    @if (Model.State == DetailsState.NotFound)
     {
         <!-- 404 thân thiện khi không tìm thấy đơn hàng -->
         <div class="card border-0 shadow-sm p-5 text-center my-4">
             <div class="display-4 text-warning mb-3"><i class="fas fa-search-minus"></i></div>
             <h4 class="fw-bold text-dark">Không tìm thấy thông tin đơn hàng</h4>
-            <p class="text-muted mb-4">Đơn hàng bạn yêu cầu không tồn tại, đã bị xóa hoặc bạn không có quyền truy cập.</p>
+            <p class="text-muted mb-4">@(Model.EndpointMessage ?? "Đơn hàng bạn yêu cầu không tồn tại, đã bị xóa hoặc bạn không có quyền truy cập.")</p>
             <div>
                 <a asp-action="Index" class="btn btn-primary px-4">
                     <i class="fas fa-arrow-left me-1"></i>Về danh sách đơn hàng
@@ -64,7 +67,23 @@
             </div>
         </div>
     }
-    else
+    else if (Model.State == DetailsState.EndpointUnavailable)
+    {
+        <!-- Cảnh báo Endpoint Unavailable không render đơn rỗng hay nút thao tác -->
+        <div class="card border-0 shadow-sm p-4 my-4">
+            <div class="alert alert-warning border-warning-subtle mb-3">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Endpoint máy chủ chưa sẵn sàng:</strong> @Model.EndpointMessage
+            </div>
+            <div class="text-center py-3">
+                <p class="text-muted mb-3">Dữ liệu chi tiết đơn hàng hiện chưa thể tải từ hệ thống máy chủ Backend.</p>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Về danh sách đơn hàng
+                </a>
+            </div>
+        </div>
+    }
+    else if (Model.State == DetailsState.Found && order != null)
     {
         <!-- Thân chi tiết đơn hàng dùng chung qua Partial -->
         <div class="card border-0 shadow-sm mb-4">

@@ -135,7 +135,12 @@ namespace BookKiosk.CMS.Controllers
 
                 Response.StatusCode = 404;
                 ViewData["Title"] = "Không tìm thấy đơn hàng";
-                return View(new OrderDetailViewModel());
+                return View(new OrderDetailViewModel
+                {
+                    State = DetailsState.NotFound,
+                    EndpointMessage = "Mã đơn hàng không hợp lệ.",
+                    Order = null
+                });
             }
 
             var result = await _orderApi.GetOrderByIdAsync(id);
@@ -143,11 +148,13 @@ namespace BookKiosk.CMS.Controllers
 
             if (result.IsEndpointUnavailable)
             {
-                viewModel.IsEndpointUnavailable = true;
+                viewModel.State = DetailsState.EndpointUnavailable;
                 viewModel.EndpointMessage = result.Message;
+                viewModel.Order = null;
             }
             else if (result.Success && result.Data != null)
             {
+                viewModel.State = DetailsState.Found;
                 viewModel.Order = result.Data;
             }
             else
@@ -157,6 +164,9 @@ namespace BookKiosk.CMS.Controllers
 
                 Response.StatusCode = 404;
                 ViewData["Title"] = "Không tìm thấy đơn hàng";
+                viewModel.State = DetailsState.NotFound;
+                viewModel.EndpointMessage = result.Message ?? "Không tìm thấy thông tin đơn hàng.";
+                viewModel.Order = null;
                 return View(viewModel);
             }
 
@@ -167,9 +177,9 @@ namespace BookKiosk.CMS.Controllers
             }
 
             var orderCode = viewModel.Order?.OrderCode;
-            ViewData["Title"] = !string.IsNullOrWhiteSpace(orderCode)
+            ViewData["Title"] = viewModel.State == DetailsState.Found && !string.IsNullOrWhiteSpace(orderCode)
                 ? $"Chi tiết đơn hàng {orderCode}"
-                : "Chi tiết đơn hàng";
+                : (viewModel.State == DetailsState.NotFound ? "Không tìm thấy đơn hàng" : "Chi tiết đơn hàng");
 
             return View(viewModel);
         }

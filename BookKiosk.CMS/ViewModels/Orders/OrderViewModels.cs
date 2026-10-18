@@ -19,18 +19,30 @@ namespace BookKiosk.CMS.ViewModels.Orders
         public bool UseMockApi { get; set; }
     }
 
+    public enum DetailsState
+    {
+        Found,
+        NotFound,
+        EndpointUnavailable
+    }
+
     public class OrderDetailViewModel
     {
-        public OrderDetailDto Order { get; set; } = new();
+        public DetailsState State { get; set; } = DetailsState.NotFound;
+        public OrderDetailDto? Order { get; set; }
         
         /// <summary>
         /// Theo xác nhận Tech Lead:
         /// - Đơn Quầy (Counter) đang Pending: Cho phép nhân viên hủy để nhả kho.
         /// - Đơn Kiosk: CMS CHỈ XEM đối với đơn Kiosk / đơn lệch tiền (Backend chưa có route hủy Kiosk cho Staff).
         /// </summary>
-        public bool CanCancel => Order.SaleChannel == SaleChannel.Counter && Order.OrderStatus == OrderStatus.Pending;
+        public bool CanCancel => State == DetailsState.Found 
+            && Order != null 
+            && Order.OrderId > 0 
+            && Order.SaleChannel == SaleChannel.Counter 
+            && Order.OrderStatus == OrderStatus.Pending;
 
-        public bool IsEndpointUnavailable { get; set; }
+        public bool IsEndpointUnavailable => State == DetailsState.EndpointUnavailable;
         public string? EndpointMessage { get; set; }
     }
 }

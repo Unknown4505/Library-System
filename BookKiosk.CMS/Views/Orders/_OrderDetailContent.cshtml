@@ -1,6 +1,7 @@
 @model BookKiosk.CMS.ViewModels.Orders.OrderDetailViewModel
 @using BookKiosk.CMS.Helpers
 @using BookKiosk.CMS.Models.Api.Orders
+@using BookKiosk.CMS.ViewModels.Orders
 
 @{
     var order = Model.Order;
@@ -8,15 +9,21 @@
     decimal discrepancy = (order != null) ? order.TotalAmount - totalPaid : 0m;
 }
 
-@if (Model.IsEndpointUnavailable)
+@if (Model.State == DetailsState.EndpointUnavailable)
 {
     <div class="alert alert-warning border-warning-subtle small mb-3 shadow-sm">
         <i class="fas fa-exclamation-triangle me-2"></i>
         <strong>Endpoint máy chủ chưa sẵn sàng:</strong> @Model.EndpointMessage
     </div>
 }
-
-@if (order != null)
+else if (Model.State == DetailsState.NotFound || order == null)
+{
+    <div class="alert alert-warning border-warning-subtle small mb-3 shadow-sm">
+        <i class="fas fa-exclamation-circle me-2"></i>
+        <strong>Không tìm thấy thông tin đơn hàng:</strong> @(Model.EndpointMessage ?? "Đơn hàng không tồn tại trong hệ thống.")
+    </div>
+}
+else if (Model.State == DetailsState.Found && order != null)
 {
     <!-- 1. BẢNG CẢNH BÁO ĐỐI SOÁT LỆCH TIỀN (NẾU CÓ) -->
     @if (order.IsPaymentMismatch)

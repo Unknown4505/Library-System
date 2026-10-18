@@ -76,7 +76,9 @@ namespace BookKiosk.Tests.Cms
             // Assert
             var viewResult = result.Should().BeOfType<ViewResult>().Subject;
             var vm = viewResult.Model.Should().BeOfType<OrderDetailViewModel>().Subject;
-            vm.Order.OrderCode.Should().Be("ORD-20261017-001");
+            vm.State.Should().Be(DetailsState.Found);
+            vm.Order.Should().NotBeNull();
+            vm.Order!.OrderCode.Should().Be("ORD-20261017-001");
             controller.ViewData["Title"].Should().Be("Chi tiết đơn hàng ORD-20261017-001");
         }
 
@@ -95,6 +97,9 @@ namespace BookKiosk.Tests.Cms
 
             // Assert: Không return NotFound() văng lỗi IIS chuẩn, mà trả ViewResult với Response.StatusCode = 404
             var viewResult = result.Should().BeOfType<ViewResult>().Subject;
+            var vm = viewResult.Model.Should().BeOfType<OrderDetailViewModel>().Subject;
+            vm.State.Should().Be(DetailsState.NotFound);
+            vm.Order.Should().BeNull();
             context.Response.StatusCode.Should().Be(404);
             controller.ViewData["Title"].Should().Be("Không tìm thấy đơn hàng");
         }
@@ -114,10 +119,30 @@ namespace BookKiosk.Tests.Cms
             // Assert
             var viewResult = result.Should().BeOfType<ViewResult>().Subject;
             var vm = viewResult.Model.Should().BeOfType<OrderDetailViewModel>().Subject;
+            vm.State.Should().Be(DetailsState.EndpointUnavailable);
             vm.IsEndpointUnavailable.Should().BeTrue();
+            vm.Order.Should().BeNull();
             // Không được dùng "N/A" làm title khi orderCode rỗng
             var title = controller.ViewData["Title"]?.ToString();
             title.Should().Be("Chi tiết đơn hàng");
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public async Task Details_IdLessThanOrEqualToZero_DirectGet_ReturnsNotFoundView(int invalidId)
+        {
+            var context = new DefaultHttpContext();
+            var controller = CreateController(context);
+
+            var result = await controller.Details(invalidId);
+
+            var viewResult = result.Should().BeOfType<ViewResult>().Subject;
+            var vm = viewResult.Model.Should().BeOfType<OrderDetailViewModel>().Subject;
+            vm.State.Should().Be(DetailsState.NotFound);
+            vm.Order.Should().BeNull();
+            context.Response.StatusCode.Should().Be(404);
+            controller.ViewData["Title"].Should().Be("Không tìm thấy đơn hàng");
         }
 
         [Fact]
@@ -143,6 +168,108 @@ namespace BookKiosk.Tests.Cms
             // Assert
             var partial = result.Should().BeOfType<PartialViewResult>().Subject;
             partial.ViewName.Should().Be("_OrderDetailModal");
+            var vm = partial.Model.Should().BeOfType<OrderDetailViewModel>().Subject;
+            vm.State.Should().Be(DetailsState.Found);
+            vm.Order.Should().NotBeNull();
+        }
+
+        // ==============================================================
+        // CANCEL COUNTER ORDER TESTS
+        // ==============================================================
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public async Task CancelCounterOrder_IdLessThanOrEqualToZero_ReturnsFail(int invalidId)
+        {
+            var controller = CreateController();
+
+            var result = await controller.CancelCounterOrder(invalidId);
+
+            var jsonResult = result.Should().BeOfType<JsonResult>().Subject;
+            var val = jsonResult.Value!;
+            var success = val.GetType().GetProperty("success")?.GetValue(val);
+            var message = val.GetType().GetProperty("message")?.GetValue(val)?.ToString();
+
+            success.Should().Be(false);
+            message.Should().Contain("không hợp lệ");
+            _posApiMock.Verify(p => p.CancelOrderAsync(It.IsAny<int>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task CancelCounterOrder_NonCounterOrder_ReturnsFailAndDoesNotCallCancel()
+        {
+            _orderApiMock.Setup(o => o.GetOrderByIdAsync(301))
+                .ReturnsAsync(ApiResult<OrderDetailDto>.Ok(new OrderDetailDto
+                {
+                    OrderId = 301,
+                    SaleChannel = SaleChannel.Kiosk,
+                    OrderStatus = OrderStatus.Pending
+                }));
+
+            var controller = CreateController();
+
+            var result = await controller.CancelCounterOrder(301);
+
+            var jsonResult = result.Should().BeOfType<JsonResult>().Subject;
+            var val = jsonResult.Value!;
+            var success = val.GetType().GetProperty("success")?.GetValue(val);
+            var message = val.GetType().GetProperty("message")?.GetValue(val)?.ToString();
+
+            success.Should().Be(false);
+            message.Should().Contain("Kiosk");
+            _posApiMock.Verify(p => p.CancelOrderAsync(It.IsAny<int>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task CancelCounterOrder_NonPendingOrder_ReturnsFailAndDoesNotCallCancel()
+        {
+            _orderApiMock.Setup(o => o.GetOrderByIdAsync(302))
+                .ReturnsAsync(ApiResult<OrderDetailDto>.Ok(new OrderDetailDto
+                {
+                    OrderId = 302,
+                    SaleChannel = SaleChannel.Counter,
+                    OrderStatus = OrderStatus.Paid
+                }));
+
+            var controller = CreateController();
+
+            var result = await controller.CancelCounterOrder(302);
+
+            var jsonResult = result.Should().BeOfType<JsonResult>().Subject;
+            var val = jsonResult.Value!;
+            var success = val.GetType().GetProperty("success")?.GetValue(val);
+            var message = val.GetType().GetProperty("message")?.GetValue(val)?.ToString();
+
+            success.Should().Be(false);
+            message.Should().Contain("Pending");
+            _posApiMock.Verify(p => p.CancelOrderAsync(It.IsAny<int>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task CancelCounterOrder_ValidCounterPendingOrder_CallsCancelAndReturnsSuccess()
+        {
+            _orderApiMock.Setup(o => o.GetOrderByIdAsync(303))
+                .ReturnsAsync(ApiResult<OrderDetailDto>.Ok(new OrderDetailDto
+                {
+                    OrderId = 303,
+                    SaleChannel = SaleChannel.Counter,
+                    OrderStatus = OrderStatus.Pending
+                }));
+
+            _posApiMock.Setup(p => p.CancelOrderAsync(303))
+                .ReturnsAsync(ApiResult<bool>.Ok(true, "Đã hủy đơn hàng thành công"));
+
+            var controller = CreateController();
+
+            var result = await controller.CancelCounterOrder(303);
+
+            var jsonResult = result.Should().BeOfType<JsonResult>().Subject;
+            var val = jsonResult.Value!;
+            var success = val.GetType().GetProperty("success")?.GetValue(val);
+
+            success.Should().Be(true);
+            _posApiMock.Verify(p => p.CancelOrderAsync(303), Times.Once);
         }
 
         // ==============================================================
