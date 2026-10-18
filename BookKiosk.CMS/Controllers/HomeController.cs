@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using BookKiosk.CMS.Helpers;
+using BookKiosk.CMS.Models.Api.Orders;
 using BookKiosk.CMS.Models.Inventory;
 using BookKiosk.CMS.Models.Reports;
 using BookKiosk.CMS.Services;
@@ -18,15 +19,18 @@ namespace BookKiosk.CMS.Controllers
     {
         private readonly IReportApi _reportApi;
         private readonly ICmsApiClient _apiClient;
+        private readonly IOrderApi _orderApi;
         private readonly ILogger<HomeController> _logger;
 
         public HomeController(
             IReportApi reportApi,
             ICmsApiClient apiClient,
+            IOrderApi orderApi,
             ILogger<HomeController> logger)
         {
             _reportApi = reportApi;
             _apiClient = apiClient;
+            _orderApi = orderApi;
             _logger = logger;
         }
 
@@ -114,6 +118,65 @@ namespace BookKiosk.CMS.Controllers
             {
                 viewModel.IsLowStockUnavailable = true;
                 _logger.LogError(ex, "Lỗi gọi API cảnh báo tồn kho");
+            }
+
+            return View(viewModel);
+        }
+
+        [HttpGet("Home/StaffWorkspace")]
+        [Authorize(Roles = "Admin,Staff")]
+        public async Task<IActionResult> StaffWorkspace()
+        {
+            var viewModel = new StaffWorkspaceViewModel();
+
+            // 1. Lấy danh sách cảnh báo tồn kho sắp hết (AvailableStock <= 5, tối đa 10 mục)
+            try
+            {
+                var stockResult = await _apiClient.GetStockAsync(lowOnly: true);
+                if (stockResult.Success && stockResult.Data != null)
+                {
+                    viewModel.LowStockItems = stockResult.Data
+                        .Where(s => s.AvailableStock <= 5)
+                        .OrderBy(s => s.AvailableStock)
+                        .Take(10)
+                        .ToList();
+                }
+                else
+                {
+                    viewModel.IsLowStockUnavailable = true;
+                    _logger.LogWarning("StaffWorkspace: Không tải được danh sách cảnh báo tồn kho: {Message}", stockResult.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                viewModel.IsLowStockUnavailable = true;
+                _logger.LogError(ex, "StaffWorkspace: Lỗi gọi API cảnh báo tồn kho");
+            }
+
+            // 2. Lấy danh sách đơn hàng cần hỗ trợ (NeedsSupportOnly = true, tối đa 10 đơn)
+            try
+            {
+                var orderFilter = new OrderFilterDto
+                {
+                    NeedsSupportOnly = true,
+                    Page = 1,
+                    PageSize = 10
+                };
+                var ordersResult = await _orderApi.GetOrdersAsync(orderFilter);
+                if (ordersResult.Success && ordersResult.Data?.Items != null)
+                {
+                    viewModel.NeedsSupportOrders = ordersResult.Data.Items.Take(10).ToList();
+                }
+                else
+                {
+                    viewModel.IsOrdersUnavailable = true;
+                    _logger.LogWarning("StaffWorkspace: Không tải được danh sách đơn hàng cần hỗ trợ: {Message}", ordersResult.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                viewModel.IsOrdersUnavailable = true;
+                _logger.LogError(ex, "StaffWorkspace: Lỗi gọi API đơn hàng cần hỗ trợ");
             }
 
             return View(viewModel);

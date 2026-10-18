@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using BookKiosk.CMS.Controllers;
 using BookKiosk.CMS.Helpers;
+using BookKiosk.CMS.Models.Api.Orders;
 using BookKiosk.CMS.Models.Common;
 using BookKiosk.CMS.Models.Inventory;
 using BookKiosk.CMS.Models.Reports;
@@ -25,12 +26,14 @@ namespace BookKiosk.Tests.Cms
     {
         private readonly Mock<IReportApi> _reportApiMock;
         private readonly Mock<ICmsApiClient> _apiClientMock;
+        private readonly Mock<IOrderApi> _orderApiMock;
         private readonly Mock<ILogger<HomeController>> _loggerMock;
 
         public DashboardControllerTests()
         {
             _reportApiMock = new Mock<IReportApi>();
             _apiClientMock = new Mock<ICmsApiClient>();
+            _orderApiMock = new Mock<IOrderApi>();
             _loggerMock = new Mock<ILogger<HomeController>>();
         }
 
@@ -47,6 +50,7 @@ namespace BookKiosk.Tests.Cms
             return new HomeController(
                 _reportApiMock.Object,
                 _apiClientMock.Object,
+                _orderApiMock.Object,
                 _loggerMock.Object)
             {
                 ControllerContext = new ControllerContext { HttpContext = httpContext }
@@ -124,8 +128,8 @@ namespace BookKiosk.Tests.Cms
             model.LowStockItems.Should().HaveCount(2);
 
             // Gate check: Summing in C# matches exactly
-            decimal expectedSumRevenue = monthlyData.Sum(m => m.Revenue); // 1+2+...+12 * 1_000_000 = 78_000_000m
-            int expectedSumOrders = monthlyData.Sum(m => m.TotalOrders); // 780
+            decimal expectedSumRevenue = monthlyData.Sum(m => m.Revenue);
+            int expectedSumOrders = monthlyData.Sum(m => m.TotalOrders);
             model.TotalAnnualRevenue.Should().Be(expectedSumRevenue);
             model.TotalAnnualOrders.Should().Be(expectedSumOrders);
             model.LowStockCount.Should().Be(2);
@@ -151,7 +155,6 @@ namespace BookKiosk.Tests.Cms
             };
 
             // Act & Assert
-            // 1234567.89 + 9876543.21 + 0 + 500000.00 = 11611111.10m
             vm.TotalAnnualRevenue.Should().Be(11611111.10m);
             vm.TotalAnnualOrders.Should().Be(62);
         }
@@ -206,6 +209,99 @@ namespace BookKiosk.Tests.Cms
             // Assert
             var jsonResult = result.Should().BeOfType<JsonResult>().Subject;
             jsonResult.Value.Should().NotBeNull();
+        }
+
+        [Fact]
+        public void StaffWorkspaceViewModel_HasNoFinancialOrRevenueProperties()
+        {
+            // Assert constraint: TUYỆT ĐỐI KHÔNG chứa trường doanh thu / tài chính
+            var properties = typeof(StaffWorkspaceViewModel).GetProperties().Select(p => p.Name.ToLowerInvariant());
+            var forbiddenKeywords = new[] { "revenue", "income", "sales", "profit", "price", "amount" };
+
+            foreach (var prop in properties)
+            {
+                foreach (var forbidden in forbiddenKeywords)
+                {
+                    prop.Should().NotContain(forbidden, $"StaffWorkspaceViewModel must not contain financial property '{prop}'");
+                }
+            }
+        }
+
+        [Fact]
+        public void StaffWorkspace_HasAuthorizeRolesStaffAndAdminAttribute()
+        {
+            var method = typeof(HomeController).GetMethod("StaffWorkspace");
+            method.Should().NotBeNull();
+
+            var authAttr = method!.GetCustomAttribute<AuthorizeAttribute>();
+            authAttr.Should().NotBeNull();
+            authAttr!.Roles.Should().Contain("Staff");
+            authAttr!.Roles.Should().Contain("Admin");
+        }
+
+        [Fact]
+        public async Task StaffWorkspace_StaffUser_ReturnsViewWithPopulatedStaffWorkspaceViewModel()
+        {
+            // Arrange
+            var stockItems = new List<StockItemDto>
+            {
+                new() { BookId = 1, Title = "Sách A", AvailableStock = 3 },
+                new() { BookId = 2, Title = "Sách B", AvailableStock = 1 }
+            };
+
+            var orders = new List<OrderListItemDto>
+            {
+                new() { OrderId = 101, OrderCode = "ORD-20261019-0001", SaleChannel = SaleChannel.Kiosk, OrderStatus = OrderStatus.Pending },
+                new() { OrderId = 102, OrderCode = "ORD-20261019-0002", SaleChannel = SaleChannel.Kiosk, OrderStatus = OrderStatus.Cancelled }
+            };
+
+            var paginatedOrders = new PaginatedResult<OrderListItemDto>
+            {
+                Items = orders,
+                TotalCount = 2,
+                Page = 1,
+                PageSize = 10
+            };
+
+            _apiClientMock.Setup(c => c.GetStockAsync(true, null))
+                .ReturnsAsync(ApiResult<IEnumerable<StockItemDto>>.Ok(stockItems));
+
+            _orderApiMock.Setup(o => o.GetOrdersAsync(It.Is<OrderFilterDto>(f => f.NeedsSupportOnly == true)))
+                .ReturnsAsync(ApiResult<PaginatedResult<OrderListItemDto>>.Ok(paginatedOrders));
+
+            var controller = CreateController(PermissionHelper.RoleStaff);
+
+            // Act
+            var result = await controller.StaffWorkspace();
+
+            // Assert
+            var viewResult = result.Should().BeOfType<ViewResult>().Subject;
+            var model = viewResult.Model.Should().BeOfType<StaffWorkspaceViewModel>().Subject;
+
+            model.LowStockItems.Should().HaveCount(2);
+            model.NeedsSupportOrders.Should().HaveCount(2);
+            model.LowStockCount.Should().Be(2);
+            model.NeedsSupportCount.Should().Be(2);
+        }
+
+        [Fact]
+        public async Task StaffWorkspace_AdminUser_ReturnsViewWithPopulatedStaffWorkspaceViewModel()
+        {
+            // Arrange
+            _apiClientMock.Setup(c => c.GetStockAsync(true, null))
+                .ReturnsAsync(ApiResult<IEnumerable<StockItemDto>>.Ok(new List<StockItemDto>()));
+
+            _orderApiMock.Setup(o => o.GetOrdersAsync(It.IsAny<OrderFilterDto>()))
+                .ReturnsAsync(ApiResult<PaginatedResult<OrderListItemDto>>.Ok(new PaginatedResult<OrderListItemDto>()));
+
+            var controller = CreateController(PermissionHelper.RoleAdmin);
+
+            // Act
+            var result = await controller.StaffWorkspace();
+
+            // Assert
+            var viewResult = result.Should().BeOfType<ViewResult>().Subject;
+            viewResult.Model.Should().BeOfType<StaffWorkspaceViewModel>();
         }
     }
 }
