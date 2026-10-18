@@ -49,6 +49,13 @@ else
         client.Timeout = TimeSpan.FromSeconds(30);
     })
     .AddHttpMessageHandler<JwtDelegatingHandler>();
+
+    builder.Services.AddHttpClient<IReportApi, CmsReportApi>(client =>
+    {
+        client.BaseAddress = new Uri(apiBaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(30);
+    })
+    .AddHttpMessageHandler<JwtDelegatingHandler>();
 }
 
 // 5. Configure Cookie Authentication
