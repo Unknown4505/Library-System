@@ -1,3 +1,4 @@
+@model BookKiosk.CMS.ViewModels.Dashboard.AdminDashboardViewModel
 @{
     ViewData["Title"] = "Dashboard - BookKiosk CMS";
 }
@@ -22,41 +23,74 @@
 
 <!-- KPI Cards -->
 <div class="row g-3 mb-4">
+    <!-- Card 1: Tổng doanh thu năm -->
     <div class="col-xl-3 col-md-6">
         <div class="card border-start border-primary border-4 shadow-sm h-100">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
-                    <div class="text-uppercase fw-bold text-primary small mb-1">Doanh thu hôm nay</div>
-                    <div class="h4 mb-0 fw-bold text-dark">---</div>
-                    <div class="text-muted small mt-1">Đang tải dữ liệu...</div>
+                    <div class="text-uppercase fw-bold text-primary small mb-1">
+                        Tổng doanh thu năm (<span id="kpiAnnualRevenueYearLabel">@Model.SelectedYear</span>)
+                    </div>
+                    <div class="h4 mb-0 fw-bold text-dark" id="kpiAnnualRevenue">
+                        @Model.TotalAnnualRevenue.ToString("N0") đ
+                    </div>
+                    <div class="text-muted small mt-1">Tổng hợp 12 tháng từ hệ thống</div>
                 </div>
                 <div class="text-primary opacity-50">
-                    <i class="fas fa-dollar-sign fa-2x"></i>
+                    <i class="fas fa-coins fa-2x"></i>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Card 2: Tổng đơn năm -->
     <div class="col-xl-3 col-md-6">
         <div class="card border-start border-success border-4 shadow-sm h-100">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
-                    <div class="text-uppercase fw-bold text-success small mb-1">Đơn hàng hôm nay</div>
-                    <div class="h4 mb-0 fw-bold text-dark">---</div>
-                    <div class="text-muted small mt-1">Đang tải dữ liệu...</div>
+                    <div class="text-uppercase fw-bold text-success small mb-1">
+                        Tổng đơn năm (<span id="kpiAnnualOrdersYearLabel">@Model.SelectedYear</span>)
+                    </div>
+                    <div class="h4 mb-0 fw-bold text-dark" id="kpiAnnualOrders">
+                        @Model.TotalAnnualOrders.ToString("N0")
+                    </div>
+                    <div class="text-muted small mt-1">Đơn hàng hoàn tất</div>
                 </div>
                 <div class="text-success opacity-50">
-                    <i class="fas fa-shopping-cart fa-2x"></i>
+                    <i class="fas fa-receipt fa-2x"></i>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Card 3: Doanh thu hôm nay (Chưa hỗ trợ - Backend chưa có endpoint tổng hợp) -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-start border-secondary border-4 shadow-sm h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-uppercase fw-bold text-secondary small mb-1">Doanh thu hôm nay</div>
+                    <div class="h4 mb-0 fw-bold text-secondary">
+                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 fs-6">Chưa hỗ trợ</span>
+                    </div>
+                    <div class="text-muted small mt-1">Chờ API tổng hợp từ Backend</div>
+                </div>
+                <div class="text-secondary opacity-50">
+                    <i class="fas fa-calendar-day fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 4: Sách sắp hết (Tồn <= 5) -->
     <div class="col-xl-3 col-md-6">
         <div class="card border-start border-warning border-4 shadow-sm h-100">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
-                    <div class="text-uppercase fw-bold text-warning small mb-1">Sách sắp hết</div>
-                    <div class="h4 mb-0 fw-bold text-dark">---</div>
-                    <div class="text-muted small mt-1">Đang tải dữ liệu...</div>
+                    <div class="text-uppercase fw-bold text-warning small mb-1">Sách sắp hết (Tồn ≤ 5)</div>
+                    <div class="h4 mb-0 fw-bold text-dark">
+                        @Model.LowStockCount
+                    </div>
+                    <div class="text-muted small mt-1">Mặt hàng cần nhập thêm kho</div>
                 </div>
                 <div class="text-warning opacity-50">
                     <i class="fas fa-exclamation-triangle fa-2x"></i>
@@ -64,42 +98,177 @@
             </div>
         </div>
     </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="card border-start border-info border-4 shadow-sm h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="text-uppercase fw-bold text-info small mb-1">Kiosk hoạt động</div>
-                    <div class="h4 mb-0 fw-bold text-dark">---</div>
-                    <div class="text-muted small mt-1">Đang tải dữ liệu...</div>
-                </div>
-                <div class="text-info opacity-50">
-                    <i class="fas fa-desktop fa-2x"></i>
-                </div>
+</div>
+
+<!-- Row 1: Biểu đồ doanh thu 12 tháng + Top 10 Sách Bán Chạy -->
+<div class="row g-4 mb-4">
+    <!-- Col Left: Biểu đồ cột doanh thu 12 tháng -->
+    <div class="col-xl-8 col-lg-7">
+        <partial name="_RevenueBarChart" model="Model" />
+    </div>
+
+    <!-- Col Right: Top 10 Sách Bán Chạy -->
+    <div class="col-xl-4 col-lg-5">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                <h6 class="m-0 fw-bold text-dark">
+                    <i class="fas fa-trophy text-warning me-2"></i>Top 10 Sách Bán Chạy
+                </h6>
+                <span class="badge bg-primary-subtle text-primary border small">Toàn thời gian</span>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.IsTopBooksUnavailable)
+                {
+                    <div class="alert alert-warning m-3 py-3 text-center small">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        Không thể tải danh sách sách bán chạy từ máy chủ.
+                    </div>
+                }
+                else if (!Model.TopBooks.Any())
+                {
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-book-open fa-2x mb-2 d-block opacity-50"></i>
+                        <span>Chưa có dữ liệu sách bán chạy.</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush">
+                        @for (int i = 0; i < Model.TopBooks.Count; i++)
+                        {
+                            var book = Model.TopBooks[i];
+                            int rank = i + 1;
+                            string badgeClass = rank switch
+                            {
+                                1 => "bg-warning text-dark fw-bold",
+                                2 => "bg-secondary text-white",
+                                3 => "bg-danger text-white",
+                                _ => "bg-light text-secondary border"
+                            };
+
+                            <div class="list-group-item d-flex align-items-center px-3 py-2 border-bottom">
+                                <!-- Rank Badge -->
+                                <span class="badge rounded-pill @badgeClass me-3" style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem;">
+                                    @rank
+                                </span>
+
+                                <!-- Cover Image -->
+                                @if (!string.IsNullOrWhiteSpace(book.ImageUrl))
+                                {
+                                    <img src="@book.ImageUrl" alt="@book.Title" class="rounded object-fit-cover me-2 border" style="width: 36px; height: 50px;" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('d-none');" />
+                                    <div class="bg-light border rounded d-none align-items-center justify-content-center text-muted me-2" style="width: 36px; height: 50px;">
+                                        <i class="fas fa-book small"></i>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="bg-light border rounded d-flex align-items-center justify-content-center text-muted me-2" style="width: 36px; height: 50px;">
+                                        <i class="fas fa-book small"></i>
+                                    </div>
+                                }
+
+                                <!-- Details -->
+                                <div class="flex-grow-1 min-w-0 me-2">
+                                    <div class="text-truncate fw-semibold small text-dark" title="@book.Title">
+                                        @book.Title
+                                    </div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">
+                                        <i class="fas fa-cart-shopping me-1"></i>Đã bán: <span class="fw-bold text-dark">@book.TotalSold</span> cuốn
+                                    </div>
+                                </div>
+
+                                <!-- Revenue -->
+                                <div class="text-end text-nowrap">
+                                    <div class="small fw-bold text-success">@book.TotalRevenue.ToString("N0") đ</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
             </div>
         </div>
     </div>
 </div>
 
-<!-- Placeholder cho biểu đồ và dữ liệu -->
-<div class="row g-3">
-    <div class="col-xl-8">
-        <div class="card shadow-sm">
-            <div class="card-header fw-bold">
-                <i class="fas fa-chart-bar me-2"></i>Doanh thu theo ngày (7 ngày gần nhất)
-            </div>
-            <div class="card-body">
-                <partial name="_EmptyState" model="@("Dữ liệu biểu đồ doanh thu sẽ được tích hợp từ Backend API. Tuần 7 sẽ hoàn thiện tính năng này.")" />
-            </div>
-        </div>
+<!-- Row 2: Cảnh báo Tồn kho Sắp hết (≤ 10 mục) -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+        <h6 class="m-0 fw-bold text-dark">
+            <i class="fas fa-triangle-exclamation text-warning me-2"></i>Cảnh báo Tồn kho Sắp hết (Tồn khả dụng ≤ 5)
+        </h6>
+        <a asp-controller="Inventory" asp-action="Stock" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-warehouse me-1"></i>Xem tất cả kho hàng
+        </a>
     </div>
-    <div class="col-xl-4">
-        <div class="card shadow-sm">
-            <div class="card-header fw-bold">
-                <i class="fas fa-chart-pie me-2"></i>Trạng thái Kiosk
+    <div class="card-body p-0">
+        @if (Model.IsLowStockUnavailable)
+        {
+            <div class="alert alert-warning m-3 py-3 text-center small">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                Không thể tải danh sách tồn kho từ máy chủ.
             </div>
-            <div class="card-body">
-                <partial name="_EmptyState" model="@("Dữ liệu giám sát Kiosk sẽ được tích hợp ở Tuần 7.")" />
+        }
+        else if (!Model.LowStockItems.Any())
+        {
+            <div class="text-center text-success py-5">
+                <i class="fas fa-circle-check fa-2x mb-2 d-block"></i>
+                <span>Tồn kho ổn định. Hiện không có đầu sách nào dưới ngưỡng an toàn (≤ 5 cuốn).</span>
             </div>
-        </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr class="small text-uppercase text-secondary">
+                            <th style="width: 15%;">Mã vạch</th>
+                            <th style="width: 35%;">Tựa sách / Tác giả</th>
+                            <th style="width: 15%;">Thể loại</th>
+                            <th style="width: 15%;" class="text-center">Tồn khả dụng</th>
+                            <th style="width: 20%;" class="text-end">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.LowStockItems)
+                        {
+                            <tr>
+                                <td>
+                                    <code class="small fw-bold">@item.Barcode</code>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-dark text-truncate" style="max-width: 300px;" title="@item.Title">
+                                        @item.Title
+                                    </div>
+                                    <div class="text-muted small">@item.Author</div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border small">@item.CategoryName</span>
+                                </td>
+                                <td class="text-center">
+                                    @if (item.AvailableStock <= 0)
+                                    {
+                                        <span class="badge bg-danger">Hết hàng (0)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark">Còn @item.AvailableStock cuốn</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <a asp-controller="Inventory" asp-action="Create" class="btn btn-sm btn-outline-success py-0 px-2" title="Lập phiếu nhập sách này">
+                                        <i class="fas fa-plus me-1"></i>Nhập hàng
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </div>
 </div>
+
+@section Scripts {
+    <script src="~/lib/chartjs/chart.umd.min.js"></script>
+    <script src="~/js/charts.js" asp-append-version="true"></script>
+}
