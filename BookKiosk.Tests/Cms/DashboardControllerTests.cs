@@ -136,6 +136,34 @@ namespace BookKiosk.Tests.Cms
         }
 
         [Fact]
+        public async Task Index_DoesNotFilterAvailableStockAtClient_PreservesBackendReturnedItems()
+        {
+            // Arrange: Backend trả về các mặt hàng có AvailableStock = 6, 7 (do backend quyết định ngưỡng)
+            var stockItems = new List<StockItemDto>
+            {
+                new() { BookId = 1, Title = "Sách 1", AvailableStock = 6 },
+                new() { BookId = 2, Title = "Sách 2", AvailableStock = 7 }
+            };
+
+            _reportApiMock.Setup(r => r.GetRevenueByMonthAsync(It.IsAny<int>()))
+                .ReturnsAsync(ApiResult<RevenueReportResponseDto>.Ok(new RevenueReportResponseDto()));
+            _reportApiMock.Setup(r => r.GetTopSellingBooksAsync(It.IsAny<int>()))
+                .ReturnsAsync(ApiResult<IEnumerable<TopSellingBookDto>>.Ok(new List<TopSellingBookDto>()));
+            _apiClientMock.Setup(c => c.GetStockAsync(true, null))
+                .ReturnsAsync(ApiResult<IEnumerable<StockItemDto>>.Ok(stockItems));
+
+            var controller = CreateController(PermissionHelper.RoleAdmin);
+
+            // Act
+            var result = await controller.Index();
+
+            // Assert: Không bị lọc bỏ ở client (vẫn giữ nguyên 2 mặt hàng)
+            var viewResult = result.Should().BeOfType<ViewResult>().Subject;
+            var model = viewResult.Model.Should().BeOfType<AdminDashboardViewModel>().Subject;
+            model.LowStockItems.Should().HaveCount(2);
+        }
+
+        [Fact]
         public void ViewModel_Sums12MonthsCorrectly_WithDecimalPrecision()
         {
             // Arrange

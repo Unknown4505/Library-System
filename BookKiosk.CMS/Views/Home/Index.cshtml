@@ -86,7 +86,7 @@
         <div class="card border-start border-warning border-4 shadow-sm h-100">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
-                    <div class="text-uppercase fw-bold text-warning small mb-1">Sách sắp hết (Tồn ≤ 5)</div>
+                    <div class="text-uppercase fw-bold text-warning small mb-1">Sách sắp hết kho</div>
                     <div class="h4 mb-0 fw-bold text-dark">
                         @Model.LowStockCount
                     </div>
@@ -194,7 +194,7 @@
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
         <h6 class="m-0 fw-bold text-dark">
-            <i class="fas fa-triangle-exclamation text-warning me-2"></i>Cảnh báo Tồn kho Sắp hết (Tồn khả dụng ≤ 5)
+            <i class="fas fa-triangle-exclamation text-warning me-2"></i>Cảnh báo Tồn kho Sắp hết
         </h6>
         <a asp-controller="Inventory" asp-action="Stock" class="btn btn-sm btn-outline-primary">
             <i class="fas fa-warehouse me-1"></i>Xem tất cả kho hàng
@@ -212,7 +212,7 @@
         {
             <div class="text-center text-success py-5">
                 <i class="fas fa-circle-check fa-2x mb-2 d-block"></i>
-                <span>Tồn kho ổn định. Hiện không có đầu sách nào dưới ngưỡng an toàn (≤ 5 cuốn).</span>
+                <span>Tồn kho ổn định. Hiện không có đầu sách nào dưới ngưỡng cảnh báo.</span>
             </div>
         }
         else

@@ -96,14 +96,13 @@ namespace BookKiosk.CMS.Controllers
                 _logger.LogError(ex, "Lỗi gọi API top sách bán chạy");
             }
 
-            // 3. Low Stock Items (AvailableStock <= 5, lấy tối đa 10 mục)
+            // 3. Low Stock Items (Lấy tối đa 10 mục do Backend đã lọc lowOnly)
             try
             {
                 var stockResult = await _apiClient.GetStockAsync(lowOnly: true);
                 if (stockResult.Success && stockResult.Data != null)
                 {
                     viewModel.LowStockItems = stockResult.Data
-                        .Where(s => s.AvailableStock <= 5)
                         .OrderBy(s => s.AvailableStock)
                         .Take(10)
                         .ToList();
@@ -129,14 +128,13 @@ namespace BookKiosk.CMS.Controllers
         {
             var viewModel = new StaffWorkspaceViewModel();
 
-            // 1. Lấy danh sách cảnh báo tồn kho sắp hết (AvailableStock <= 5, tối đa 10 mục)
+            // 1. Lấy danh sách cảnh báo tồn kho sắp hết (Lấy tối đa 10 mục do Backend đã lọc lowOnly)
             try
             {
                 var stockResult = await _apiClient.GetStockAsync(lowOnly: true);
                 if (stockResult.Success && stockResult.Data != null)
                 {
                     viewModel.LowStockItems = stockResult.Data
-                        .Where(s => s.AvailableStock <= 5)
                         .OrderBy(s => s.AvailableStock)
                         .Take(10)
                         .ToList();
