@@ -438,5 +438,34 @@ namespace BookKiosk.Tests.Cms
             var viewResult = result.Should().BeOfType<ViewResult>().Subject;
             viewResult.Model.Should().BeOfType<StaffWorkspaceViewModel>();
         }
+
+        [Fact]
+        public async Task StaffWorkspace_WhenOrdersApiFails_IsOrdersUnavailableIsTrueAndLowStockItemsStillPopulated()
+        {
+            // Arrange
+            var stockItems = new List<StockItemDto>
+            {
+                new StockItemDto { BookId = 1, Title = "Đất rừng phương Nam", Barcode = "9786042123456", AvailableStock = 2 }
+            };
+            _apiClientMock.Setup(c => c.GetStockAsync(true, null))
+                .ReturnsAsync(ApiResult<IEnumerable<StockItemDto>>.Ok(stockItems));
+
+            _orderApiMock.Setup(o => o.GetOrdersAsync(It.IsAny<OrderFilterDto>()))
+                .ThrowsAsync(new System.Net.Http.HttpRequestException("Connection error to order service"));
+
+            var controller = CreateController(PermissionHelper.RoleStaff);
+
+            // Act
+            var result = await controller.StaffWorkspace();
+
+            // Assert
+            var viewResult = result.Should().BeOfType<ViewResult>().Subject;
+            var model = viewResult.Model.Should().BeOfType<StaffWorkspaceViewModel>().Subject;
+
+            model.IsOrdersUnavailable.Should().BeTrue();
+            model.IsLowStockUnavailable.Should().BeFalse();
+            model.LowStockItems.Should().HaveCount(1);
+            model.LowStockItems[0].Title.Should().Be("Đất rừng phương Nam");
+        }
     }
 }
