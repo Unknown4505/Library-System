@@ -15,9 +15,9 @@ builder.Services.AddTransient<JwtDelegatingHandler>();
 
 // 4. Kiểm tra an toàn cờ Mock & Đăng ký Typed HttpClient cho API Backend & POS
 var useMockApi = builder.Configuration.GetValue<bool>("Cms:UseMockApi");
-if ((builder.Environment.IsProduction() || builder.Environment.IsEnvironment("Release")) && useMockApi)
+if (!builder.Environment.IsDevelopment() && useMockApi)
 {
-    throw new InvalidOperationException("NGUY HIỂM: Không được phép bật cờ Cms:UseMockApi trên môi trường Production/Release!");
+    throw new InvalidOperationException("NGUY HIỂM: Không được phép bật cờ Cms:UseMockApi trên môi trường ngoài Development (Production/Staging/Release)!");
 }
 
 var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7111";

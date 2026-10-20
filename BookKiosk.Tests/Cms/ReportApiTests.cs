@@ -217,6 +217,7 @@ namespace BookKiosk.Tests.Cms
         [Theory]
         [InlineData("Production")]
         [InlineData("Release")]
+        [InlineData("Staging")]
         public void ReleaseGuard_RefusesStartup_WhenUseMockApiIsTrue(string environmentName)
         {
             // Arrange
