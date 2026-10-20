@@ -116,3 +116,26 @@ Các ca dưới đây là acceptance plan cho HR-DEC-01/02/03. Salary Service/AP
 | SAL-11 | Manager xác nhận Paid | DENY; chỉ Admin được pay | PLANNED / NOT RUN |
 | SAL-12 | Hai request đồng thời xác nhận cùng Draft | Chỉ một request chuyển sang Paid; không ghi actor/time hai lần | PLANNED / NOT RUN |
 | SAL-13 | Sửa hoặc xóa phiếu Paid qua API thường | DENY; ledger Paid immutable | PLANNED / NOT RUN |
+
+## 7. Acceptance — Kiosk Idle Advertising & Navigation
+
+Feature chưa được triển khai/runtime-test; tất cả ca dưới đây là **PLANNED / NOT RUN**.
+
+| ID | Kịch bản | Expected | Trạng thái |
+|---|---|---|---|
+| ADS-01 | Khởi động Kiosk | Vào `IdlePage`, slideshow quảng cáo bắt đầu; không yêu cầu login | PLANNED / NOT RUN |
+| ADS-02 | Không tương tác 60 giây tại `SearchPage` | Chuyển về Idle Advertising đúng một lần | PLANNED / NOT RUN |
+| ADS-03 | Chạm màn hình quảng cáo | Dừng/dispose slideshow timer và vào `SearchPage` có search + danh sách sách | PLANNED / NOT RUN |
+| ADS-04 | Backend trả đủ ba nhóm | Promotion/new arrivals/best sellers map đúng field và ảnh; không dùng dữ liệu local giả | PLANNED / NOT RUN |
+| ADS-05 | Không có promotion active | Bỏ slide promotion; các nhóm hợp lệ khác vẫn chạy | PLANNED / NOT RUN |
+| ADS-06 | Promotion inactive/chưa tới ngày/hết hạn | Không hiển thị | PLANNED / NOT RUN |
+| ADS-07 | API advertising lỗi/timeout | Không crash; hiện fallback “Chạm để bắt đầu”; touch vẫn hoạt động khi Search API khả dụng | PLANNED / NOT RUN |
+| ADS-08 | Rời/quay lại `IdlePage` nhiều lần | Không còn timer cũ, không nhân đôi timer/request; slide interval cấu hình mặc định 8s | PLANNED / NOT RUN |
+| ADS-09 | Đang Member/chọn điểm/checkout/Pending/đang tải hoặc xem Receipt | Inactivity không đưa về Idle; payment polling/timeout/cancel hiện hữu không bị thay đổi | PLANNED / NOT RUN |
+| NAV-01 | Polling trả `Paid` | Vào Receipt; không gọi cancel và không bỏ qua hiển thị/in | PLANNED / NOT RUN |
+| NAV-02 | Receipt hoàn tất/hết 5s hợp lệ | Giữ dữ liệu UI/PDF/in an toàn, clear cart/session rồi về `SearchPage`, không về Idle ngay | PLANNED / NOT RUN |
+| NAV-03 | Search sau Receipt | Không còn item, điểm dùng, OrderId hoặc state giao dịch cũ | PLANNED / NOT RUN |
+| NAV-04 | Sau Receipt về Search rồi không tương tác 60s | Chuyển sang Idle Advertising | PLANNED / NOT RUN |
+| NAV-05 | Receipt API/PDF lỗi hoặc in chưa hoàn tất | Retry/error state; không dựng receipt giả và timer không cắt ngang thao tác | PLANNED / NOT RUN |
+
+Acceptance cần evidence UI/timer lifecycle, request log, trạng thái cart/session và regression payment/Receipt API/PDF. Không đánh dấu PASS chỉ từ docs hoặc mock.

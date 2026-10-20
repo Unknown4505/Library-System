@@ -176,12 +176,22 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 - **Handoff PLANNED:** Auth/RBAC và Employee/Salary giao Backend `@thien33` triển khai sau contract; CMS Auth/Employee/Salary/NCC giao FE `@lehuukhang`; Leader giữ Domain/EF schema, shared contract và integration QA. Chưa tạo Issue mới; Owner/Dependencies/API-Data contract/Acceptance nằm ở docs/12.
 - **Salary APPROVED DESIGN (HR-DEC-01/02/03):** PayYear 2000..2100; Admin xem all và pay; Manager/Staff chỉ xem own Paid qua JWT→Employee; Backend enforce công thức NetSalary, Draft/Paid actor-time, transaction/concurrency và immutable Paid. API/UI vẫn `[ ]` PLANNED; migration giữ nguyên và SQL QA vẫn `BLOCKED — ENV`.
 
+### Handoff Kiosk Advertising & Navigation — phê duyệt 2026-10-21
+
+Các nhãn dưới đây chưa được cấp số task/Issue để tránh xung đột ID hiện hữu. Cập nhật docs là `DOCS COMPLETED`, không đồng nghĩa feature đã implement.
+
+| Nhãn dự kiến | Phân loại | Owner | Dependency | Acceptance chính | Trạng thái |
+|---|---|---|---|---|---|
+| FE — Kiosk Idle Advertising | NEW FEATURE | `@lehuukhang` | Contract/khả dụng dữ liệu quảng cáo; API gap phải được Leader duyệt | Startup vào Idle Ads; 3 nhóm dữ liệu đúng; touch sang `SearchPage`; inactivity 60s; slideshow 8s configurable; timer cleanup; fallback không crash; không gián đoạn giao dịch | **PLANNED** |
+| FE — Receipt Navigation UX Change | UX CHANGE, không phải regression so với thiết kế cũ | `@lehuukhang` | Receipt flow hiện hữu và #28/#29 | Chỉ sau `Paid` và hoàn tất Receipt; giữ mốc 5s hiện hành; giữ dữ liệu in/PDF an toàn; clear session/cart; về `SearchPage`; không cancel Paid; sau 60s mới về Idle Ads | **PLANNED** |
+| BE API GAP — Kiosk Advertising Contract | API GAP | `@thien33` | Leader duyệt contract đề xuất trong `docs/04-api-reference.md` | Reuse Promotions/Books/Orders/OrderDetails; active-date filter; best sellers chỉ Paid; new-arrival criterion rõ; API-key; không thêm schema `Advertisements` | **PLANNED / APPROVAL REQUIRED** |
+
 - **4.5 giữ chưa hoàn thành:** HTTP smoke trên merge không commit `main@fbc15a2` + `Khang@d9de651` đã PASS pagination, keyword, category, detail, barcode hợp lệ/404 và dữ liệu out-of-stock. WPF chưa chạy tương tác; FE-13 còn race pagination và Backend vẫn trả sách inactive qua detail/barcode.
 - **5.5 giữ chưa hoàn thành:** Đã chạy bộ test trên SQL Server Express local bằng database cô lập. Constraints, rollback, concurrent last-copy, cancel và promotion+100 điểm PASS; duplicate webhook, 4 validation điểm và OrderCode uniqueness FAIL. Checkout idempotency/cleanup race vẫn BLOCKED bởi Issue #19/#20.
 - **7.3 giữ chưa hoàn thành:** Contract xác thực SePay phải được đối chiếu chính xác với cấu hình/tài liệu gateway và regression theo Issue #20; static code review không phải runtime evidence.
 - **7.6 giữ chưa hoàn thành:** HTTP smoke đã PASS Checkout→Pending→QR→polling→Cancel và đối chiếu reserve 0→1→0; F3/Receipt đều trả 404, chưa có SePay Test Mode/Paid/Receipt E2E.
 - **9.1 giữ chưa hoàn thành:** Leader đã bổ sung Category/Area CRUD dùng shared DTO, wrapper và role Admin; SQL contract tests PASS. Books write endpoints hiện chưa có authorization và validation wrapper toàn cục chưa được nghiệm thu, nên chưa thể đánh dấu hoàn thành.
-- **11.5 giữ chưa hoàn thành:** Shared Reports DTO/contract đã chốt và serialization PASS; implementation vẫn trả `object`, `ReportsController` chưa giới hạn role Admin và PR #11 chưa có CMS chart/status integration.
+- **11.5 giữ chưa hoàn thành:** Shared Reports DTO/contract đã chốt và serialization PASS; implementation vẫn trả `object`, `ReportsController` hiện giới hạn role Admin nhưng chưa có runtime authorization evidence và PR #11 chưa có CMS chart/status integration.
 - **12.1 giữ chưa hoàn thành:** Kế hoạch và kết quả component SQL đã cập nhật tại docs/11-end-to-end-test-plan.md; chưa chạy E2E đầy đủ với Kiosk WPF và SePay Test Mode.
 - **12.2 giữ chưa hoàn thành:** Artifact BFD/DFD 0/1/2 tồn tại trong `diagram/`; BFD và DFD Level 1 cùng bảy nhóm chức năng, DFD Level 2 khớp luồng checkout/payment. DFD Level 1 còn thiếu data store/luồng xác thực `Users` và bộ sơ đồ chưa phân biệt rõ chức năng đã triển khai với phần Planned/BLOCKED.
 - **12.3 giữ trạng thái hoàn thành:** ERD đã được đối chiếu có đúng 17 entity, không thêm bảng ngoài model và có quan hệ nullable `Kiosks.AreaId -> Areas.AreaId` đúng cấu hình `SET NULL`.

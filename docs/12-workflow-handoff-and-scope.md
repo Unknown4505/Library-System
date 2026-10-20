@@ -1,6 +1,6 @@
 # Workflow handoff và phạm vi current/target — BookKiosk
 
-Ngày đối chiếu: 2026-10-16. Integration baseline: `origin/main@efcd388a2c5c6791eeecefe6e511d6b31ec8a91f`, branch working tree `codex/leader-workflow-integration`.
+Ngày đối chiếu integration/schema: 2026-10-16, baseline `origin/main@efcd388a2c5c6791eeecefe6e511d6b31ec8a91f`, branch `codex/leader-workflow-integration`. Kiosk Advertising/Navigation được đối chiếu bổ sung ngày 2026-10-21 trên branch `c8`, HEAD `ae4905981e1c9ddb9da5a698091a2d5e9a05cd9c`.
 
 ## 1. Quyết định đã chốt
 
@@ -13,6 +13,8 @@ Ngày đối chiếu: 2026-10-16. Integration baseline: `origin/main@efcd388a2c5
 | Schema | Main baseline 17 bảng | 19 bảng sau migration: thêm Employees/SalaryPayments | Model + migration scaffold/static review PASS; runtime SQL chưa chạy |
 | Lương | Chưa có | Sổ tháng Draft/Paid đơn giản | PLANNED API/UI |
 | Device incidents | Kiosks/KioskIncidents là bảng thật | Không là process BFD/DFD chính | PASS design |
+| Idle Advertising | `IdlePage` hiện hữu; dữ liệu rải ở Promotions/Books/Reports | Slideshow 3 nhóm, touch-to-start, 60s Search inactivity và fallback | NEW FEATURE / PLANNED |
+| Post-payment navigation | Source hiện tại `ReceiptPage → IdlePage` | `ReceiptPage → SearchPage`; giữ Receipt 5s và clear completed session | UX CHANGE / PLANNED |
 
 Nguồn ưu tiên: Entity/EF config/migration snapshot → `docs/init.sql` và drift → Service/Controller/DTO/docs → quyết định Leader. BFD không phải nguồn schema chuẩn.
 
@@ -164,3 +166,22 @@ Mỗi handoff cần issue/task riêng sau khi Leader duyệt, kèm file ownershi
 - #19/#20 đã closed/completed và PR #26 đã merge; không mở lại hoặc sửa lại nếu không có regression evidence mới.
 - Migration HR đã scaffold an toàn qua design-time factory và static-review chỉ có additive HR operations. Apply/rollback/runtime SQL vẫn `BLOCKED — ENV` vì chưa có connection QA disposable được xác minh; không chạy API hay `database update` trên DB hiện hữu.
 - Merge readiness chỉ đạt khi build PASS, diagram XML PASS, PNG được Leader visual-review/xuất lại, migration review + SQL QA PASS và các test Receipt/E2E theo dependency hoàn thành. Docs/model riêng không đủ để claim feature complete.
+
+## 9. Handoff Kiosk Advertising & Navigation — APPROVED DESIGN, IMPLEMENTATION PLANNED
+
+**Khang — Frontend (`@lehuukhang`)**
+
+- Ownership: `IdlePage` slideshow/loading/empty/error, touch → `SearchPage`, Receipt → `SearchPage`, inactivity/slideshow/Receipt timer lifecycle, interaction reset và offline fallback.
+- Acceptance: đúng ba nhóm dữ liệu Backend; slideshow 8s configurable; Search inactivity 60s; không duplicate timer/request; không đưa member/checkout/payment/receipt đang hoạt động về Idle; sau Receipt giữ dữ liệu in/PDF an toàn, clear completed session/cart và không cancel Paid.
+- Dependency: dùng contract hiện hữu khi đủ; với API gap chỉ chuẩn bị UI states/mock tách biệt, không công bố implementation/E2E hoàn tất.
+
+**Thiện — Backend (`@thien33`)**
+
+- Chỉ xử lý API gap sau khi Leader duyệt contract `GET /api/kiosk/advertising` đề xuất trong `docs/04-api-reference.md`.
+- Reuse `Promotions`, `Books`, `Orders`, `OrderDetails` và dữ liệu nhập kho; active-date filter, promotion scope/amount rõ, best seller chỉ từ `Paid`, tiêu chí new arrivals xác định phía server.
+- Không thay logic promotion/checkout đang đúng, không tạo bảng `Advertisements`, schema hay migration mới.
+
+**Leader (`@Unknown4505`)**
+
+- Chốt endpoint/DTO và tiêu chí “sách mới về”, review quyền `X-Api-Key`, nghiệm thu E2E/timer lifecycle/fallback và regression payment/Receipt.
+- Feature chỉ được chuyển khỏi `PLANNED` khi có source + targeted tests + runtime evidence; docs hoàn tất không đóng #28/#29.

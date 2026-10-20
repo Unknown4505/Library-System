@@ -339,6 +339,25 @@ Các route dưới đây chỉ là namespace contract mục tiêu, **chưa phả
 - `/api/employees`: hồ sơ nhân viên; Admin/Manager theo policy, Staff chỉ được đọc hồ sơ của chính mình khi có identity mapping.
 - `/api/salary-payments`: sổ lương tháng; API/DTO/controller/service đều **PLANNED**.
 
+### 3.9 Kiosk Idle Advertising data — contract gap
+
+Đối chiếu source ngày 2026-10-21:
+
+| Dữ liệu | Endpoint/field hiện có | Phân loại | Giới hạn đối với Idle Advertising |
+|---|---|---|---|
+| Ảnh và thông tin sách | `GET /api/books`; `BookDto` có `bookId`, `title`, `imageUrl`, `sellingPrice`, `availableStock` | **AVAILABLE** | Dùng được để render ảnh/thông tin khi đã biết danh sách sách; URL ảnh tương đối được phục vụ qua static files |
+| Khuyến mãi hiệu lực | `GET /api/promotions`; `PromotionDto` có `name`, `description`, `startDate`, `endDate`, `isActive` | **PARTIAL** | Endpoint yêu cầu JWT role Admin/Manager/Staff, trả cả active/inactive; DTO thiếu `promotionType` và mức giảm nên Kiosk không được suy diễn nội dung |
+| Sách mới về | `GET /api/books` | **PARTIAL** | Entity có `CreatedAt`, nhưng `BookDto` không trả field này; endpoint sắp theo title, không có filter/order “new arrivals” |
+| Sách bán chạy | `GET /api/reports/top-books?top={n}`; `TopSellingBookDto` có `bookId`, `title`, `imageUrl`, `totalSold`, `totalRevenue` | **PARTIAL** | Query chỉ tính order `Paid` là đúng, nhưng endpoint Admin-only và DTO không có `sellingPrice`/`availableStock` cho Kiosk |
+
+**PROPOSED — NOT IMPLEMENTED:** `GET /api/kiosk/advertising`, xác thực bằng `X-Api-Key`, trả `ApiResponseDto<KioskAdvertisingDto>` gồm:
+
+- `activePromotions[]`: `promotionId`, `name`, `description`, `promotionType`, `discountAmount?`, `startDate`, `endDate`; Backend chỉ trả promotion đang hiệu lực và giữ rõ scope toàn đơn/sản phẩm.
+- `newArrivals[]`: `bookId`, `title`, `imageUrl`, `sellingPrice`, `availableStock`; tiêu chí/số lượng do Backend xác định từ dữ liệu sách/nhập kho hiện hữu.
+- `bestSellers[]`: `bookId`, `title`, `imageUrl`, `sellingPrice`, `availableStock`, `totalSold`; `totalSold` chỉ tổng hợp từ order `Paid`.
+
+Owner API gap: `@thien33` (**PLANNED**, cần Leader duyệt contract). Dependency FE: `@lehuukhang` chỉ tích hợp sau khi contract được chốt; trước đó chỉ được làm loading/empty/error state và asset fallback đã duyệt. Ưu tiên reuse `Promotions`, `Books`, `Orders`, `OrderDetails` và dữ liệu nhập kho; không tạo bảng `Advertisements`, migration hoặc DTO trong đợt docs này.
+
 **Contract tạo Draft — APPLICATION REQUIRED:**
 
 - Chỉ Admin được tạo; mỗi `(EmployeeId, PayYear, PayMonth)` có tối đa một phiếu (`409` khi trùng).

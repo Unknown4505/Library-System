@@ -31,10 +31,10 @@ Dự án Kiosk bắt buộc tuân theo mô hình **MVVM (Model - View - ViewMode
 Ứng dụng Kiosk chạy theo cơ chế "Navigation" (chuyển trang) trong một `Frame` chính duy nhất của `MainWindow`.
 
 ### 1. Màn hình Chờ (Idle / Splash Screen)
-- **Giao diện:** Chạy video quảng cáo sách hoặc hiển thị ảnh "Chạm vào màn hình để bắt đầu".
-- **Logic:** Nếu khách chạm vào, chuyển sang Màn hình Tìm Sách.
+- **Giao diện target `[PLANNED]`:** `IdlePage` tự động trình chiếu khuyến mãi đang hiệu lực, sách mới về và sách bán chạy; nếu không có dữ liệu hợp lệ thì hiển thị “Chạm để bắt đầu”.
+- **Logic:** App khởi động tại `IdlePage`; nếu khách chạm vào thì dừng slideshow và chuyển sang `SearchPage`.
 
-### 2. Màn hình Tìm sách / Quét mã vạch (Home Screen)
+### 2. Màn hình Tìm sách / Quét mã vạch (`SearchPage`)
 - **Giao diện:** 
   - Bên trái: Danh sách các sách đang bán (có phân trang/scroll), nút lọc theo Category.
   - Bên phải: Cột hiển thị Giỏ hàng mini.
@@ -71,7 +71,46 @@ Dự án Kiosk bắt buộc tuân theo mô hình **MVVM (Model - View - ViewMode
   - Chỉ chuyển sang Success khi polling Backend trả `Paid`; lỗi mạng không được diễn giải thành `Cancelled` hay `Paid`.
   - Gọi `GET /api/orders/kiosk/{orderId}/receipt` và dựng bản in từ response Backend. Không dùng cart local làm nguồn hóa đơn.
   - Gửi lệnh in (ESC/POS) xuống máy in nhiệt.
-  - Sau 5 giây tự động xóa sạch Giỏ hàng và chuyển về Màn hình Chờ đón khách tiếp theo.
+  - Mốc hiển thị Receipt hiện hành là **5 giây**. Sau khi dữ liệu Receipt/PDF đã được giữ an toàn và thao tác hiển thị/in hoàn tất, xóa giỏ cùng trạng thái giao dịch cũ rồi chuyển về `SearchPage`.
+  - Không tự hủy đơn đã `Paid`, không bỏ qua Receipt và không quay thẳng về `IdlePage`. Đây là **UX CHANGE / PLANNED**; source hiện tại vẫn còn luồng cũ cho đến khi FE triển khai.
+
+### Kiosk Idle Advertising Mode & Navigation Lifecycle — NEW FEATURE / PLANNED
+
+Luồng chính thức:
+
+```text
+App Startup → Idle Advertising → Touch → SearchPage
+→ Member/Checkout → Payment → Paid → Receipt → SearchPage
+→ 60s Inactivity → Idle Advertising
+```
+
+`HomePage` đã được gộp vào `SearchPage`; không tạo `HomePage` mới. Các nhánh ngoại lệ gồm `API advertising unavailable → Idle fallback`, không có promotion active thì bỏ slide promotion, `Payment Pending → tiếp tục polling`, payment timeout/cancel theo safe cancellation flow hiện hữu, và lỗi Receipt API phải retry/báo lỗi thay vì dựng hóa đơn chính thức giả.
+
+#### Nội dung và nguồn dữ liệu
+
+| Nhóm | Quy tắc hiển thị | Tình trạng contract hiện tại |
+|---|---|---|
+| Khuyến mãi | Chỉ `IsActive=true` và thời điểm hiện tại thuộc `StartDate..EndDate`; phân biệt giảm toàn đơn với giảm sản phẩm; không suy diễn mức giảm | **PARTIAL** — API CMS trả danh sách nhưng Admin/Manager/Staff-only, trả cả inactive và DTO thiếu loại/mức giảm |
+| Sách mới về | Ảnh bìa, tên, giá nếu contract hỗ trợ; phải dựa trên tiêu chí Backend, không gắn nhãn từ dữ liệu giả | **PARTIAL** — Books API có dữ liệu hiển thị nhưng không có filter/order/field xác định “mới về” |
+| Sách bán chạy | Chỉ thống kê từ `Orders` đã `Paid`; không dùng cart local/Pending | **PARTIAL** — Reports có dữ liệu đúng nguồn nhưng endpoint Admin-only và thiếu giá bán/tồn khả dụng cho Kiosk |
+| Ảnh bìa | Ghép URL tương đối với API base URL; ảnh lỗi dùng placeholder UI đã duyệt | **AVAILABLE** — `BookDto.ImageUrl`, top-books `imageUrl` và static files hiện hữu |
+
+Contract tổng hợp đề xuất tại `docs/04-api-reference.md` là **PROPOSED — NOT IMPLEMENTED**. FE phụ thuộc contract Backend được Leader phê duyệt; không hardcode dữ liệu giả thành quảng cáo thật.
+
+#### Timer, tương tác và cleanup
+
+- **Slideshow timer:** mặc định đề xuất **8 giây/slide**, phải cấu hình được; chỉ một timer sống trên `IdlePage`, dừng/dispose khi rời trang và không reload API liên tục ở mỗi tick.
+- **Inactivity timer:** **60 giây** không tương tác tại `SearchPage` thì dọn trạng thái UI an toàn và về `IdlePage`. Mọi thao tác hợp lệ trên Search phải reset timer.
+- **Receipt timer:** giữ **5 giây** hiện hành trước khi về `SearchPage`, nhưng không được đóng/cắt ngang thao tác hiển thị, tải PDF hoặc in chưa hoàn tất.
+- Ba timer độc lập về trách nhiệm, không dùng chung và không được kích hoạt chồng chéo.
+- Không kích hoạt Idle Advertising khi đang nhập thành viên/chọn điểm, tạo hoặc xác nhận checkout, chờ QR `Pending`, đã `Paid` nhưng đang tải Receipt, hoặc đang xem/in Receipt. Các màn hình giao dịch dùng timeout/cancel hiện hữu.
+- Sau Receipt, giữ dữ liệu cần cho UI/PDF/in trước; sau đó clear cart, OrderId và state giao dịch cũ rồi điều hướng `SearchPage`. Không gọi cancel cho order `Paid`.
+
+#### Offline/fallback
+
+- API lỗi, timeout hoặc không có nhóm dữ liệu hợp lệ không được làm crash; bỏ nhóm rỗng và dùng màn hình chờ mặc định “Chạm để bắt đầu”.
+- Có thể dùng asset tĩnh đã được duyệt trong UI, nhưng không hiển thị promotion hết hạn hoặc dữ liệu giả như dữ liệu thực.
+- Touch-to-start vẫn phải hoạt động khi quảng cáo lỗi, miễn các API mua hàng cần thiết khả dụng.
 
 ---
 
