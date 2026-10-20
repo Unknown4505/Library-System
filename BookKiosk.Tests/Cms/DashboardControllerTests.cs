@@ -16,6 +16,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -28,6 +29,7 @@ namespace BookKiosk.Tests.Cms
         private readonly Mock<ICmsApiClient> _apiClientMock;
         private readonly Mock<IOrderApi> _orderApiMock;
         private readonly Mock<ILogger<HomeController>> _loggerMock;
+        private IConfiguration _configuration;
 
         public DashboardControllerTests()
         {
@@ -35,9 +37,10 @@ namespace BookKiosk.Tests.Cms
             _apiClientMock = new Mock<ICmsApiClient>();
             _orderApiMock = new Mock<IOrderApi>();
             _loggerMock = new Mock<ILogger<HomeController>>();
+            _configuration = new ConfigurationBuilder().AddInMemoryCollection().Build();
         }
 
-        private HomeController CreateController(string role = PermissionHelper.RoleAdmin)
+        private HomeController CreateController(string role = PermissionHelper.RoleAdmin, IConfiguration? config = null)
         {
             var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
             {
@@ -51,10 +54,40 @@ namespace BookKiosk.Tests.Cms
                 _reportApiMock.Object,
                 _apiClientMock.Object,
                 _orderApiMock.Object,
+                config ?? _configuration,
                 _loggerMock.Object)
             {
                 ControllerContext = new ControllerContext { HttpContext = httpContext }
             };
+        }
+
+        [Fact]
+        public async Task Index_WhenUseMockApiConfigured_PopulatesUseMockApiInViewModel()
+        {
+            // Arrange
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Cms:UseMockApi"] = "true"
+                })
+                .Build();
+
+            _reportApiMock.Setup(r => r.GetRevenueByMonthAsync(It.IsAny<int>()))
+                .ReturnsAsync(ApiResult<RevenueReportResponseDto>.Ok(new RevenueReportResponseDto()));
+            _reportApiMock.Setup(r => r.GetTopSellingBooksAsync(It.IsAny<int>()))
+                .ReturnsAsync(ApiResult<IEnumerable<TopSellingBookDto>>.Ok(new List<TopSellingBookDto>()));
+            _apiClientMock.Setup(c => c.GetStockAsync(true, null))
+                .ReturnsAsync(ApiResult<IEnumerable<StockItemDto>>.Ok(new List<StockItemDto>()));
+
+            var controller = CreateController(PermissionHelper.RoleAdmin, config);
+
+            // Act
+            var result = await controller.Index();
+
+            // Assert
+            var viewResult = result.Should().BeOfType<ViewResult>().Subject;
+            var model = viewResult.Model.Should().BeOfType<AdminDashboardViewModel>().Subject;
+            model.UseMockApi.Should().BeTrue();
         }
 
         [Theory]

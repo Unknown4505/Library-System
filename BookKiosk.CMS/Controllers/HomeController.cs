@@ -20,17 +20,20 @@ namespace BookKiosk.CMS.Controllers
         private readonly IReportApi _reportApi;
         private readonly ICmsApiClient _apiClient;
         private readonly IOrderApi _orderApi;
+        private readonly IConfiguration _configuration;
         private readonly ILogger<HomeController> _logger;
 
         public HomeController(
             IReportApi reportApi,
             ICmsApiClient apiClient,
             IOrderApi orderApi,
+            IConfiguration configuration,
             ILogger<HomeController> logger)
         {
             _reportApi = reportApi;
             _apiClient = apiClient;
             _orderApi = orderApi;
+            _configuration = configuration;
             _logger = logger;
         }
 
@@ -46,7 +49,8 @@ namespace BookKiosk.CMS.Controllers
 
             var viewModel = new AdminDashboardViewModel
             {
-                SelectedYear = selectedYear
+                SelectedYear = selectedYear,
+                UseMockApi = _configuration.GetValue<bool>("Cms:UseMockApi")
             };
 
             // Available years (5 years)
@@ -126,7 +130,10 @@ namespace BookKiosk.CMS.Controllers
         [Authorize(Roles = "Admin,Staff,Manager")]
         public async Task<IActionResult> StaffWorkspace()
         {
-            var viewModel = new StaffWorkspaceViewModel();
+            var viewModel = new StaffWorkspaceViewModel
+            {
+                UseMockApi = _configuration.GetValue<bool>("Cms:UseMockApi")
+            };
 
             // 1. Lấy danh sách cảnh báo tồn kho sắp hết (Lấy tối đa 10 mục do Backend đã lọc lowOnly)
             try

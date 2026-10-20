@@ -3,6 +3,16 @@
     ViewData["Title"] = "Bàn làm việc nhân viên - BookKiosk Staff";
 }
 
+@if (Model.UseMockApi)
+{
+    <div class="alert alert-warning py-2 mb-4 d-flex align-items-center shadow-sm" role="alert">
+        <i class="fas fa-flask-vial fa-lg me-2 text-warning"></i>
+        <div>
+            <strong>Chế độ Mock:</strong> Hệ thống đang sử dụng dữ liệu giả lập (Cms:UseMockApi = true). Các tác nghiệp không phản ánh cơ sở dữ liệu thật.
+        </div>
+    </div>
+}
+
 <!-- Page Header -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>

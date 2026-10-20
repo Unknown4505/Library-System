@@ -18,6 +18,7 @@ namespace BookKiosk.CMS.ViewModels.Dashboard
 
         public bool IsLowStockUnavailable { get; set; }
         public bool IsOrdersUnavailable { get; set; }
+        public bool UseMockApi { get; set; }
         public string? ErrorMessage { get; set; }
     }
 }
