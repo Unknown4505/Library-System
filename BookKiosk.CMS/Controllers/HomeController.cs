@@ -192,6 +192,11 @@ namespace BookKiosk.CMS.Controllers
         public async Task<IActionResult> GetRevenueChartData(int? year = null)
         {
             int selectedYear = year ?? DateTime.UtcNow.Year;
+            if (selectedYear < 2000 || selectedYear > 2100)
+            {
+                return BadRequest(new { success = false, message = "Năm không hợp lệ. Vui lòng chọn năm trong khoảng từ 2000 đến 2100." });
+            }
+
             try
             {
                 var result = await _reportApi.GetRevenueByMonthAsync(selectedYear);

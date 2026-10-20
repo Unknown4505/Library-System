@@ -279,6 +279,22 @@ namespace BookKiosk.Tests.Cms
             result.Should().BeOfType<BadRequestObjectResult>();
         }
 
+        [Theory]
+        [InlineData(1999)]
+        [InlineData(2101)]
+        [InlineData(-1)]
+        public async Task GetRevenueChartData_InvalidYear_ReturnsBadRequest(int invalidYear)
+        {
+            // Arrange
+            var controller = CreateController(PermissionHelper.RoleAdmin);
+
+            // Act
+            var result = await controller.GetRevenueChartData(invalidYear);
+
+            // Assert
+            result.Should().BeOfType<BadRequestObjectResult>();
+        }
+
         [Fact]
         public async Task GetRevenueChartData_Admin_ReturnsJsonDataWithTotals()
         {
