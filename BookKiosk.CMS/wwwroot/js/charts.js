@@ -202,4 +202,153 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         });
     }
+
+    // Xử lý thay đổi Top sách (5/10/20) qua AJAX
+    const topBooksSelect = document.getElementById("topBooksSelect");
+    const topBooksContainer = document.getElementById("topBooksContainer");
+    const topBooksCardTitle = document.getElementById("topBooksCardTitle");
+
+    if (topBooksSelect && topBooksContainer) {
+        topBooksSelect.addEventListener("change", function () {
+            const topVal = parseInt(this.value, 10);
+            if (![5, 10, 20].includes(topVal)) return;
+
+            topBooksSelect.disabled = true;
+            fetch(`/Home/GetTopBooksJson?top=${topVal}`, {
+                headers: { "Accept": "application/json" }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                return res.json();
+            })
+            .then(res => {
+                if (!res || !res.success || !Array.isArray(res.data)) {
+                    alert(res?.message || "Không thể tải danh sách top sách.");
+                    return;
+                }
+
+                if (topBooksCardTitle) {
+                    topBooksCardTitle.textContent = `Top ${topVal} Sách Bán Chạy`;
+                }
+
+                topBooksContainer.textContent = "";
+
+                if (res.data.length === 0) {
+                    const emptyDiv = document.createElement("div");
+                    emptyDiv.className = "text-center text-muted py-5";
+                    const icon = document.createElement("i");
+                    icon.className = "fas fa-book-open fa-2x mb-2 d-block opacity-50";
+                    const span = document.createElement("span");
+                    span.textContent = "Chưa có dữ liệu sách bán chạy.";
+                    emptyDiv.appendChild(icon);
+                    emptyDiv.appendChild(span);
+                    topBooksContainer.appendChild(emptyDiv);
+                    return;
+                }
+
+                const listGroup = document.createElement("div");
+                listGroup.className = "list-group list-group-flush";
+
+                res.data.forEach((book, index) => {
+                    const rank = index + 1;
+                    const itemDiv = document.createElement("div");
+                    itemDiv.className = "list-group-item d-flex align-items-center px-3 py-2 border-bottom";
+
+                    // Rank badge
+                    const badge = document.createElement("span");
+                    let badgeClass = "bg-light text-secondary border";
+                    if (rank === 1) badgeClass = "bg-warning text-dark fw-bold";
+                    else if (rank === 2) badgeClass = "bg-secondary text-white";
+                    else if (rank === 3) badgeClass = "bg-danger text-white";
+                    badge.className = `badge rounded-pill ${badgeClass} me-3`;
+                    badge.style.width = "24px";
+                    badge.style.height = "24px";
+                    badge.style.display = "inline-flex";
+                    badge.style.alignItems = "center";
+                    badge.style.justifyContent = "center";
+                    badge.style.fontSize = "0.75rem";
+                    badge.textContent = rank;
+                    itemDiv.appendChild(badge);
+
+                    // Image or icon
+                    if (book.imageUrl) {
+                        const img = document.createElement("img");
+                        img.src = book.imageUrl;
+                        img.alt = book.title || "";
+                        img.className = "rounded object-fit-cover me-2 border";
+                        img.style.width = "36px";
+                        img.style.height = "50px";
+                        const fallbackDiv = document.createElement("div");
+                        fallbackDiv.className = "bg-light border rounded d-none align-items-center justify-content-center text-muted me-2";
+                        fallbackDiv.style.width = "36px";
+                        fallbackDiv.style.height = "50px";
+                        const iconBook = document.createElement("i");
+                        iconBook.className = "fas fa-book small";
+                        fallbackDiv.appendChild(iconBook);
+
+                        img.onerror = function () {
+                            this.style.display = "none";
+                            fallbackDiv.classList.remove("d-none");
+                        };
+                        itemDiv.appendChild(img);
+                        itemDiv.appendChild(fallbackDiv);
+                    } else {
+                        const fallbackDiv = document.createElement("div");
+                        fallbackDiv.className = "bg-light border rounded d-flex align-items-center justify-content-center text-muted me-2";
+                        fallbackDiv.style.width = "36px";
+                        fallbackDiv.style.height = "50px";
+                        const iconBook = document.createElement("i");
+                        iconBook.className = "fas fa-book small";
+                        fallbackDiv.appendChild(iconBook);
+                        itemDiv.appendChild(fallbackDiv);
+                    }
+
+                    // Details
+                    const detailsDiv = document.createElement("div");
+                    detailsDiv.className = "flex-grow-1 min-w-0 me-2";
+
+                    const titleDiv = document.createElement("div");
+                    titleDiv.className = "text-truncate fw-semibold small text-dark";
+                    titleDiv.title = book.title || "";
+                    titleDiv.textContent = book.title || "";
+                    detailsDiv.appendChild(titleDiv);
+
+                    const soldDiv = document.createElement("div");
+                    soldDiv.className = "text-muted";
+                    soldDiv.style.fontSize = "0.75rem";
+                    const cartIcon = document.createElement("i");
+                    cartIcon.className = "fas fa-cart-shopping me-1";
+                    soldDiv.appendChild(cartIcon);
+                    soldDiv.appendChild(document.createTextNode("Đã bán: "));
+                    const soldBold = document.createElement("span");
+                    soldBold.className = "fw-bold text-dark";
+                    soldBold.textContent = formatNumber(book.totalSold);
+                    soldDiv.appendChild(soldBold);
+                    soldDiv.appendChild(document.createTextNode(" cuốn"));
+                    detailsDiv.appendChild(soldDiv);
+                    itemDiv.appendChild(detailsDiv);
+
+                    // Revenue
+                    const revDiv = document.createElement("div");
+                    revDiv.className = "text-end text-nowrap";
+                    const revVal = document.createElement("div");
+                    revVal.className = "small fw-bold text-success";
+                    revVal.textContent = formatVnd(book.totalRevenue);
+                    revDiv.appendChild(revVal);
+                    itemDiv.appendChild(revDiv);
+
+                    listGroup.appendChild(itemDiv);
+                });
+
+                topBooksContainer.appendChild(listGroup);
+            })
+            .catch(err => {
+                console.error("Lỗi tải danh sách top sách:", err);
+                alert("Đã xảy ra lỗi khi kết nối máy chủ để lấy top sách.");
+            })
+            .finally(() => {
+                topBooksSelect.disabled = false;
+            });
+        });
+    }
 });

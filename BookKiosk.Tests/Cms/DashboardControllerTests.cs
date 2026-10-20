@@ -209,6 +209,43 @@ namespace BookKiosk.Tests.Cms
             authAttr!.Roles.Should().Be("Admin");
         }
 
+        [Theory]
+        [InlineData(5)]
+        [InlineData(10)]
+        [InlineData(20)]
+        public async Task GetTopBooksJson_ValidTop_CallsApiWithRequestedTop(int validTop)
+        {
+            // Arrange
+            _reportApiMock.Setup(r => r.GetTopSellingBooksAsync(validTop))
+                .ReturnsAsync(ApiResult<IEnumerable<TopSellingBookDto>>.Ok(new List<TopSellingBookDto>()));
+
+            var controller = CreateController(PermissionHelper.RoleAdmin);
+
+            // Act
+            var result = await controller.GetTopBooksJson(validTop);
+
+            // Assert
+            result.Should().BeOfType<JsonResult>();
+            _reportApiMock.Verify(r => r.GetTopSellingBooksAsync(validTop), Times.Once);
+        }
+
+        [Theory]
+        [InlineData(3)]
+        [InlineData(15)]
+        [InlineData(100)]
+        [InlineData(-1)]
+        public async Task GetTopBooksJson_InvalidTop_ReturnsBadRequest(int invalidTop)
+        {
+            // Arrange
+            var controller = CreateController(PermissionHelper.RoleAdmin);
+
+            // Act
+            var result = await controller.GetTopBooksJson(invalidTop);
+
+            // Assert
+            result.Should().BeOfType<BadRequestObjectResult>();
+        }
+
         [Fact]
         public async Task GetRevenueChartData_Admin_ReturnsJsonDataWithTotals()
         {

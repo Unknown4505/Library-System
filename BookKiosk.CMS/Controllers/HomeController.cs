@@ -219,11 +219,17 @@ namespace BookKiosk.CMS.Controllers
 
         [HttpGet("Home/GetTopBooksJson")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetTopBooksJson()
+        public async Task<IActionResult> GetTopBooksJson(int? top = null)
         {
+            int selectedTop = top ?? 10;
+            if (top.HasValue && top.Value != 5 && top.Value != 10 && top.Value != 20)
+            {
+                return BadRequest(new { success = false, message = "Số lượng top sách chỉ chấp nhận 5, 10 hoặc 20." });
+            }
+
             try
             {
-                var result = await _reportApi.GetTopSellingBooksAsync(10);
+                var result = await _reportApi.GetTopSellingBooksAsync(selectedTop);
                 return Json(result);
             }
             catch (Exception ex)

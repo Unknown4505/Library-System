@@ -24,7 +24,7 @@
 <!-- KPI Cards -->
 <div class="row g-3 mb-4">
     <!-- Card 1: Tổng doanh thu năm -->
-    <div class="col-xl-3 col-md-6">
+    <div class="col-xl col-md-6">
         <div class="card border-start border-primary border-4 shadow-sm h-100">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
@@ -44,7 +44,7 @@
     </div>
 
     <!-- Card 2: Tổng đơn năm -->
-    <div class="col-xl-3 col-md-6">
+    <div class="col-xl col-md-6">
         <div class="card border-start border-success border-4 shadow-sm h-100">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
@@ -64,7 +64,7 @@
     </div>
 
     <!-- Card 3: Doanh thu hôm nay (Chưa hỗ trợ - Backend chưa có endpoint tổng hợp) -->
-    <div class="col-xl-3 col-md-6">
+    <div class="col-xl col-md-6">
         <div class="card border-start border-secondary border-4 shadow-sm h-100">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
@@ -81,8 +81,26 @@
         </div>
     </div>
 
-    <!-- Card 4: Sách sắp hết (Tồn <= 5) -->
-    <div class="col-xl-3 col-md-6">
+    <!-- Card 4: Tỷ lệ thành công (Chưa hỗ trợ - Backend chưa có endpoint tổng hợp) -->
+    <div class="col-xl col-md-6">
+        <div class="card border-start border-info border-4 shadow-sm h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-uppercase fw-bold text-info small mb-1">Tỷ lệ thành công</div>
+                    <div class="h4 mb-0 fw-bold text-secondary">
+                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 fs-6">Chưa hỗ trợ</span>
+                    </div>
+                    <div class="text-muted small mt-1">Chờ API tổng hợp từ Backend</div>
+                </div>
+                <div class="text-info opacity-50">
+                    <i class="fas fa-chart-pie fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 5: Sách sắp hết kho -->
+    <div class="col-xl col-md-6">
         <div class="card border-start border-warning border-4 shadow-sm h-100">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
@@ -100,23 +118,29 @@
     </div>
 </div>
 
-<!-- Row 1: Biểu đồ doanh thu 12 tháng + Top 10 Sách Bán Chạy -->
+<!-- Row 1: Biểu đồ doanh thu 12 tháng + Top Sách Bán Chạy -->
 <div class="row g-4 mb-4">
     <!-- Col Left: Biểu đồ cột doanh thu 12 tháng -->
     <div class="col-xl-8 col-lg-7">
         <partial name="_RevenueBarChart" model="Model" />
     </div>
 
-    <!-- Col Right: Top 10 Sách Bán Chạy -->
+    <!-- Col Right: Top Sách Bán Chạy -->
     <div class="col-xl-4 col-lg-5">
         <div class="card shadow-sm border-0 h-100">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
                 <h6 class="m-0 fw-bold text-dark">
-                    <i class="fas fa-trophy text-warning me-2"></i>Top 10 Sách Bán Chạy
+                    <i class="fas fa-trophy text-warning me-2"></i><span id="topBooksCardTitle">Top 10 Sách Bán Chạy</span>
                 </h6>
-                <span class="badge bg-primary-subtle text-primary border small">Toàn thời gian</span>
+                <div class="d-flex align-items-center gap-2">
+                    <select id="topBooksSelect" class="form-select form-select-sm" style="width: 100px;" aria-label="Chọn số lượng top sách">
+                        <option value="5">Top 5</option>
+                        <option value="10" selected>Top 10</option>
+                        <option value="20">Top 20</option>
+                    </select>
+                </div>
             </div>
-            <div class="card-body p-0">
+            <div class="card-body p-0" id="topBooksContainer">
                 @if (Model.IsTopBooksUnavailable)
                 {
                     <div class="alert alert-warning m-3 py-3 text-center small">
