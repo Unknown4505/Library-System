@@ -97,6 +97,21 @@ namespace BookKiosk.Tests.Cms
             response.StatusCode.Should().Be(HttpStatusCode.OK);
         }
 
+        [Fact]
+        public async Task StaffWorkspace_WhenCalledByManager_Returns200OkAndRendersWorkspace()
+        {
+            // Arrange
+            var client = CreateClientForRole("Manager");
+
+            // Act
+            var response = await client.GetAsync("/Home/StaffWorkspace");
+            var html = await response.Content.ReadAsStringAsync();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            html.Should().Contain("Bàn làm việc nhân viên");
+        }
+
         // ==========================================
         // 2. TEST CÔ LẬP LỖI WIDGET TRÊN GIAO DIỆN RAZOR
         // ==========================================
