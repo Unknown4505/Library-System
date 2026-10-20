@@ -1,13 +1,13 @@
 @model BookKiosk.CMS.ViewModels.Dashboard.StaffWorkspaceViewModel
 @{
-    ViewData["Title"] = "Bàn làm việc ca trực - BookKiosk Staff";
+    ViewData["Title"] = "Bàn làm việc nhân viên - BookKiosk Staff";
 }
 
 <!-- Page Header -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h1 class="h3 mb-0 fw-bold text-dark">
-            <i class="fas fa-briefcase text-primary me-2"></i>Bàn làm việc ca trực
+            <i class="fas fa-briefcase text-primary me-2"></i>Bàn làm việc nhân viên
         </h1>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb small mb-0">
@@ -18,7 +18,7 @@
     </div>
     <div class="text-muted small">
         <i class="fas fa-clock me-1"></i>
-        Ca trực hiện tại: @DateTimeHelper.FormatVietnamDateTime(DateTime.UtcNow)
+        Thời gian: @DateTimeHelper.FormatVietnamDateTime(DateTime.UtcNow)
     </div>
 </div>
 
@@ -31,7 +31,7 @@
                 <div>
                     <div class="text-uppercase fw-bold text-primary small mb-1">Thu ngân & Bán hàng</div>
                     <div class="h5 mb-0 fw-bold text-dark">Bán tại quầy (POS)</div>
-                    <div class="text-muted small mt-1">Mở giao diện thanh toán ca trực</div>
+                    <div class="text-muted small mt-1">Mở giao diện thanh toán tại quầy</div>
                 </div>
                 <div class="text-primary opacity-75">
                     <i class="fas fa-cash-register fa-2x"></i>

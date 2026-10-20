@@ -228,15 +228,36 @@ namespace BookKiosk.Tests.Cms
         }
 
         [Fact]
-        public void StaffWorkspace_HasAuthorizeRolesStaffAndAdminAttribute()
+        public void StaffWorkspace_HasAuthorizeRolesAdminStaffManagerAttribute()
         {
             var method = typeof(HomeController).GetMethod("StaffWorkspace");
             method.Should().NotBeNull();
 
             var authAttr = method!.GetCustomAttribute<AuthorizeAttribute>();
             authAttr.Should().NotBeNull();
-            authAttr!.Roles.Should().Contain("Staff");
             authAttr!.Roles.Should().Contain("Admin");
+            authAttr!.Roles.Should().Contain("Staff");
+            authAttr!.Roles.Should().Contain("Manager");
+        }
+
+        [Fact]
+        public async Task StaffWorkspace_ManagerUser_ReturnsViewWithPopulatedStaffWorkspaceViewModel()
+        {
+            // Arrange
+            _apiClientMock.Setup(c => c.GetStockAsync(true, null))
+                .ReturnsAsync(ApiResult<IEnumerable<StockItemDto>>.Ok(new List<StockItemDto>()));
+
+            _orderApiMock.Setup(o => o.GetOrdersAsync(It.IsAny<OrderFilterDto>()))
+                .ReturnsAsync(ApiResult<PaginatedResult<OrderListItemDto>>.Ok(new PaginatedResult<OrderListItemDto>()));
+
+            var controller = CreateController("Manager");
+
+            // Act
+            var result = await controller.StaffWorkspace();
+
+            // Assert
+            var viewResult = result.Should().BeOfType<ViewResult>().Subject;
+            viewResult.Model.Should().BeOfType<StaffWorkspaceViewModel>();
         }
 
         [Fact]

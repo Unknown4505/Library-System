@@ -124,7 +124,7 @@ namespace BookKiosk.CMS.Controllers
         }
 
         [HttpGet("Home/StaffWorkspace")]
-        [Authorize(Roles = "Admin,Staff")]
+        [Authorize(Roles = "Admin,Staff,Manager")]
         public async Task<IActionResult> StaffWorkspace()
         {
             var viewModel = new StaffWorkspaceViewModel();
