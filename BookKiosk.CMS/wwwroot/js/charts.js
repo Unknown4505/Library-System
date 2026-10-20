@@ -140,7 +140,7 @@ document.addEventListener("DOMContentLoaded", function () {
             })
             .then(res => {
                 if (!res || !res.success) {
-                    alert(res?.message || "Không thể tải dữ liệu doanh thu cho năm đã chọn.");
+                    notifyError(res?.message || "Không thể tải dữ liệu doanh thu cho năm đã chọn.", "warning");
                     return;
                 }
 
@@ -206,12 +206,20 @@ document.addEventListener("DOMContentLoaded", function () {
             })
             .catch(err => {
                 console.error("Lỗi tải dữ liệu doanh thu:", err);
-                alert("Đã xảy ra lỗi khi kết nối máy chủ để lấy dữ liệu biểu đồ.");
+                notifyError("Đã xảy ra lỗi khi kết nối máy chủ để lấy dữ liệu biểu đồ.", "danger");
             })
             .finally(() => {
                 yearSelect.disabled = false;
             });
         });
+    }
+
+    function notifyError(message, type = "danger") {
+        if (typeof showToast === "function") {
+            showToast(message, type);
+        } else {
+            alert(message);
+        }
     }
 
     function sanitizeImageUrl(url) {
@@ -248,7 +256,7 @@ document.addEventListener("DOMContentLoaded", function () {
             })
             .then(res => {
                 if (!res || !res.success || !Array.isArray(res.data)) {
-                    alert(res?.message || "Không thể tải danh sách top sách.");
+                    notifyError(res?.message || "Không thể tải danh sách top sách.", "warning");
                     return;
                 }
 
@@ -370,7 +378,7 @@ document.addEventListener("DOMContentLoaded", function () {
             })
             .catch(err => {
                 console.error("Lỗi tải danh sách top sách:", err);
-                alert("Đã xảy ra lỗi khi kết nối máy chủ để lấy top sách.");
+                notifyError("Đã xảy ra lỗi khi kết nối máy chủ để lấy top sách.", "danger");
             })
             .finally(() => {
                 topBooksSelect.disabled = false;
