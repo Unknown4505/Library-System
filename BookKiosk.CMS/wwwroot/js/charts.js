@@ -214,6 +214,20 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    function sanitizeImageUrl(url) {
+        if (!url || typeof url !== "string") return null;
+        const trimmed = url.trim();
+        if (!trimmed) return null;
+        // Chặn các giao thức lạ/nguy hiểm: javascript:, data:, vbscript: hoặc protocol-relative //
+        if (/^(javascript|data|vbscript):/i.test(trimmed)) return null;
+        if (trimmed.startsWith("//")) return null;
+        // Chỉ chấp nhận đường dẫn tương đối nội bộ (/...) hoặc http(s)://
+        if (trimmed.startsWith("/") || /^https?:\/\//i.test(trimmed)) {
+            return trimmed;
+        }
+        return null;
+    }
+
     // Xử lý thay đổi Top sách (5/10/20) qua AJAX
     const topBooksSelect = document.getElementById("topBooksSelect");
     const topBooksContainer = document.getElementById("topBooksContainer");
@@ -282,9 +296,10 @@ document.addEventListener("DOMContentLoaded", function () {
                     itemDiv.appendChild(badge);
 
                     // Image or icon
-                    if (book.imageUrl) {
+                    const safeImageUrl = sanitizeImageUrl(book.imageUrl);
+                    if (safeImageUrl) {
                         const img = document.createElement("img");
-                        img.src = book.imageUrl;
+                        img.src = safeImageUrl;
                         img.alt = book.title || "";
                         img.className = "rounded object-fit-cover me-2 border";
                         img.style.width = "36px";
