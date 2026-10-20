@@ -167,22 +167,33 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (kpiAnnualRevenueYearLabel) kpiAnnualRevenueYearLabel.textContent = res.year;
                 if (kpiAnnualOrdersYearLabel) kpiAnnualOrdersYearLabel.textContent = res.year;
 
-                // Cập nhật bảng đối chiếu 12 tháng
+                // Cập nhật bảng đối chiếu 12 tháng (DOM an toàn, không dùng innerHTML)
                 if (tableBody) {
-                    let rowsHtml = "";
+                    tableBody.textContent = "";
                     for (let i = 0; i < 12; i++) {
                         const m = i + 1;
                         const rev = newRevenueData[i];
                         const ord = newOrdersData[i];
-                        rowsHtml += `
-                            <tr>
-                                <td class="text-center fw-semibold">Tháng ${m}</td>
-                                <td class="text-end">${formatVnd(rev)}</td>
-                                <td class="text-end">${formatNumber(ord)}</td>
-                            </tr>
-                        `;
+
+                        const tr = document.createElement("tr");
+
+                        const tdMonth = document.createElement("td");
+                        tdMonth.className = "text-center fw-semibold";
+                        tdMonth.textContent = `Tháng ${m}`;
+                        tr.appendChild(tdMonth);
+
+                        const tdRev = document.createElement("td");
+                        tdRev.className = "text-end";
+                        tdRev.textContent = formatVnd(rev);
+                        tr.appendChild(tdRev);
+
+                        const tdOrd = document.createElement("td");
+                        tdOrd.className = "text-end";
+                        tdOrd.textContent = formatNumber(ord);
+                        tr.appendChild(tdOrd);
+
+                        tableBody.appendChild(tr);
                     }
-                    tableBody.innerHTML = rowsHtml;
                 }
 
                 // Cập nhật tổng dòng footer bảng
