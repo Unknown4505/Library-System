@@ -165,6 +165,25 @@ Các rule 30 ngày/limit 10, partial success, cache 5 phút và retry đã đư�
 
 Acceptance cần evidence UI/timer lifecycle, request log, trạng thái cart/session và regression payment/Receipt API/PDF. Không đánh dấu PASS chỉ từ docs hoặc mock.
 
+## 8. Acceptance — CMS Low Stock KPI và Preview
+
+Các ca dưới đây là acceptance contract theo quyết định Leader ngày 21/10/2026. Implementation PR #40 phải được sửa và chạy targeted retest; chưa ca nào được ghi PASS chỉ từ tài liệu này.
+
+| Test ID | Backend low-stock | Expected KPI | Expected preview | Trạng thái |
+|---|---:|---:|---:|---|
+| CMS-LOWSTOCK-00 | 0 | 0 | 0 | PLANNED / RETEST REQUIRED |
+| CMS-LOWSTOCK-10 | 10 | 10 | 10 | PLANNED / RETEST REQUIRED |
+| CMS-LOWSTOCK-18 | 18 | 18 | 10 | PLANNED / RETEST REQUIRED |
+| CMS-LOWSTOCK-25 | 25 | 25 | 10 | PLANNED / RETEST REQUIRED |
+
+Acceptance bắt buộc:
+
+- KPI đếm toàn bộ đầu sách cảnh báo Backend trả về và không bị cap bởi `.Take(10)`.
+- Preview không vượt quá 10 mục và ưu tiên `AvailableStock` thấp nhất theo thứ tự tăng dần.
+- Mỗi đầu sách chỉ được tính một lần trong KPI và preview.
+- Dashboard có đường dẫn tới trang quản lý tồn kho để xem danh sách đầy đủ.
+- Chỉ chuyển sang PASS sau khi chạy lại targeted tests trên SHA chứa fix và lưu evidence; trạng thái hiện tại là `PLANNED / RETEST REQUIRED`.
+
 ## 9. ProductDiscount V7.1 — targeted matrix
 
 | ID | Kịch bản | Expected | Trạng thái |
