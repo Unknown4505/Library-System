@@ -167,21 +167,25 @@ Mỗi handoff cần issue/task riêng sau khi Leader duyệt, kèm file ownershi
 - Migration HR đã scaffold an toàn qua design-time factory và static-review chỉ có additive HR operations. Apply/rollback/runtime SQL vẫn `BLOCKED — ENV` vì chưa có connection QA disposable được xác minh; không chạy API hay `database update` trên DB hiện hữu.
 - Merge readiness chỉ đạt khi build PASS, diagram XML PASS, PNG được Leader visual-review/xuất lại, migration review + SQL QA PASS và các test Receipt/E2E theo dependency hoàn thành. Docs/model riêng không đủ để claim feature complete.
 
-## 9. Handoff Kiosk Advertising & Navigation — APPROVED DESIGN, IMPLEMENTATION PLANNED
+## 9. Handoff Kiosk Advertising & Navigation — APPROVED DESIGN / CONTRACT V1; IMPLEMENTATION PLANNED
 
 **Khang — Frontend (`@lehuukhang`)**
 
-- Ownership: `IdlePage` slideshow/loading/empty/error, touch → `SearchPage`, Receipt → `SearchPage`, inactivity/slideshow/Receipt timer lifecycle, interaction reset và offline fallback.
-- Acceptance: đúng ba nhóm dữ liệu Backend; slideshow 8s configurable; Search inactivity 60s; không duplicate timer/request; không đưa member/checkout/payment/receipt đang hoạt động về Idle; sau Receipt giữ dữ liệu in/PDF an toàn, clear completed session/cart và không cancel Paid.
-- Dependency: dùng contract hiện hữu khi đủ; với API gap chỉ chuẩn bị UI states/mock tách biệt, không công bố implementation/E2E hoàn tất.
+- Issue [#38](https://github.com/Unknown4505/Library-System/issues/38). Ownership: `IdlePage` slideshow/loading/empty/error, API client/cache/message handling, touch → `SearchPage`, Receipt → `SearchPage`, inactivity/slideshow/Receipt timer lifecycle, interaction reset và offline fallback.
+- Acceptance: deserialize đúng Contract V1; xử lý enum 1/2, null/empty/partial/error, placeholder ảnh và message không spam; slideshow 8s configurable; Search inactivity 60s; không duplicate timer/request; sau Receipt giữ dữ liệu in/PDF an toàn, clear completed session/cart và không cancel Paid.
+- Dependency: #37 implement và bàn giao contract/API thật trước real-API PASS. Có thể chuẩn bị UI/mock tách biệt. Phối hợp [#29](https://github.com/Unknown4505/Library-System/issues/29) tại `ReceiptPage`/`ReceiptViewModel`, không triển khai trùng Receipt UI/PDF.
 
 **Thiện — Backend (`@thien33`)**
 
-- Chỉ xử lý API gap sau khi Leader duyệt contract `GET /api/kiosk/advertising` đề xuất trong `docs/04-api-reference.md`.
-- Reuse `Promotions`, `Books`, `Orders`, `OrderDetails` và dữ liệu nhập kho; active-date filter, promotion scope/amount rõ, best seller chỉ từ `Paid`, tiêu chí new arrivals xác định phía server.
-- Không thay logic promotion/checkout đang đúng, không tạo bảng `Advertisements`, schema hay migration mới.
+- Issue [#37](https://github.com/Unknown4505/Library-System/issues/37). Contract V1 đã được Leader duyệt; source/API/tests vẫn **PLANNED / NOT RUN**.
+- Ownership: action/service/query/DTO; wrapper/auth/message; promotion filtering; nhập kho gần nhất; Paid-only best sellers; projection/limit/partial/503 behavior theo contract đã duyệt.
+- Không sửa UI #38, không mở rộng logic checkout ProductDiscount, không nới quyền CMS, không tạo bảng `Advertisements`, schema hay migration mới. Chỉ quảng cáo promotion mà luồng Checkout Kiosk thực sự áp dụng được.
 
 **Leader (`@Unknown4505`)**
 
-- Chốt endpoint/DTO và tiêu chí “sách mới về”, review quyền `X-Api-Key`, nghiệm thu E2E/timer lifecycle/fallback và regression payment/Receipt.
-- Feature chỉ được chuyển khỏi `PLANNED` khi có source + targeted tests + runtime evidence; docs hoàn tất không đóng #28/#29.
+- Đã chốt endpoint/DTO, new arrivals 30 ngày/10, best sellers 30 ngày/10, partial success/503, cache/retry, ProductDiscount safety và response messages; tiếp tục review `X-Api-Key`, contract consistency, E2E/timer lifecycle/fallback và regression payment/Receipt.
+- Feature chỉ được chuyển khỏi `PLANNED` khi có source + targeted tests + runtime evidence; docs hoàn tất không tự thay đổi trạng thái #29/#37/#38.
+
+Issue bodies trên GitHub xác nhận phạm vi: #37 Backend `@thien33`, #38 Frontend `@lehuukhang`, #29 Receipt UI/PDF `@lehuukhang`. Lượt docs này không tạo/comment/update issue. GitHub connector không trả metadata assignee chính thức, nên ownership ở đây dựa trên nội dung issue và vẫn cần Leader quản trị assignment nếu UI GitHub khác.
+
+**Response responsibility:** BE bảo đảm mọi nhánh có wrapper/code/message/data đúng contract và không lộ chi tiết nội bộ; FE kiểm tra toàn bộ wrapper, dùng fallback/message thân thiện và không spam toast do timer/background refresh. `PARTIAL_SUCCESS`, `SERVICE_UNAVAILABLE`, message auth tiếng Việt và 503 đã được duyệt ở mức contract nhưng vẫn là **IMPLEMENTATION GAP** cho đến khi source và tests có evidence.

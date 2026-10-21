@@ -138,4 +138,29 @@ Feature chưa được triển khai/runtime-test; tất cả ca dưới đây l�
 | NAV-04 | Sau Receipt về Search rồi không tương tác 60s | Chuyển sang Idle Advertising | PLANNED / NOT RUN |
 | NAV-05 | Receipt API/PDF lỗi hoặc in chưa hoàn tất | Retry/error state; không dựng receipt giả và timer không cắt ngang thao tác | PLANNED / NOT RUN |
 
+### Advertising API Contract V1 — targeted acceptance
+
+Các rule 30 ngày/limit 10, partial success, cache 5 phút và retry đã được Leader duyệt ở mức Contract V1. Endpoint/UI chưa implement nên toàn bộ case dưới đây vẫn `PLANNED / NOT RUN`, không phải runtime PASS.
+
+| ID | Kịch bản | Expected | Trạng thái |
+|---|---|---|---|
+| ADS-API-01 | GET đúng route với API key hợp lệ | HTTP 200, wrapper/message không rỗng, `data` không null và bốn arrays luôn tồn tại | PLANNED / NOT RUN |
+| ADS-API-02 | Thiếu key / key sai | 401 `UNAUTHORIZED` / 403 `FORBIDDEN`, `data=null`, message không lộ key/config/nội bộ | PLANNED / NOT RUN |
+| ADS-API-03 | Promotion type 1 | `promotionType=1`, `orderDiscount` có decimal numeric, `productDiscounts=[]` | PLANNED / NOT RUN |
+| ADS-API-04 | Promotion type 2 có nhiều sách | `promotionType=2`, `orderDiscount=null`, mỗi product có book/mức giảm riêng | PLANNED / NOT RUN |
+| ADS-API-05 | Enum serialization | JSON trả number `1/2`, không trả string hoặc giá trị ngoài enum | PLANNED / NOT RUN |
+| ADS-API-06 | `imageUrl=null` hoặc ảnh tải lỗi | Contract giữ field null; FE dùng placeholder, không crash | PLANNED / NOT RUN |
+| ADS-API-07 | Không có dữ liệu phù hợp | HTTP 200 `SUCCESS`, message empty-state, ba content arrays và `unavailableSections` đều `[]` | PLANNED / NOT RUN |
+| ADS-API-08 | Một hoặc nhiều data section lỗi | HTTP 200, `success=true`, `PARTIAL_SUCCESS`; nhóm lỗi `[]`, nhóm tốt giữ data, `unavailableSections` đúng allow-list | PLANNED / NOT RUN |
+| ADS-API-09 | Cả ba data source lỗi hoặc lỗi hệ thống ngoài dự kiến | Toàn bộ nguồn lỗi → 503 `SERVICE_UNAVAILABLE`; lỗi ngoài dự kiến → 500 `INTERNAL_ERROR`; wrapper/message an toàn | PLANNED / NOT RUN |
+| ADS-API-10 | New arrivals | Rolling 30 ngày UTC theo lần nhập gần nhất, distinct book, active/còn hàng, tối đa 10, sort time DESC rồi BookId ASC | PLANNED / NOT RUN |
+| ADS-API-11 | Best sellers | Rolling 30 ngày UTC; chỉ Paid/CompletedAt; sum Quantity; loại Pending/Cancelled; active/còn hàng; tối đa 10; sort totalSold DESC rồi BookId ASC | PLANNED / NOT RUN |
+| ADS-API-12 | Cache hết 5 phút hoặc promotion hết hạn sớm | Reload đúng lúc, không dùng promotion hết hạn và không request theo slide | PLANNED / NOT RUN |
+| ADS-API-13 | Message mọi nhánh | Success/empty/partial/error đều message tiếng Việt không rỗng; FE không hiển thị lỗi kỹ thuật thô | PLANNED / NOT RUN |
+| ADS-API-14 | Background refresh/timer | Không có toast trùng khi slide đổi, inactivity chạy, refresh hoặc retry nền | PLANNED / NOT RUN |
+| ADS-NAV-REG-01 | Paid → Receipt → Search → 60s Idle Ads | Không regression receipt/PDF/cart cleanup/payment; chỉ Idle sau 60s Search inactivity | PLANNED / NOT RUN |
+| ADS-PROMO-01 | Promotion enum/branch | JSON number `1/2`; order/product branch đúng nullability; collections không null | PLANNED / NOT RUN |
+| ADS-PROMO-02 | ProductDiscount chưa được Checkout hỗ trợ | Không đưa type 2 vào nội dung Kiosk, không hứa/tự tính mức giảm; type 1 vẫn hoạt động | PLANNED / NOT RUN |
+| ADS-RETRY-01 | Advertising API lỗi trong một lượt Idle | Tối đa một retry sau ít nhất 30 giây; retry lỗi thì fallback/cooldown; không request storm | PLANNED / NOT RUN |
+
 Acceptance cần evidence UI/timer lifecycle, request log, trạng thái cart/session và regression payment/Receipt API/PDF. Không đánh dấu PASS chỉ từ docs hoặc mock.

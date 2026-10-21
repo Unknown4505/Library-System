@@ -90,12 +90,12 @@ App Startup → Idle Advertising → Touch → SearchPage
 
 | Nhóm | Quy tắc hiển thị | Tình trạng contract hiện tại |
 |---|---|---|
-| Khuyến mãi | Chỉ `IsActive=true` và thời điểm hiện tại thuộc `StartDate..EndDate`; phân biệt giảm toàn đơn với giảm sản phẩm; không suy diễn mức giảm | **PARTIAL** — API CMS trả danh sách nhưng Admin/Manager/Staff-only, trả cả inactive và DTO thiếu loại/mức giảm |
-| Sách mới về | Ảnh bìa, tên, giá nếu contract hỗ trợ; phải dựa trên tiêu chí Backend, không gắn nhãn từ dữ liệu giả | **PARTIAL** — Books API có dữ liệu hiển thị nhưng không có filter/order/field xác định “mới về” |
-| Sách bán chạy | Chỉ thống kê từ `Orders` đã `Paid`; không dùng cart local/Pending | **PARTIAL** — Reports có dữ liệu đúng nguồn nhưng endpoint Admin-only và thiếu giá bán/tồn khả dụng cho Kiosk |
+| Khuyến mãi | Chỉ `IsActive=true` và thời điểm UTC hiện tại thuộc `StartDate..EndDate`; type 1 dùng `orderDiscount`. Type 2 có contract theo từng sách nhưng phải lọc khỏi nội dung Kiosk cho đến khi Checkout hỗ trợ được xác minh | **APPROVED DESIGN / API GAP** — API CMS không phù hợp Kiosk; endpoint #37 chưa implement |
+| Sách mới về | Ảnh bìa, tên, giá; lần nhập kho gần nhất trong 30 ngày UTC; distinct book; active/còn hàng; sort lần nhập giảm dần rồi `BookId ASC`; tối đa 10 | **APPROVED DESIGN / API GAP** |
+| Sách bán chạy | Chỉ order `Paid` trong 30 ngày UTC; sum quantity; active/còn hàng; sort tổng bán giảm dần rồi `BookId ASC`; tối đa 10; không dùng cart local/Pending/Cancelled | **APPROVED DESIGN / API GAP** |
 | Ảnh bìa | Ghép URL tương đối với API base URL; ảnh lỗi dùng placeholder UI đã duyệt | **AVAILABLE** — `BookDto.ImageUrl`, top-books `imageUrl` và static files hiện hữu |
 
-Contract tổng hợp đề xuất tại `docs/04-api-reference.md` là **PROPOSED — NOT IMPLEMENTED**. FE phụ thuộc contract Backend được Leader phê duyệt; không hardcode dữ liệu giả thành quảng cáo thật.
+Contract V1, DTO/nullability, enum `promotionType=1/2`, JSON mẫu và error semantics nằm tại [`docs/04-api-reference.md` mục 3.9](04-api-reference.md). Contract là **APPROVED DESIGN / CONTRACT V1 / NOT IMPLEMENTED**; FE không tự định nghĩa response khác hoặc hardcode dữ liệu giả thành quảng cáo thật.
 
 #### Timer, tương tác và cleanup
 
@@ -105,6 +105,16 @@ Contract tổng hợp đề xuất tại `docs/04-api-reference.md` là **PROPOS
 - Ba timer độc lập về trách nhiệm, không dùng chung và không được kích hoạt chồng chéo.
 - Không kích hoạt Idle Advertising khi đang nhập thành viên/chọn điểm, tạo hoặc xác nhận checkout, chờ QR `Pending`, đã `Paid` nhưng đang tải Receipt, hoặc đang xem/in Receipt. Các màn hình giao dịch dùng timeout/cancel hiện hữu.
 - Sau Receipt, giữ dữ liệu cần cho UI/PDF/in trước; sau đó clear cart, OrderId và state giao dịch cũ rồi điều hướng `SearchPage`. Không gọi cancel cho order `Paid`.
+
+#### Tải dữ liệu, cache và response message
+
+- Gọi `GET /api/kiosk/advertising` với `X-Api-Key` khi vào `IdlePage` và cache không hợp lệ; không dùng JWT CMS và không gọi lại theo mỗi slide.
+- Cache tối đa 5 phút, nhưng phải hết hạn sớm tại `endDate` promotion gần nhất. Khi API lỗi, dùng fallback và tối đa một background retry trong mỗi lượt vào Idle sau ít nhất 30 giây; retry tiếp tục lỗi thì giữ fallback/cooldown, không request storm.
+- FE phải kiểm tra cả HTTP status và `success`, `code`, `message`, `data`; không coi HTTP 200 là thành công nếu wrapper báo lỗi.
+- `SUCCESS` với mảng rỗng là trạng thái không có nội dung; `PARTIAL_SUCCESS` giữ các nhóm tải được và dùng allow-list `unavailableSections`; HTTP 503 `SERVICE_UNAVAILABLE` khi cả ba nhóm không khả dụng.
+- `imageUrl=null` hoặc tải ảnh lỗi phải dùng placeholder. Tiền là JSON number và được FE format VNĐ; timestamp là UTC ISO 8601.
+- Lỗi tải nền dùng message/fallback thân thiện và log an toàn. Không bật toast/popup mỗi lần slide đổi, inactivity timer chạy, cache refresh hoặc retry nền.
+- FE không hiển thị `ProductDiscount` như ưu đãi tự động áp dụng tại Kiosk cho đến khi Checkout thật hỗ trợ và có contract/evidence riêng; không tự tính giá giảm từ payload quảng cáo.
 
 #### Offline/fallback
 
