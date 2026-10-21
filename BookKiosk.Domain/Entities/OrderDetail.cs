@@ -4,7 +4,9 @@ public class OrderDetail
 {
     public int OrderId { get; set; }
     public int BookId { get; set; }
+    public string? BookTitleAtTime { get; set; }
     public decimal UnitPriceAtTime { get; set; }
+    public decimal DiscountPerUnitAtTime { get; set; }
     public int Quantity { get; set; }
     public decimal LineTotal { get; set; }
 

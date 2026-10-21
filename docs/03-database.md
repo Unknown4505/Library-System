@@ -144,10 +144,13 @@ Nếu bạn là AI agent đọc file này:
 | `UserId` | `int?` | `int` | FK -> Users. **Nullable** — chỉ có giá trị khi `SaleChannel = Counter` (nhân viên tạo đơn). Kiosk tự phục vụ = `null` |
 | `MemberId` | `int?` | `int` | FK -> Members. **Nullable** — khách vãng lai không có |
 | `PromotionId` | `int?` | `int` | FK -> Promotions. **Nullable** — **1 đơn chỉ được áp tối đa 1 chương trình KM** |
+| `PromotionNameAtTime` | `string?` | `nvarchar(max)` | Snapshot tên Promotion khi tạo Pending; nullable để tương thích đơn lịch sử |
+| `PromotionTypeAtTime` | `PromotionType?` | `int` | Snapshot loại KM `1/2`; nullable nếu đơn cũ không xác định chính xác |
 | `SubTotal` | `decimal` | `decimal(18,0)` | **Tổng tiền hàng gốc** = Σ(`LineTotal`) của tất cả dòng `OrderDetails` |
 | `DiscountAmount`| `decimal` | `decimal(18,0)` | **Tiền giảm từ KM** (VNĐ cố định). = 0 nếu không có KM |
 | `PointsUsed` | `int` | `int` | Số điểm thành viên đã dùng để thanh toán. = 0 nếu không dùng |
-| `TotalAmount` | `decimal` | `decimal(18,0)` | **Tiền thực trả** = `SubTotal - DiscountAmount - (PointsUsed × 1.000đ)`. Tối thiểu = 0 |
+| `PointsUsedAmountAtTime` | `decimal?` | `decimal(18,2)` | Snapshot số tiền quy đổi từ điểm; nullable cho đơn lịch sử |
+| `TotalAmount` | `decimal` | `decimal(18,0)` | **Tiền thực trả** = `SubTotal - DiscountAmount - PointsUsedAmountAtTime`. ProductDiscount V1 từ chối checkout nếu kết quả `<= 0` |
 | `CompletedAt` | `DateTime?` | `datetime2` | Timestamp khi đơn được xác nhận **Paid**. Null khi Pending/Cancelled |
 
 > **Giải thích rõ các field:**
@@ -168,11 +171,15 @@ Nếu bạn là AI agent đọc file này:
 |---|---|---|---|
 | `OrderId` | `int` | `int` | PK (Composite) + FK -> Orders |
 | `BookId` | `int` | `int` | PK (Composite) + FK -> Books |
+| `BookTitleAtTime` | `string?` | `nvarchar(255)` | Snapshot tên sách; nullable để giữ tương thích dữ liệu lịch sử |
 | `UnitPriceAtTime`| `decimal` | `decimal(18,0)` | **Giá bán tại thời điểm mua** — snapshot để bảo toàn lịch sử khi giá sách thay đổi sau này |
+| `DiscountPerUnitAtTime` | `decimal` | `decimal(18,2)` | Snapshot tiền giảm trên một cuốn; mặc định `0` |
 | `Quantity` | `int` | `int` | Bắt buộc, `> 0` |
-| `LineTotal` | `decimal` | `decimal(18,0)` | = `UnitPriceAtTime × Quantity`. Tính sẵn để tránh tính lại trong code |
+| `LineTotal` | `decimal` | `decimal(18,0)` | Tổng giá gốc = `UnitPriceAtTime × Quantity` |
 
 > **Ghi chú thiết kế:** Dùng **Composite PK = (OrderId, BookId)** — không có cột `OrderDetailId` riêng. 1 đơn hàng không thể có 2 dòng cùng 1 cuốn sách; nếu khách thêm cùng cuốn thì cộng `Quantity` vào dòng đã có.
+>
+> `LineDiscountAmount = DiscountPerUnitAtTime × Quantity`; `NetLineTotal = LineTotal - LineDiscountAmount`. Hai giá trị dẫn xuất này thuộc API contract, không tạo thêm cột snapshot. Với `OrderDiscount`, mọi `DiscountPerUnitAtTime = 0`; với `ProductDiscount`, tổng line discount phải bằng `Orders.DiscountAmount`.
 
 **Bảng `PaymentTransactions`** (Lưu lịch sử webhook thanh toán — chống gian lận & trace lỗi)
 | Cột | Kiểu C# | Kiểu SQL | Ràng buộc / Ghi chú |
@@ -219,9 +226,18 @@ Hệ thống hỗ trợ **2 loại khuyến mãi**. Tất cả đều giảm b�
 
 > **Business Rule áp dụng KM:**
 > - **1 đơn hàng chỉ được áp tối đa 1 chương trình KM** — nhưng có thể dùng đồng thời với đổi điểm thành viên.
-> - Kiosk: Backend tự chọn KM hóa đơn có `DiscountAmount` lớn nhất thỏa `MinOrderValue`. KM sản phẩm tự động áp khi scan sách.
-> - Quầy (POS): Nhân viên bấm "Áp KM" thủ công để chọn KM hóa đơn.
-> - `Orders.DiscountAmount` = số tiền giảm thực tế áp cho đơn (= `PromotionOrderDiscounts.DiscountAmount` hoặc Σ `PromotionProductDiscounts.DiscountAmount` × số lượng từng sách).
+> - Kiosk tính benefit thực tế của mọi Promotion hợp lệ, chọn benefit lớn nhất; đồng hạng chọn `PromotionId ASC`.
+> - Quầy (POS) chỉ áp Promotion nhân viên chọn; Promotion không hợp lệ phải trả lỗi, không tự thay thế.
+> - ProductDiscount giảm theo từng đơn vị: `MIN(ConfiguredDiscount, UnitPriceAtTime) × Quantity`, cộng trên các sách thuộc cùng một Promotion.
+> - Không cộng nhiều Promotion; OrderDiscount và ProductDiscount không áp đồng thời. Promotion đã chọn được phép kết hợp điểm thành viên.
+> - `Orders.DiscountAmount` = số tiền giảm thực tế áp cho đơn (= OrderDiscount đã cap theo SubTotal hoặc Σ `DiscountPerUnitAtTime × Quantity` của ProductDiscount).
+
+#### Snapshot migration V7.1
+
+- Domain/EF target bổ sung đúng năm cột snapshot nêu trên; không tạo bảng mới và không alter các cột tiền lịch sử.
+- Hai snapshot money mới dùng `decimal(18,2)` theo EF runtime. `docs/init.sql` vẫn mô tả fresh bootstrap `decimal(18,0)` cho các cột cũ và phải được đồng bộ ở một migration/bootstrap task riêng sau khi baseline hợp lệ.
+- Dữ liệu cũ giữ `null` cho snapshot nullable và `0` cho `DiscountPerUnitAtTime`; không backfill hoặc sửa đơn Paid.
+- Migration additive `20261021084154_AddProductDiscountV71Snapshots` đã được EF scaffold trên worktree tạm từ `origin/main`, kiểm tra Up/Down và chuyển về `c8`; không chỉnh model snapshot thủ công. Migration đã được áp dụng thành công trên database local `MSI\\SQLEXPRESS02 / BookKiosk_Dev` ngày 2026-10-21. Việc deploy sang môi trường khác vẫn phải chạy theo migration history của chính môi trường đó.
 
 ---
 

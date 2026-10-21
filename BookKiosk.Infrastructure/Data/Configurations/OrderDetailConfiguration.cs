@@ -10,6 +10,13 @@ public class OrderDetailConfiguration : IEntityTypeConfiguration<OrderDetail>
     {
         builder.HasKey(x => new { x.OrderId, x.BookId });
 
+        builder.Property(x => x.BookTitleAtTime)
+            .HasMaxLength(255);
+
+        builder.Property(x => x.DiscountPerUnitAtTime)
+            .HasPrecision(18, 2)
+            .HasDefaultValue(0m);
+
         builder.HasOne(x => x.Order)
             .WithMany(o => o.OrderDetails)
             .HasForeignKey(x => x.OrderId)

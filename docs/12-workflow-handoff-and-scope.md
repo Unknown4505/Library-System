@@ -184,8 +184,38 @@ Mỗi handoff cần issue/task riêng sau khi Leader duyệt, kèm file ownershi
 **Leader (`@Unknown4505`)**
 
 - Đã chốt endpoint/DTO, new arrivals 30 ngày/10, best sellers 30 ngày/10, partial success/503, cache/retry, ProductDiscount safety và response messages; tiếp tục review `X-Api-Key`, contract consistency, E2E/timer lifecycle/fallback và regression payment/Receipt.
+
 - Feature chỉ được chuyển khỏi `PLANNED` khi có source + targeted tests + runtime evidence; docs hoàn tất không tự thay đổi trạng thái #29/#37/#38.
 
 Issue bodies trên GitHub xác nhận phạm vi: #37 Backend `@thien33`, #38 Frontend `@lehuukhang`, #29 Receipt UI/PDF `@lehuukhang`. Lượt docs này không tạo/comment/update issue. GitHub connector không trả metadata assignee chính thức, nên ownership ở đây dựa trên nội dung issue và vẫn cần Leader quản trị assignment nếu UI GitHub khác.
 
 **Response responsibility:** BE bảo đảm mọi nhánh có wrapper/code/message/data đúng contract và không lộ chi tiết nội bộ; FE kiểm tra toàn bộ wrapper, dùng fallback/message thân thiện và không spam toast do timer/background refresh. `PARTIAL_SUCCESS`, `SERVICE_UNAVAILABLE`, message auth tiếng Việt và 503 đã được duyệt ở mức contract nhưng vẫn là **IMPLEMENTATION GAP** cho đến khi source và tests có evidence.
+
+## 10. Handoff ProductDiscount V7.1 — FOUNDATION APPROVED / RUNTIME PLANNED
+
+### 10.1 Leader-owned foundation
+
+- Domain snapshot: `PromotionNameAtTime`, `PromotionTypeAtTime`, `PointsUsedAmountAtTime`, `BookTitleAtTime`, `DiscountPerUnitAtTime`.
+- Shared Promotion CRUD, Kiosk/POS Checkout và Receipt DTO contract; JSON enum numeric 1/2, decimal money và non-null collections.
+- Docs/SRS/E2E contract cho one-promotion selection, tie-break, non-stacking, points, zero payable và legacy receipt.
+- EF mapping và migration additive `20261021084154_AddProductDiscountV71Snapshots` đã được scaffold từ worktree `origin/main`, kiểm tra model snapshot và áp dụng thành công trên SQL Server local của Leader. Không dùng kết quả local này để giả định các môi trường khác đã migrate.
+
+### 10.2 Backend handoff — `@thien33`
+
+1. **BE-01 Promotion CRUD:** mở rộng route hiện hữu, persist type-specific detail, PUT replace-all transaction, validation/auth/message.
+2. **BE-02 Calculation & Checkout:** Kiosk highest benefit + `PromotionId ASC`, POS manual-only, ProductDiscount per unit, points, zero-payable rollback và snapshot tại Pending.
+3. **BE-03 Receipt:** persisted snapshot mapping, legacy fallback, không tính lại promotion; regression Receipt #28.
+
+Backend không đổi Advertising #37 trong các task này. ProductDiscount chỉ được đưa vào Advertising sau Checkout implementation và E2E PASS.
+
+### 10.3 Frontend handoff — `@lehuukhang`
+
+1. **FE-01 CMS Promotion:** type/detail editor, nhiều sách/mức giảm, PUT full state và hiển thị validation Backend.
+2. **FE-02 Kiosk/POS:** catalog giữ giá niêm yết; totals và item breakdown lấy từ Backend; POS không tự thay promotion.
+3. **FE-03 Receipt/PDF:** dùng Receipt API snapshot, hiển thị promotion/line discount, không dùng cart local; regression #29.
+
+### 10.4 Acceptance/dependencies
+
+- Dependency bắt buộc: foundation/migration → BE-01 → BE-02 → BE-03; FE work đi sau contract/runtime tương ứng; Leader integration QA cuối.
+- Evidence: DTO serialization, migration static review, SQL transactional tests, Kiosk/POS response, zero-payable rollback, legacy receipt, QR amount và cancel/stock/points regression.
+- Không đánh dấu feature complete từ docs/DTO/migration đơn lẻ; chưa tạo GitHub issue hoặc sửa issue hiện hữu trong bước foundation.

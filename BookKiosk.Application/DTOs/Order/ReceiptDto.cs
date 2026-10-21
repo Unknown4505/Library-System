@@ -15,6 +15,9 @@ public sealed class ReceiptDto
     public DateTime CompletedAt { get; set; }
     public List<ReceiptLineDto> Items { get; set; } = new();
     public decimal SubTotal { get; set; }
+    public int? PromotionId { get; set; }
+    public string? PromotionName { get; set; }
+    public PromotionType? PromotionType { get; set; }
     public decimal DiscountAmount { get; set; }
     public int PointsUsed { get; set; }
     public decimal PointsUsedAmount { get; set; }
@@ -30,5 +33,8 @@ public sealed class ReceiptLineDto
     public string BookTitle { get; set; } = string.Empty;
     public int Quantity { get; set; }
     public decimal UnitPriceAtTime { get; set; }
+    public decimal DiscountPerUnit { get; set; }
     public decimal LineTotal { get; set; }
+    public decimal LineDiscountAmount { get; set; }
+    public decimal NetLineTotal { get; set; }
 }

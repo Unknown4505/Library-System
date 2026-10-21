@@ -15,10 +15,13 @@ public class Order : BaseEntity
     public int? UserId { get; set; }
     public int? MemberId { get; set; }
     public int? PromotionId { get; set; }
+    public string? PromotionNameAtTime { get; set; }
+    public PromotionType? PromotionTypeAtTime { get; set; }
     
     public decimal SubTotal { get; set; }
     public decimal DiscountAmount { get; set; }
     public int PointsUsed { get; set; }
+    public decimal? PointsUsedAmountAtTime { get; set; }
     public decimal TotalAmount { get; set; }
     public DateTime? CompletedAt { get; set; }
 
