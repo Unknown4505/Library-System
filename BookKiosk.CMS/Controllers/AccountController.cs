@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using BookKiosk.CMS.Helpers;
 using BookKiosk.CMS.Models.Auth;
 using BookKiosk.CMS.Services;
 
@@ -126,15 +127,10 @@ namespace BookKiosk.CMS.Controllers
                 return Redirect(returnUrl);
             }
 
-            // CMS-AUTH-01: Ưu tiên dùng principal vừa đăng nhập để kiểm tra vai trò điều hướng
+            // CMS-AUTH-01 & CMS-MANAGER-01: Ưu tiên dùng principal vừa đăng nhập để kiểm tra vai trò điều hướng tập trung
             var principalToCheck = currentPrincipal ?? User;
-            if (principalToCheck.IsInRole("Admin"))
-            {
-                return RedirectToAction("Index", "Home");
-            }
-
-            // Staff → vào thẳng POS
-            return RedirectToAction("Index", "Pos");
+            var (action, controller) = principalToCheck.GetDefaultLandingRoute();
+            return RedirectToAction(action, controller);
         }
     }
 }

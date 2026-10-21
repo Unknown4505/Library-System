@@ -39,10 +39,11 @@ namespace BookKiosk.CMS.Controllers
 
         public async Task<IActionResult> Index(int? year = null)
         {
-            // Admin → Dashboard; Staff/Manager → không được xem dashboard doanh thu → POS
+            // Admin → Dashboard; Staff → POS; Manager → StaffWorkspace
             if (!User.IsAdmin())
             {
-                return RedirectToAction("Index", "Pos");
+                var (action, controller) = User.GetDefaultLandingRoute();
+                return RedirectToAction(action, controller);
             }
 
             int selectedYear = year ?? DateTime.UtcNow.Year;

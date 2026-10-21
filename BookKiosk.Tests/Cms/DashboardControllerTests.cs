@@ -90,13 +90,11 @@ namespace BookKiosk.Tests.Cms
             model.UseMockApi.Should().BeTrue();
         }
 
-        [Theory]
-        [InlineData("Staff")]
-        [InlineData("Manager")]
-        public async Task Index_NonAdminUser_RedirectsToPosIndex(string role)
+        [Fact]
+        public async Task Index_StaffUser_RedirectsToPosIndex()
         {
             // Arrange
-            var controller = CreateController(role);
+            var controller = CreateController(PermissionHelper.RoleStaff);
 
             // Act
             var result = await controller.Index();
@@ -105,6 +103,21 @@ namespace BookKiosk.Tests.Cms
             var redirectResult = result.Should().BeOfType<RedirectToActionResult>().Subject;
             redirectResult.ActionName.Should().Be("Index");
             redirectResult.ControllerName.Should().Be("Pos");
+        }
+
+        [Fact]
+        public async Task Index_ManagerUser_RedirectsToStaffWorkspace()
+        {
+            // Arrange
+            var controller = CreateController("Manager");
+
+            // Act
+            var result = await controller.Index();
+
+            // Assert
+            var redirectResult = result.Should().BeOfType<RedirectToActionResult>().Subject;
+            redirectResult.ActionName.Should().Be("StaffWorkspace");
+            redirectResult.ControllerName.Should().Be("Home");
         }
 
         [Fact]

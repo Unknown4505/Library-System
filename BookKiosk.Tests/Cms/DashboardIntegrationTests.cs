@@ -184,5 +184,70 @@ namespace BookKiosk.Tests.Cms
             json.Should().Contain("\"count\":");
             json.Should().NotContain("incidentCount");
         }
+
+        // ==========================================
+        // 4. TEST MANAGER / STAFF / ADMIN LANDING REDIRECT VÀ POS 403
+        // ==========================================
+        [Fact]
+        public async Task Home_WhenCalledByManager_RedirectsToStaffWorkspace()
+        {
+            // Arrange
+            var client = CreateClientForRole("Manager");
+
+            // Act
+            var response = await client.GetAsync("/Home");
+
+            // Assert: Redirect to /Home/StaffWorkspace
+            response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+            response.Headers.Location.Should().NotBeNull();
+            response.Headers.Location!.OriginalString.Should().Be("/Home/StaffWorkspace");
+        }
+
+        [Fact]
+        public async Task Home_WhenCalledByManagerWithFollowRedirect_Returns200AndRendersWorkspace()
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = true
+            });
+            client.DefaultRequestHeaders.Add("X-Test-Roles", "Manager");
+
+            // Act
+            var response = await client.GetAsync("/Home");
+            var html = await response.Content.ReadAsStringAsync();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            html.Should().Contain("Bàn làm việc nhân viên");
+        }
+
+        [Fact]
+        public async Task Pos_WhenCalledByManager_Returns403Forbidden()
+        {
+            // Arrange
+            var client = CreateClientForRole("Manager");
+
+            // Act
+            var response = await client.GetAsync("/Pos");
+
+            // Assert: Manager không có quyền vào POS -> 403 Forbidden
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+
+        [Fact]
+        public async Task Home_WhenCalledByStaff_RedirectsToPosIndex()
+        {
+            // Arrange
+            var client = CreateClientForRole("Staff");
+
+            // Act
+            var response = await client.GetAsync("/Home");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+            response.Headers.Location.Should().NotBeNull();
+            response.Headers.Location!.OriginalString.Should().Be("/Pos");
+        }
     }
 }
