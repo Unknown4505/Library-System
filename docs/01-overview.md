@@ -34,6 +34,7 @@ Nếu bạn là AI agent đọc file này:
 - Tra cứu sách theo tên, tác giả, thể loại; xem vị trí kệ trên bản đồ
 - **Hiển thị tồn kho thực tế** (còn hàng / hết hàng) trên kết quả tìm kiếm và trang chi tiết sách
 - **Gợi ý sách trên Kiosk** — 3 dạng: tìm kiếm nhiều nhất, bán chạy nhất, mới nhập kho
+- **Idle Advertising `[PLANNED]`** — `IdlePage` tự động trình chiếu khuyến mãi đang hiệu lực, sách mới về và sách bán chạy; lỗi API phải fallback về lời nhắc “Chạm để bắt đầu”
 - Quét mã vạch / QR bằng webcam laptop, thêm vào giỏ hàng
 - **`[DEV-ONLY]`** Ô nhập mã thủ công trên **cả Kiosk và CMS** — chỉ hiển khi `ASPNETCORE_ENVIRONMENT=Development`
 - **Thẻ thành viên & tích điểm** — đăng ký/tra cứu bằng số điện thoại, tích điểm khi mua, dùng điểm khi thanh toán tại Kiosk
@@ -201,10 +202,9 @@ BookKiosk.slnx
 │   └── Pdf/                           ReceiptPdfService (QuestPDF)
 │
 ├── BookKiosk.Kiosk/                ← [MVP] WPF Desktop App
-│   ├── Pages/                         IdlePage, HomePage, SearchPage, BookDetailPage,
-│   │                                  CartPage, PaymentPage, ReceiptPage, MaintenancePage,
-│   │                                  MemberLoginPage,                   ← nhập SĐT tra thẻ
-│   │                                  RecommendationPage                 ← gợi ý sách (home)
+│   ├── Pages/                         IdlePage, SearchPage, BookDetailPage,
+│   │                                  MemberPage, CheckoutPage, ReceiptPage,
+│   │                                  MaintenancePage
 │   ├── ViewModels/                    ViewModel cho từng Page
 │   ├── Services/                      BookKioskApiClient, IdleTimerService,
 │   │                                  Hardware mocks; HeartbeatWorker ở PR #11
@@ -227,7 +227,8 @@ BookKiosk.slnx
 
 ### 7.1 Khách mua sách tại Kiosk
 ```
-Chạm màn hình → Home (hiển gợi ý: bán chạy / mới / được tìm nhiều)
+App Startup → IdlePage (Idle Advertising: KM active / sách mới / bán chạy)
+  → Chạm màn hình → SearchPage (thanh tìm kiếm + danh sách sách + giỏ hàng)
   ├─► Tra cứu: tìm theo tên/thể loại → xem chi tiết → xem vị trí kệ trên bản đồ
   └─► Self-Checkout:
         Quét mã vạch (webcam) ─────────────────────────────────────────┐
@@ -252,8 +253,12 @@ Chạm màn hình → Home (hiển gợi ý: bán chạy / mới / được tìm
         → Kiosk poll thấy "Đã thanh toán"
         → Màn hình hóa đơn: mã đơn, danh sách, tổng tiền, điểm vừa tích
         → Nút “Lưu PDF” → mở file PDF
-        → 10 giây → về Idle
+        → giữ Receipt 5 giây hiện hành, hoàn tất hiển thị/in
+        → xóa phiên/giỏ đã hoàn tất → SearchPage
+        → không tương tác 60 giây → IdlePage tiếp tục Idle Advertising
 ```
+
+Luồng chính thức mới là `App Startup → Idle Advertising → Touch → SearchPage → Member/Checkout → Payment → Paid → Receipt → SearchPage → 60s Inactivity → Idle Advertising`. Đây là **UX CHANGE / PLANNED**; source hiện tại vẫn điều hướng `ReceiptPage → IdlePage` cho đến khi FE triển khai. Không tạo lại `HomePage`: màn hình mua hàng hiện hành là `SearchPage`.
 
 ### 7.2 Bán tại quầy (POS)
 ```
@@ -321,6 +326,8 @@ Quầy (phòng ngừa quên hủy): Background Service cũng quét Pending quầ
 - **IMPLEMENTED (model/migration source, chưa runtime DB):** scaffold additive `Employees`, `SalaryPayments`, `Manager = 3`; migration `20261016071312_AddEmployeeSalaryLedger` đã static-review chỉ thêm schema HR. Chưa apply trên SQL QA nên không được hiểu là đã deploy.
 - **PLANNED:** API/CMS Auth, Employees và SalaryPayments. Salary là sổ lương tháng đơn giản `Draft → Paid`, không phải payroll/tax/bank transfer.
 - **PLANNED:** Receipt API #28 và Receipt UI/PDF #29; #29 phụ thuộc #28. Hóa đơn lấy từ `Orders`/`OrderDetails` đã `Paid`, không có bảng `Invoices`.
+- **PLANNED — NEW FEATURE:** Idle Advertising trên `IdlePage`, touch-to-start sang `SearchPage`, inactivity 60 giây chỉ tại màn hình được phép và fallback an toàn khi API quảng cáo lỗi.
+- **PLANNED — UX CHANGE:** Sau Receipt 5 giây hiện hành, dọn phiên đã hoàn tất rồi về `SearchPage`; không quay thẳng về Idle và không làm thay đổi polling/cancel/payment flow đang hoạt động.
 - **OUT OF CORE SCOPE:** đặt hàng online, giữ chỗ khách hàng, bảng `BookTypes`, quản trị sự cố thiết bị như một quy trình nghiệp vụ chính. Việc bỏ quy trình sự cố khỏi BFD/DFD không xóa hai bảng Kiosk khỏi schema.
 
 Actors nghiệp vụ mục tiêu gồm Customer, Admin, Manager, Staff, Supplier, SePay, Scanner và Printer tùy chọn. Chi tiết trạng thái và handoff xem `12-workflow-handoff-and-scope.md`.

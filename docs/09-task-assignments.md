@@ -176,12 +176,24 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 - **Handoff PLANNED:** Auth/RBAC và Employee/Salary giao Backend `@thien33` triển khai sau contract; CMS Auth/Employee/Salary/NCC giao FE `@lehuukhang`; Leader giữ Domain/EF schema, shared contract và integration QA. Chưa tạo Issue mới; Owner/Dependencies/API-Data contract/Acceptance nằm ở docs/12.
 - **Salary APPROVED DESIGN (HR-DEC-01/02/03):** PayYear 2000..2100; Admin xem all và pay; Manager/Staff chỉ xem own Paid qua JWT→Employee; Backend enforce công thức NetSalary, Draft/Paid actor-time, transaction/concurrency và immutable Paid. API/UI vẫn `[ ]` PLANNED; migration giữ nguyên và SQL QA vẫn `BLOCKED — ENV`.
 
+### Handoff Kiosk Advertising & Navigation — flow và Contract V1 đã duyệt (2026-10-21)
+
+GitHub đã có Issue #37 (Backend) và #38 (Frontend); #29 tiếp tục giữ riêng Receipt UI/PDF. Cập nhật docs là `DOCS COMPLETED`, không đồng nghĩa feature đã implement hoặc test PASS.
+
+| Nhãn dự kiến | Phân loại | Owner | Dependency | Acceptance chính | Trạng thái |
+|---|---|---|---|---|---|
+| FE — Kiosk Idle Advertising ([#38](https://github.com/Unknown4505/Library-System/issues/38)) | NEW FEATURE | `@lehuukhang` | #37 bàn giao contract/API thật; UI/loading/empty/fallback có thể chuẩn bị trước | Startup vào Idle Ads; DTO/message/null/empty/partial xử lý theo docs 04; touch sang `SearchPage`; inactivity 60s; slideshow 8s configurable; cache/retry/timer cleanup; không gián đoạn giao dịch | **PLANNED / NOT RUN** |
+| FE — Receipt Navigation UX Change ([#38](https://github.com/Unknown4505/Library-System/issues/38)) | UX CHANGE, không phải regression so với thiết kế cũ | `@lehuukhang` | Receipt UI/PDF [#29](https://github.com/Unknown4505/Library-System/issues/29); tránh sửa chồng `ReceiptViewModel` | Chỉ sau `Paid` và hoàn tất Receipt; giữ mốc 5s hiện hành; giữ dữ liệu in/PDF an toàn; clear session/cart; về `SearchPage`; không cancel Paid; sau 60s mới về Idle Ads | **PLANNED / NOT RUN** |
+| BE Advertising API ([#37](https://github.com/Unknown4505/Library-System/issues/37)) | API GAP | `@thien33` | Contract V1 đã được Leader duyệt; phối hợp #38 và không mở rộng sang Checkout ProductDiscount | Endpoint/wrapper/auth/DTO đúng contract; new arrivals/best sellers đúng rule; message/error/empty/partial/503; lọc ưu đãi chưa được Checkout hỗ trợ; không thêm schema `Advertisements` | **APPROVED CONTRACT / IMPLEMENTATION PLANNED / NOT RUN** |
+
+Rule QA: chỉ đánh dấu `[x]` khi toàn bộ scope tương ứng có evidence PASS, acceptance hoàn thành và dependencies đã thỏa mãn. Nếu chỉ một subtask PASS thì cập nhật subtask, không đánh dấu toàn feature. #37 chỉ sửa Backend; #38 chỉ sửa Kiosk FE; #29 giữ riêng Receipt UI/PDF và phải phối hợp file ownership với #38.
+
 - **4.5 giữ chưa hoàn thành:** HTTP smoke trên merge không commit `main@fbc15a2` + `Khang@d9de651` đã PASS pagination, keyword, category, detail, barcode hợp lệ/404 và dữ liệu out-of-stock. WPF chưa chạy tương tác; FE-13 còn race pagination và Backend vẫn trả sách inactive qua detail/barcode.
 - **5.5 giữ chưa hoàn thành:** Đã chạy bộ test trên SQL Server Express local bằng database cô lập. Constraints, rollback, concurrent last-copy, cancel và promotion+100 điểm PASS; duplicate webhook, 4 validation điểm và OrderCode uniqueness FAIL. Checkout idempotency/cleanup race vẫn BLOCKED bởi Issue #19/#20.
 - **7.3 giữ chưa hoàn thành:** Contract xác thực SePay phải được đối chiếu chính xác với cấu hình/tài liệu gateway và regression theo Issue #20; static code review không phải runtime evidence.
 - **7.6 giữ chưa hoàn thành:** HTTP smoke đã PASS Checkout→Pending→QR→polling→Cancel và đối chiếu reserve 0→1→0; F3/Receipt đều trả 404, chưa có SePay Test Mode/Paid/Receipt E2E.
 - **9.1 giữ chưa hoàn thành:** Leader đã bổ sung Category/Area CRUD dùng shared DTO, wrapper và role Admin; SQL contract tests PASS. Books write endpoints hiện chưa có authorization và validation wrapper toàn cục chưa được nghiệm thu, nên chưa thể đánh dấu hoàn thành.
-- **11.5 giữ chưa hoàn thành:** Shared Reports DTO/contract đã chốt và serialization PASS; implementation vẫn trả `object`, `ReportsController` chưa giới hạn role Admin và PR #11 chưa có CMS chart/status integration.
+- **11.5 giữ chưa hoàn thành:** Shared Reports DTO/contract đã chốt và serialization PASS; implementation vẫn trả `object`, `ReportsController` hiện giới hạn role Admin nhưng chưa có runtime authorization evidence và PR #11 chưa có CMS chart/status integration.
 - **12.1 giữ chưa hoàn thành:** Kế hoạch và kết quả component SQL đã cập nhật tại docs/11-end-to-end-test-plan.md; chưa chạy E2E đầy đủ với Kiosk WPF và SePay Test Mode.
 - **12.2 giữ chưa hoàn thành:** Artifact BFD/DFD 0/1/2 tồn tại trong `diagram/`; BFD và DFD Level 1 cùng bảy nhóm chức năng, DFD Level 2 khớp luồng checkout/payment. DFD Level 1 còn thiếu data store/luồng xác thực `Users` và bộ sơ đồ chưa phân biệt rõ chức năng đã triển khai với phần Planned/BLOCKED.
 - **12.3 giữ trạng thái hoàn thành:** ERD đã được đối chiếu có đúng 17 entity, không thêm bảng ngoài model và có quan hệ nullable `Kiosks.AreaId -> Areas.AreaId` đúng cấu hình `SET NULL`.

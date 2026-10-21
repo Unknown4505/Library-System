@@ -31,12 +31,14 @@ Mọi API trả về (kể cả lỗi) đều phải được wrap trong object 
 
 ```json
 {
-  "success": true,               // true/false
-  "code": "SUCCESS",             // Mã lỗi/thành công chuẩn hóa
-  "message": "Thành công",       // Lời nhắn hiển thị cho người dùng (nếu cần)
-  "data": { ... }                // Payload thực tế (nếu success=true)
+  "success": true,
+  "code": "SUCCESS",
+  "message": "Thành công",
+  "data": {}
 }
 ```
+
+`success` là boolean; `code` và `message` là string không rỗng; `data` là payload thực tế hoặc `null` khi lỗi.
 
 HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết quả giao thức; `code` là mã máy đọc trong response body. Ví dụ lỗi chuẩn:
 
@@ -57,7 +59,7 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
   "code": "SUCCESS",
   "message": "Lấy dữ liệu thành công",
   "data": {
-    "items": [ { ... }, { ... } ],
+    "items": [{}, {}],
     "totalCount": 105,
     "page": 1,
     "pageSize": 20,
@@ -79,23 +81,29 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
   - `keyword` (string): Tìm theo tên hoặc tác giả (tùy chọn).
   - `categoryId` (int): Lọc theo danh mục (tùy chọn).
   - `page` (int): Mặc định `1`.
-  - `pageSize` (int): Mặc định `20`.
+  - `pageSize` (int): Mặc định `12` theo source hiện tại.
 - **Response (Success - 200 OK):**
 ```json
-"data": {
-  "items": [
-    {
-      "bookId": 1,
-      "barcode": "9786043652873",
-      "title": "Cây Cam Ngọt Của Tôi",
-      "author": "José Mauro de Vasconcelos",
-      "imageUrl": "https://...",
-      "sellingPrice": 105000,
-      "availableStock": 15,    // = StockQuantity - ReservedQuantity
-      "areaName": "Kệ A1 - Văn học"
-    }
-  ],
-  "totalCount": 1, ...
+{
+  "data": {
+    "items": [
+      {
+        "bookId": 1,
+        "barcode": "9786043652873",
+        "title": "Cây Cam Ngọt Của Tôi",
+        "author": "José Mauro de Vasconcelos",
+        "imageUrl": "https://example.test/uploads/books/cay-cam.jpg",
+        "sellingPrice": 105000,
+        "availableStock": 15,
+        "areaName": "Kệ A1 - Văn học"
+      }
+    ],
+    "totalCount": 1,
+    "page": 1,
+    "pageSize": 12,
+    "totalPages": 1,
+    "hasNextPage": false
+  }
 }
 ```
 *(Lưu ý: API luôn trả về `availableStock` thay vì `StockQuantity` vật lý).*
@@ -120,13 +128,17 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - **Endpoint:** `GET /api/members/{phoneNumber}`
 - **Response (Success - 200 OK):**
 ```json
-"data": {
-  "memberId": 12,
-  "fullName": "Nguyễn Văn A",
-  "phoneNumber": "0901234567",
-  "points": 150              // 150 điểm = 150.000 VNĐ (Tỷ giá 1 điểm = 1.000 VNĐ)
+{
+  "data": {
+    "memberId": 12,
+    "fullName": "Nguyễn Văn A",
+    "phoneNumber": "0901234567",
+    "points": 150
+  }
 }
 ```
+
+`points=150` tương đương 150.000 VNĐ theo tỷ giá 1 điểm = 1.000 VNĐ.
 
 ---
 
@@ -138,14 +150,15 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - **Request Body:**
 ```json
 {
-  "memberId": 12,                  // Nullable, nếu khách không nhập SĐT
-  "pointsToUse": 50,               // Số điểm khách muốn trừ (tối đa 100 điểm/đơn)
+  "memberId": 12,
+  "pointsToUse": 50,
   "items": [
-    { "bookId": 1, "quantity": 2 }, // Lưu ý: Kiosk gọi /books/barcode/{barcode} lấy bookId trước
+    { "bookId": 1, "quantity": 2 },
     { "bookId": 5, "quantity": 1 }
   ]
 }
 ```
+`memberId` nullable nếu khách không nhập số điện thoại; `pointsToUse` tối đa 100 điểm/đơn. Kiosk gọi `/api/books/barcode/{barcode}` để lấy `bookId` trước khi checkout.
 - **Xử lý Backend:** 
   - Tự động quét Promotion (`IsActive = true`, ngày hợp lệ) và áp dụng loại ngon nhất cho đơn hàng.
   - Validate `pointsToUse` không âm, không vượt quá **100 điểm/đơn** và không vượt quá số điểm hiện có của thành viên.
@@ -154,14 +167,16 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
   - Tăng `ReservedQuantity` cho các sách. Lưu trạng thái `Pending`.
 - **Response (Success - 200 OK):**
 ```json
-"data": {
-  "orderId": 105,
-  "orderCode": "ORD-20261101-0105",
-  "subTotal": 315000,
-  "discountAmount": 50000,         // KM giảm thẳng 50k
-  "pointsUsedAmount": 50000,       // Dùng 50 điểm = 50.000 VNĐ
-  "totalAmount": 215000,           // Thực trả (315k - 50k - 50k)
-  "sepayQrCodeUrl": "https://qr.sepay.vn/img?bank=...&amount=215000&code=ORD-20261101-0105"
+{
+  "data": {
+    "orderId": 105,
+    "orderCode": "ORD-20261101-0105",
+    "subTotal": 315000,
+    "discountAmount": 50000,
+    "pointsUsedAmount": 50000,
+    "totalAmount": 215000,
+    "sepayQrCodeUrl": "https://qr.sepay.vn/img?bank=demo&amount=215000&code=ORD-20261101-0105"
+  }
 }
 ```
 
@@ -209,12 +224,15 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - **Auth:** `X-Api-Key`
 - **Response:**
 ```json
-"data": {
-  "orderId": 105,
-  "orderCode": "ORD-20261101-0105",
-  "status": "Paid" // Enum: Pending, Paid, Cancelled
+{
+  "data": {
+    "orderId": 105,
+    "orderCode": "ORD-20261101-0105",
+    "status": "Paid"
+  }
 }
 ```
+`status` nhận một trong các giá trị `Pending`, `Paid`, `Cancelled`.
 
 #### Lấy hóa đơn đã thanh toán (contract đã chốt, Backend chưa implement)
 - **Endpoint:** `GET /api/orders/kiosk/{orderId}/receipt`
@@ -307,11 +325,13 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 ```json
 {
   "kioskId": 1,
-  "status": 1,             // Enum: 1=Online, 2=Offline, 3=Error
-  "errorCode": null,       // "CAM_DISCONNECTED", "PRINTER_OUT_OF_PAPER"
+  "status": 1,
+  "errorCode": null,
   "errorMessage": null
 }
 ```
+- `status`: `1=Online`, `2=Offline`, `3=Error`.
+- `errorCode` có thể là `CAM_DISCONNECTED`, `PRINTER_OUT_OF_PAPER` hoặc `null`.
 - **Validation:** `kioskId` là số nguyên dương đã tồn tại; `status` chỉ nhận `1`, `2`, `3`. Giá trị khác phải trả `400 BAD_REQUEST`; ID không tồn tại trả `404 NOT_FOUND`.
 - **Xử lý Backend:** Update `LastPingAt` bằng UTC và tạo `KioskIncident` nếu có lỗi chưa fix. `kioskId` là khóa database được cấp ở bước đăng ký/cấu hình thiết bị và lưu trong cấu hình Kiosk; không hardcode `1` và không gửi mã hiển thị như `KIOSK-01`.
 
@@ -362,6 +382,331 @@ Các route dưới đây chỉ là namespace contract mục tiêu, **chưa phả
 - Manager không được xác nhận Paid. Quyền xác nhận Paid chỉ thuộc Admin dù Manager có quyền quản lý vận hành.
 
 **DB ENFORCED hiện tại:** unique kỳ lương, tháng 1..12, tiền không âm, status 1/2 và FK/RESTRICT. Theo **APPROVED DESIGN HR-DEC-01/02/03**, Backend phải enforce PayYear 2000..2100, công thức `NetSalary`, actor/time theo status, state transition/concurrency và JWT row authorization. Leader chốt giữ migration hiện tại, không thêm SQL CHECK trong V6.3. Validation trùng `EmployeeCode`, trùng kỳ lương hoặc input sai trả `409`/`400` theo nguyên nhân; không trả password hash hoặc lương người khác. Đây là ledger ghi nhận trả lương, không phải API chuyển tiền ngân hàng; toàn bộ Salary API/Service vẫn **PLANNED**.
+
+### 3.9 Kiosk Idle Advertising API — Approved Contract V1
+
+Trạng thái: **APPROVED DESIGN / CONTRACT V1 / NOT IMPLEMENTED**. Đây là source of truth đã được Leader phê duyệt cho [Issue #37](https://github.com/Unknown4505/Library-System/issues/37) và [Issue #38](https://github.com/Unknown4505/Library-System/issues/38); tài liệu không chứng minh endpoint, DTO hoặc UI đã tồn tại trong source.
+
+| Decision ID | Quyết định Contract V1 đã duyệt |
+|---|---|
+| ADS-DEC-01 | New Arrivals và Best Sellers dùng cửa sổ rolling 30 ngày theo UTC. |
+| ADS-DEC-02 | Mỗi nhóm tối đa 10 đầu sách, mỗi sách chỉ xuất hiện một lần trong cùng nhóm. |
+| ADS-DEC-03 | New Arrivals sort lần nhập gần nhất giảm dần rồi `BookId ASC`; Best Sellers sort `totalSold DESC` rồi `BookId ASC`. |
+| ADS-DEC-04 | Một phần nguồn lỗi trả HTTP 200, `success=true`, `code=PARTIAL_SUCCESS`, shape cố định và allow-list `unavailableSections`; rỗng hợp lệ không phải lỗi. |
+| ADS-DEC-05 | FE cache tối đa 5 phút, không giữ promotion quá hạn, không fetch theo slide và dispose timer khi rời Idle. |
+| ADS-DEC-06 | Tối đa một retry tự động mỗi lượt Idle, sau ít nhất 30 giây; sau đó fallback/cooldown an toàn. |
+| ADS-DEC-07 | Toàn bộ ba nguồn không khả dụng trả HTTP 503, `SERVICE_UNAVAILABLE`, message tiếng Việt và `data=null`; lỗi ngoài dự kiến vẫn là 500 an toàn. |
+
+#### 3.9.1 Đối chiếu source và convention hiện hữu
+
+**EXISTING CONVENTION:**
+
+- `KioskController` dùng route gốc `api/[controller]`; vì vậy action `[HttpGet("advertising")]` sẽ tạo `GET /api/kiosk/advertising`.
+- `ApiKeyMiddleware` bảo vệ mọi path bắt đầu bằng `/api/kiosk` và `/api/orders/kiosk`; header HTTP không phân biệt hoa/thường, tên convention là `X-Api-Key`.
+- Thiếu key hiện trả HTTP 401, code `UNAUTHORIZED`; key sai trả HTTP 403, code `FORBIDDEN`. Cả hai dùng `ApiResponseDto<object>` và JSON camelCase.
+- `ApiResponseDto<T>` có shape cố định `success`, `code`, `message`, `data`; `Ok(...)` hiện chỉ sinh code `SUCCESS`, `Error(...)` đặt `data = null`.
+- ASP.NET Core controller hiện dùng System.Text.Json web defaults; enum không có string-enum converter, nên `PromotionType` phải là JSON number: `1 = OrderDiscount`, `2 = ProductDiscount`.
+
+**IMPLEMENTATION GAP:** chưa có advertising action/service/DTO/query. Middleware auth hiện wrap lỗi nhưng message 401/403 và lỗi thiếu server API key còn tiếng Anh; lỗi thiếu cấu hình còn lộ chi tiết cấu hình. Global exception handler có `INTERNAL_ERROR` cho 500 nhưng chưa có mapping 503. `PARTIAL_SUCCESS` và `SERVICE_UNAVAILABLE` chưa tồn tại trong factory/convention thực thi.
+
+| Dữ liệu | Source hiện có | Phân loại | Giới hạn hiện tại |
+|---|---|---|---|
+| Ảnh và thông tin sách | `GET /api/books`; `BookDto.ImageUrl`, `SellingPrice`, `AvailableStock`; static files | **AVAILABLE để reuse** | Chưa tạo nhóm quảng cáo chuyên biệt |
+| Khuyến mãi | `Promotion`, `PromotionOrderDiscount`, `PromotionProductDiscount`; CMS `GET /api/promotions` | **PARTIAL** | CMS endpoint dùng JWT và DTO thiếu loại/chi tiết giảm; không nới quyền endpoint CMS |
+| Sách mới về | `ImportReceipt.CreatedAt` + `ImportReceiptDetail.BookId`; tạo phiếu và tăng kho cùng transaction | **APPROVED DESIGN / API GAP** | Chưa có query Kiosk; Contract V1 quy định 30 ngày, distinct, active/còn hàng, limit 10 và tie-break |
+| Sách bán chạy | `Orders.CompletedAt`, `OrderStatus`, `OrderDetails.Quantity`; Admin reports query Paid-only | **APPROVED DESIGN / API GAP** | Endpoint reports Admin-only không được reuse trực tiếp; query Kiosk 30 ngày/active/còn hàng/limit 10 chưa implement |
+
+#### 3.9.2 Endpoint
+
+| Thuộc tính | Contract V1 đã duyệt |
+|---|---|
+| Method/route | `GET /api/kiosk/advertising` |
+| Request body | Không có |
+| Authentication | `X-Api-Key: <kiosk_secret_key>`; không dùng JWT CMS |
+| Success response | `ApiResponseDto<KioskAdvertisingDto>`; JSON camelCase |
+| Side effect | Không; read-only và gọi lặp không ghi dữ liệu |
+| Dữ liệu cấm | `CostPrice`, API key, thông tin thành viên/nhân viên, email, số điện thoại và chi tiết nội bộ |
+
+Request mẫu:
+
+```http
+GET /api/kiosk/advertising HTTP/1.1
+Host: localhost:7111
+Accept: application/json
+X-Api-Key: <kiosk_secret_key>
+```
+
+#### 3.9.3 DTO C# và JSON mapping
+
+```csharp
+public sealed class KioskAdvertisingDto
+{
+    public List<AdvertisingPromotionDto> ActivePromotions { get; init; } = new();
+    public List<AdvertisingNewArrivalDto> NewArrivals { get; init; } = new();
+    public List<AdvertisingBestSellerDto> BestSellers { get; init; } = new();
+    public List<string> UnavailableSections { get; init; } = new();
+}
+
+public sealed class AdvertisingPromotionDto
+{
+    public int PromotionId { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string? Description { get; init; }
+    public PromotionType PromotionType { get; init; }
+    public AdvertisingOrderDiscountDto? OrderDiscount { get; init; }
+    public List<AdvertisingProductDiscountDto> ProductDiscounts { get; init; } = new();
+    public DateTime StartDate { get; init; }
+    public DateTime EndDate { get; init; }
+}
+
+public sealed class AdvertisingOrderDiscountDto
+{
+    public decimal MinOrderValue { get; init; }
+    public decimal DiscountAmount { get; init; }
+}
+
+public class AdvertisingBookDto
+{
+    public int BookId { get; init; }
+    public string Title { get; init; } = string.Empty;
+    public string? ImageUrl { get; init; }
+    public decimal SellingPrice { get; init; }
+    public int AvailableStock { get; init; }
+}
+
+public sealed class AdvertisingProductDiscountDto : AdvertisingBookDto
+{
+    public decimal DiscountAmount { get; init; }
+}
+
+public sealed class AdvertisingNewArrivalDto : AdvertisingBookDto
+{
+    public DateTime LastImportedAt { get; init; }
+}
+
+public sealed class AdvertisingBestSellerDto : AdvertisingBookDto
+{
+    public int TotalSold { get; init; }
+}
+```
+
+| JSON field | C# type/nullability | Nguồn | Quy tắc |
+|---|---|---|---|
+| `activePromotions` | array, không null | `Promotions` | Chỉ active và trong thời gian hiệu lực |
+| `promotionType` | number (`PromotionType`) | `Promotion.PromotionType` | `1=OrderDiscount`, `2=ProductDiscount` |
+| `orderDiscount` | object hoặc `null` | `PromotionOrderDiscount` | Có object khi type 1; type 2 trả `null` |
+| `productDiscounts` | array, không null | `PromotionProductDiscounts` + `Books` | Type 1 trả `[]`; type 2 có từng sách/mức giảm |
+| `description`, `imageUrl` | `string?` | entity tương ứng | JSON field luôn tồn tại và có thể là `null` |
+| các field tiền | `decimal` | entity tương ứng | JSON number; FE format VNĐ, không trả chuỗi đã format |
+| `startDate`, `endDate`, `lastImportedAt` | `DateTime`, không null | timestamp tương ứng | ISO 8601 UTC có hậu tố `Z` |
+| `newArrivals`, `bestSellers` | array, không null | nhập kho; order detail | Không dữ liệu trả `[]` |
+| `unavailableSections` | array, không null | trạng thái tổng hợp service | Chỉ chứa `activePromotions`, `newArrivals`, `bestSellers`; rỗng nếu không có section lỗi |
+
+Response shape luôn cố định: không bỏ field. `null` chỉ dùng cho field được khai báo nullable; collection luôn là `[]` khi rỗng; lỗi toàn endpoint mới trả `data: null`.
+
+#### 3.9.4 Business rules
+
+**ĐÃ ĐỐI CHIẾU SOURCE / GIỮ NGUYÊN:**
+
+- Promotion chỉ hợp lệ khi `IsActive=true` và UTC hiện tại nằm trong khoảng bao gồm hai biên `StartDate <= now <= EndDate`.
+- `OrderDiscount`: `orderDiscount` chứa `minOrderValue` và `discountAmount`; `productDiscounts=[]`.
+- `ProductDiscount`: `orderDiscount=null`; `productDiscounts` chứa từng `bookId` và `discountAmount`, không gộp thành một mức giảm chung.
+- Best sellers chỉ tổng `OrderDetails.Quantity` của order `Paid`; loại `Pending`, `Cancelled` và cart local.
+- Chỉ trả sách active, `AvailableStock > 0`; không trả `CostPrice`.
+
+**APPROVED DESIGN / CONTRACT V1:**
+
+- New arrivals lấy lần nhập gần nhất từ `MAX(ImportReceipt.CreatedAt)` theo `ImportReceiptDetails.BookId`, không dùng `Books.CreatedAt`; cửa sổ rolling 30 ngày UTC; mỗi sách một dòng; sort `LastImportedAt DESC, BookId ASC`; tối đa 10.
+- Source đủ để query vì `ImportReceipt` có UTC `CreatedAt`, detail có `BookId`, navigation tới `Book`, và service hiện tạo phiếu/tăng kho trong cùng transaction. Không có blocker schema; query/API vẫn chưa implement.
+- Best sellers dùng order `Paid` có `CompletedAt >= utcNow - 30 ngày`, tổng `OrderDetails.Quantity` theo sách, tối đa 10; sort `TotalSold DESC, BookId ASC`.
+- Không có dữ liệu phù hợp trả HTTP 200 với ba array rỗng, `unavailableSections=[]`; không dùng 404.
+- Partial success: HTTP 200, nhóm lỗi trả `[]`, nhóm tốt vẫn có dữ liệu, `unavailableSections` ghi nhóm lỗi, `success=true`, code `PARTIAL_SUCCESS`. Mô hình đã duyệt nhưng factory/convention hiện tại chưa sinh code success khác `SUCCESS`: **IMPLEMENTATION GAP**.
+- `ProductDiscount` vẫn có DTO shape theo từng sách, nhưng source Checkout Kiosk hiện chưa chứng minh tự áp dụng loại giảm này. Advertising V1 phải lọc/không quảng cáo `ProductDiscount` như ưu đãi áp dụng tại Kiosk cho đến khi checkout support được xác minh và duyệt ở scope riêng; task #37 không sửa checkout.
+
+#### 3.9.5 Response mẫu — contract sample, chưa runtime-test
+
+HTTP 200 có đủ ba nhóm. Mẫu nội dung Kiosk chỉ quảng cáo `OrderDiscount` mà checkout hiện đã có bằng chứng áp dụng:
+
+```json
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "Lấy dữ liệu quảng cáo thành công.",
+  "data": {
+    "activePromotions": [
+      {
+        "promotionId": 11,
+        "name": "Giảm 20000 cho đơn từ 200000",
+        "description": "Áp dụng cho toàn đơn đủ điều kiện.",
+        "promotionType": 1,
+        "orderDiscount": {
+          "minOrderValue": 200000,
+          "discountAmount": 20000
+        },
+        "productDiscounts": [],
+        "startDate": "2026-10-01T00:00:00Z",
+        "endDate": "2026-10-31T23:59:59Z"
+      }
+    ],
+    "newArrivals": [
+      {
+        "bookId": 8,
+        "title": "Nhà Giả Kim",
+        "imageUrl": null,
+        "sellingPrice": 79000,
+        "availableStock": 7,
+        "lastImportedAt": "2026-10-20T08:30:00Z"
+      }
+    ],
+    "bestSellers": [
+      {
+        "bookId": 5,
+        "title": "Clean Code",
+        "imageUrl": "/uploads/books/clean-code.jpg",
+        "sellingPrice": 300000,
+        "availableStock": 4,
+        "totalSold": 18
+      }
+    ],
+    "unavailableSections": []
+  }
+}
+```
+
+Shape DTO dành cho `ProductDiscount` được giữ trong contract để không làm mất semantics theo từng sách, nhưng payload này **không được đưa vào nội dung Kiosk hiện tại** cho đến khi luồng Checkout hỗ trợ đã được xác minh:
+
+```json
+{
+  "promotionId": 12,
+  "name": "Ưu đãi sách chọn lọc",
+  "description": null,
+  "promotionType": 2,
+  "orderDiscount": null,
+  "productDiscounts": [
+    {
+      "bookId": 5,
+      "title": "Clean Code",
+      "imageUrl": "/uploads/books/clean-code.jpg",
+      "sellingPrice": 300000,
+      "availableStock": 4,
+      "discountAmount": 30000
+    },
+    {
+      "bookId": 8,
+      "title": "Nhà Giả Kim",
+      "imageUrl": null,
+      "sellingPrice": 79000,
+      "availableStock": 7,
+      "discountAmount": 10000
+    }
+  ],
+  "startDate": "2026-10-10T00:00:00Z",
+  "endDate": "2026-11-10T23:59:59Z"
+}
+```
+
+HTTP 200 không có nội dung phù hợp:
+
+```json
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "Hiện chưa có nội dung quảng cáo phù hợp.",
+  "data": {
+    "activePromotions": [],
+    "newArrivals": [],
+    "bestSellers": [],
+    "unavailableSections": []
+  }
+}
+```
+
+HTTP 200 partial success — **APPROVED CONTRACT / NOT IMPLEMENTED**:
+
+```json
+{
+  "success": true,
+  "code": "PARTIAL_SUCCESS",
+  "message": "Một số nội dung quảng cáo tạm thời không khả dụng.",
+  "data": {
+    "activePromotions": [],
+    "newArrivals": [
+      {
+        "bookId": 8,
+        "title": "Nhà Giả Kim",
+        "imageUrl": null,
+        "sellingPrice": 79000,
+        "availableStock": 7,
+        "lastImportedAt": "2026-10-20T08:30:00Z"
+      }
+    ],
+    "bestSellers": [],
+    "unavailableSections": [
+      "activePromotions",
+      "bestSellers"
+    ]
+  }
+}
+```
+
+#### 3.9.6 HTTP status, code và message
+
+Mọi response Advertising phải có `message` tiếng Việt, không rỗng, không chứa stack trace, SQL detail, API key hoặc cấu hình nội bộ.
+
+| HTTP | `success` | `code` | `message` chuẩn | Trạng thái convention |
+|---:|:---:|---|---|---|
+| 200 | true | `SUCCESS` | `Lấy dữ liệu quảng cáo thành công.` | Code hiện có |
+| 200 empty | true | `SUCCESS` | `Hiện chưa có nội dung quảng cáo phù hợp.` | Code hiện có |
+| 200 partial | true | `PARTIAL_SUCCESS` | `Một số nội dung quảng cáo tạm thời không khả dụng.` | **APPROVED CONTRACT / IMPLEMENTATION GAP** |
+| 400 | false | `BAD_REQUEST` | `Thông tin yêu cầu không hợp lệ.` | Code hiện có; V1 không có body/query nên bình thường không phát sinh |
+| 401 | false | `UNAUTHORIZED` | `Thiếu thông tin xác thực Kiosk.` | Status/code hiện có; message target khác source |
+| 403 | false | `FORBIDDEN` | `Kiosk không có quyền truy cập chức năng này.` | Status/code hiện có; message target khác source |
+| 500 | false | `INTERNAL_ERROR` | `Hệ thống gặp sự cố. Vui lòng thử lại sau.` | Code hiện có; message target cần đồng bộ |
+| 503 | false | `SERVICE_UNAVAILABLE` | `Nội dung quảng cáo tạm thời không khả dụng.` | **APPROVED CONTRACT / IMPLEMENTATION GAP** |
+
+Mẫu lỗi xác thực target (401; 403 có cùng shape với code/message tương ứng):
+
+```json
+{
+  "success": false,
+  "code": "UNAUTHORIZED",
+  "message": "Thiếu thông tin xác thực Kiosk.",
+  "data": null
+}
+```
+
+Mẫu lỗi 500:
+
+```json
+{
+  "success": false,
+  "code": "INTERNAL_ERROR",
+  "message": "Hệ thống gặp sự cố. Vui lòng thử lại sau.",
+  "data": null
+}
+```
+
+Mẫu lỗi 503 — **APPROVED CONTRACT / NOT IMPLEMENTED**:
+
+```json
+{
+  "success": false,
+  "code": "SERVICE_UNAVAILABLE",
+  "message": "Nội dung quảng cáo tạm thời không khả dụng.",
+  "data": null
+}
+```
+
+#### 3.9.7 Cache, retry và hiệu năng — APPROVED DESIGN
+
+- Backend giới hạn tối đa 10 item mỗi nhóm, query projection trực tiếp và tránh N+1; không sửa/nới quyền CMS reports/promotions.
+- FE cache payload tối đa 5 phút nhưng thời điểm hết hạn thực tế là mốc sớm hơn giữa 5 phút và `endDate` gần nhất của promotion; không hiển thị promotion quá hạn từ cache.
+- Chỉ tải khi vào `IdlePage` và cache không còn hợp lệ; không gọi API theo mỗi slide 8 giây.
+- Khi lỗi, FE dùng fallback và tối đa một background retry trong một lượt vào Idle, không sớm hơn 30 giây. Nếu vẫn lỗi thì giữ fallback/cooldown; không retry theo slideshow timer hoặc tạo request storm khi vào lại Idle.
+- Dừng/dispose slideshow timer khi rời `IdlePage`; không giữ nhiều timer/request song song.
+- FE phải xét cả HTTP status và `success`/`code`/`message`/`data`; HTTP 200 không đồng nghĩa thành công nếu wrapper báo lỗi. Background refresh/slideshow/inactivity không hiện toast lặp; chỉ log an toàn và hiển thị fallback thân thiện.
+
+Owner: Backend [#37](https://github.com/Unknown4505/Library-System/issues/37) `@thien33`; Frontend [#38](https://github.com/Unknown4505/Library-System/issues/38) `@lehuukhang`. Contract đã được Leader duyệt; implementation và runtime QA vẫn **PLANNED / NOT RUN**. Không tạo bảng `Advertisements`, migration, endpoint hay DTO thật trong lượt docs này.
 
 ---
 
