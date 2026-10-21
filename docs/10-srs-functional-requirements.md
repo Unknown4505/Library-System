@@ -37,7 +37,34 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
   * **Output:** Tạo đơn hàng ở trạng thái `Pending`, cộng dồn vào `ReservedQuantity` (tạm giữ kho), tạo và hiển thị QR Code động SePay, bắt đầu đếm ngược timeout 3-4 phút.
 * **1.3.4. Hoàn tất thanh toán Kiosk**
   * **Input:** Tín hiệu từ Backend (SignalR/Polling) thông báo đơn hàng đã Paid.
-  * **Output:** Giao diện hiển thị "Thanh toán thành công", hiển thị điểm vừa được cộng thêm, sinh file hóa đơn PDF để hiển thị.
+  * **Output:** Giao diện hiển thị "Thanh toán thành công", hiển thị điểm vừa được cộng thêm, sinh file hóa đơn PDF để hiển thị; hoàn tất Receipt rồi dọn phiên và về `SearchPage`.
+
+### 1.4. Idle Advertising và vòng đời điều hướng — PLANNED
+
+* **1.4.1. Auto Ads khi Idle**
+  * **Input:** App vừa khởi động hoặc Kiosk chuyển về `IdlePage`.
+  * **Output:** Slideshow tự động; mặc định đề xuất 8 giây/slide và có thể cấu hình; không tạo timer/request trùng.
+* **1.4.2. Current Promotions**
+  * **Input:** Dữ liệu promotion từ Backend.
+  * **Output:** Chỉ hiển thị promotion `IsActive` trong `StartDate..EndDate`, đúng loại toàn đơn/sản phẩm và đúng mức giảm do API cung cấp.
+* **1.4.3. New Arrivals**
+  * **Input:** Danh sách sách mới do Backend xác định.
+  * **Output:** Hiển thị ảnh bìa, tên và giá khi contract hỗ trợ; không tự gắn nhãn bằng mock/local inference.
+* **1.4.4. Best Sellers**
+  * **Input:** Thống kê Backend từ đơn `Paid`.
+  * **Output:** Hiển thị sách bán chạy; không tính từ cart local, `Pending` hoặc `Cancelled`.
+* **1.4.5. Touch to Start**
+  * **Input:** Khách chạm màn hình quảng cáo.
+  * **Output:** Dừng/dispose slideshow timer và điều hướng tới `SearchPage`.
+* **1.4.6. Inactivity to Idle**
+  * **Input:** Không có tương tác hợp lệ trong 60 giây tại `SearchPage`.
+  * **Output:** Chuyển về Idle Advertising; không áp dụng khi phiên member/checkout/payment/receipt đang hoạt động.
+* **1.4.7. Paid Receipt to Search**
+  * **Input:** Backend xác nhận `Paid`, Receipt đã tải/hiển thị/in an toàn và hết mốc 5 giây hiện hành.
+  * **Output:** Xóa cart và state giao dịch đã hoàn tất, không gọi cancel, điều hướng `SearchPage`; sau đó inactivity timer mới bắt đầu phiên mới.
+* **1.4.8. Error/Offline fallback**
+  * **Input:** API advertising lỗi, timeout hoặc không có dữ liệu hợp lệ.
+  * **Output:** Không crash; bỏ nhóm rỗng và hiển thị “Chạm để bắt đầu”/asset tĩnh đã duyệt; không giả promotion thực tế.
 
 ---
 
