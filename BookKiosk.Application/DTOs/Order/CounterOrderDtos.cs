@@ -30,6 +30,9 @@ public class CounterCheckoutResponseDto
     public string OrderCode { get; set; } = string.Empty;
     public OrderStatus OrderStatus { get; set; } = OrderStatus.Pending;
     public decimal SubTotal { get; set; }
+    public int? PromotionId { get; set; }
+    public string? PromotionName { get; set; }
+    public PromotionType? PromotionType { get; set; }
     public decimal DiscountAmount { get; set; }
     public int PointsUsed { get; set; }
     public decimal PointsUsedAmount { get; set; }
@@ -44,11 +47,25 @@ public class CounterCheckoutResponseDto
 
 public class CounterOrderItemDto
 {
+    private string _bookTitle = string.Empty;
+
     public int BookId { get; set; }
-    public string Title { get; set; } = string.Empty;
+    public string Title
+    {
+        get => _bookTitle;
+        set => _bookTitle = value;
+    }
+    public string BookTitle
+    {
+        get => _bookTitle;
+        set => _bookTitle = value;
+    }
     public int Quantity { get; set; }
     public decimal UnitPriceAtTime { get; set; }
+    public decimal DiscountPerUnit { get; set; }
     public decimal LineTotal { get; set; }
+    public decimal LineDiscountAmount { get; set; }
+    public decimal NetLineTotal { get; set; }
 }
 
 public class PosReceiptDto
@@ -61,6 +78,9 @@ public class PosReceiptDto
     public int? PointsEarned { get; set; }
     public List<PosReceiptItemDto> Items { get; set; } = new();
     public decimal SubTotal { get; set; }
+    public int? PromotionId { get; set; }
+    public string? PromotionName { get; set; }
+    public PromotionType? PromotionType { get; set; }
     public decimal DiscountAmount { get; set; }
     public int PointsUsed { get; set; }
     public decimal PointsUsedAmount { get; set; }
@@ -75,11 +95,35 @@ public class PosReceiptDto
 
 public class PosReceiptItemDto
 {
+    private string _bookTitle = string.Empty;
+    private decimal _unitPriceAtTime;
+
     public int BookId { get; set; }
-    public string Title { get; set; } = string.Empty;
+    public string Title
+    {
+        get => _bookTitle;
+        set => _bookTitle = value;
+    }
+    public string BookTitle
+    {
+        get => _bookTitle;
+        set => _bookTitle = value;
+    }
     public int Quantity { get; set; }
-    public decimal UnitPrice { get; set; }
+    public decimal UnitPrice
+    {
+        get => _unitPriceAtTime;
+        set => _unitPriceAtTime = value;
+    }
+    public decimal UnitPriceAtTime
+    {
+        get => _unitPriceAtTime;
+        set => _unitPriceAtTime = value;
+    }
+    public decimal DiscountPerUnit { get; set; }
     public decimal LineTotal { get; set; }
+    public decimal LineDiscountAmount { get; set; }
+    public decimal NetLineTotal { get; set; }
 }
 
 public class OrderFilterDto
@@ -132,8 +176,10 @@ public class OrderDetailDto
 
     public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Cash;
     public decimal SubTotal { get; set; }
+    public int? PromotionId { get; set; }
     public decimal DiscountAmount { get; set; }
     public string? PromotionName { get; set; }
+    public PromotionType? PromotionType { get; set; }
     public int PointsUsed { get; set; }
     public decimal PointsUsedAmount { get; set; }
     public decimal TotalAmount { get; set; }
@@ -158,7 +204,10 @@ public class OrderDetailItemDto
     public string BookTitle { get; set; } = string.Empty;
     public int Quantity { get; set; }
     public decimal UnitPriceAtTime { get; set; }
+    public decimal DiscountPerUnit { get; set; }
     public decimal LineTotal { get; set; }
+    public decimal LineDiscountAmount { get; set; }
+    public decimal NetLineTotal { get; set; }
 }
 
 public class OrderPaymentTransactionDto

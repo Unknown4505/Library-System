@@ -164,3 +164,25 @@ Các rule 30 ngày/limit 10, partial success, cache 5 phút và retry đã đư�
 | ADS-RETRY-01 | Advertising API lỗi trong một lượt Idle | Tối đa một retry sau ít nhất 30 giây; retry lỗi thì fallback/cooldown; không request storm | PLANNED / NOT RUN |
 
 Acceptance cần evidence UI/timer lifecycle, request log, trạng thái cart/session và regression payment/Receipt API/PDF. Không đánh dấu PASS chỉ từ docs hoặc mock.
+
+## 9. ProductDiscount V7.1 — targeted matrix
+
+| ID | Kịch bản | Expected | Trạng thái |
+|---|---|---|---|
+| PD-E2E-01 | OrderDiscount only | Chọn đúng promotion đủ `MinOrderValue`; line discount đều 0; order discount đúng snapshot | PLANNED / NOT RUN |
+| PD-E2E-02 | ProductDiscount only | Giảm đúng từng đơn vị, tổng line discount bằng `Orders.DiscountAmount` | PLANNED / NOT RUN |
+| PD-E2E-03 | Promotion + points | Promotion áp trước, points áp sau; tổng dương và snapshot đúng | PLANNED / NOT RUN |
+| PD-E2E-04 | Nhiều promotion | Chọn benefit lớn nhất, không stacking | PLANNED / NOT RUN |
+| PD-E2E-05 | Benefit đồng hạng | Chọn `PromotionId ASC` | PLANNED / NOT RUN |
+| PD-E2E-06 | ProductDiscount nhiều sách | Chỉ sách trong cùng Promotion được giảm, mỗi sách giữ mức riêng | PLANNED / NOT RUN |
+| PD-E2E-07 | Quantity > 1 | `lineDiscountAmount = discountPerUnit × quantity` | PLANNED / NOT RUN |
+| PD-E2E-08 | Promotion invalid/expired | Kiosk loại khỏi candidates; POS trả lỗi và không tự thay promotion | PLANNED / NOT RUN |
+| PD-E2E-09 | POS manual/no selection | Chọn đúng requested promotion; không chọn thì discount 0 | PLANNED / NOT RUN |
+| PD-E2E-10 | Zero/negative payable | HTTP 400 `BAD_REQUEST`, không Pending/QR, kho và điểm rollback | PLANNED / NOT RUN |
+| PD-E2E-11 | Pending → Paid | Promotion/totals không bị tính lại | PLANNED / NOT RUN |
+| PD-E2E-12 | Receipt snapshot | Receipt/PDF khớp snapshot promotion, points và từng line | PLANNED / NOT RUN |
+| PD-E2E-13 | Legacy order | Fallback title/points an toàn; không sửa Paid cũ, không suy đoán ProductDiscount | PLANNED / NOT RUN |
+| PD-E2E-14 | Cancel/stock/points regression | Hủy nhả reserve; lỗi rollback điểm/kho đúng một lần | PLANNED / NOT RUN |
+| PD-E2E-15 | QR amount | QR amount bằng persisted `TotalAmount`, là số nguyên VNĐ và > 0 | PLANNED / NOT RUN |
+
+Targeted contract QA phải kiểm tra JSON camelCase, enum numeric 1/2, collection không null, nullable legacy fields và item breakdown. Runtime chỉ PASS khi BE/FE implementation cùng SQL test evidence hoàn tất.

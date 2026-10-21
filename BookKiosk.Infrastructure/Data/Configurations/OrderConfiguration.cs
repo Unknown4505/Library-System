@@ -14,6 +14,12 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .IsRequired();
         builder.HasIndex(o => o.OrderCode).IsUnique();
 
+        builder.Property(o => o.PromotionNameAtTime)
+            .HasColumnType("nvarchar(max)");
+
+        builder.Property(o => o.PointsUsedAmountAtTime)
+            .HasPrecision(18, 2);
+
         builder.HasOne(o => o.CreatedByUser)
             .WithMany()
             .HasForeignKey(o => o.UserId)

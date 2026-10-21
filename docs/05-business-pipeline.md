@@ -40,15 +40,31 @@ Nếu bạn là AI agent đọc file này:
 ### Bước 3: Áp dụng Khuyến mãi (Promotion)
 - Hệ thống lấy tất cả CTKM đang ở trạng thái `IsActive = true` và `Ngày hiện tại` nằm trong khoảng StartDate - EndDate.
 - Tính tổng tiền hàng (`SubTotal`).
-- Lọc ra các CTKM thỏa mãn điều kiện `MinOrderValue <= SubTotal`.
-- Nếu có nhiều CTKM thỏa mãn, **tự động chọn CTKM có `DiscountAmount` lớn nhất** để có lợi nhất cho khách.
+- Chuẩn hóa thời gian hiệu lực bằng UTC và loại Promotion có type/detail không hợp lệ.
+- `OrderDiscount`: benefit là `MIN(DiscountAmount, SubTotal)` khi `MinOrderValue <= SubTotal`.
+- `ProductDiscount`: với từng dòng thuộc Promotion, `DiscountPerUnit = MIN(ConfiguredDiscount, UnitPriceAtTime)`; benefit là tổng `DiscountPerUnit × Quantity`.
+- Kiosk chọn đúng một Promotion có benefit lớn nhất; đồng hạng chọn `PromotionId ASC`. POS chỉ áp `PromotionId` nhân viên chọn và trả lỗi nếu không hợp lệ.
+- Snapshot Promotion, điểm, tên sách và discount theo dòng được chốt khi tạo `Pending`; không tính lại khi chuyển `Paid`.
+
+#### Discount Stacking Matrix — APPROVED V7.1
+
+| Tổ hợp | Rule |
+|---|---|
+| OrderDiscount + Points | **ALLOWED** |
+| ProductDiscount + Points | **ALLOWED** |
+| OrderDiscount + ProductDiscount | **NOT ALLOWED** |
+| 2 OrderDiscount | **NOT ALLOWED** |
+| 2 ProductDiscount Promotions | **NOT ALLOWED** |
+| OrderDiscount + ProductDiscount + Points | **NOT ALLOWED** |
+
+Một ProductDiscount Promotion được chứa nhiều `BookId`; các dòng đó vẫn thuộc cùng một Promotion, không phải stacking nhiều Promotion.
 
 ### Bước 4: Trừ Điểm & Tính Tổng Tiền
 - Backend phải validate `0 <= pointsToUse <= 100` cho mỗi đơn, không chỉ dựa vào kiểm tra ở Frontend.
 - Đảm bảo `pointsToUse` <= Số điểm hiện có của Member.
 - Quy đổi: 1 điểm = 1.000 VNĐ.
-- Tính toán: `TotalAmount = SubTotal - DiscountAmount - (pointsToUse * 1000)`.
-- Đảm bảo `TotalAmount >= 0` (Nếu < 0 thì set bằng 0).
+- Tính toán: `TotalAmount = SubTotal - SelectedPromotionDiscount - PointsUsedAmount`.
+- Nếu kết quả `<= 0`, Backend trả HTTP 400 `BAD_REQUEST`, rollback giữ kho/điểm và không tạo QR/Pending. Không clamp về 0 và không âm thầm giảm quyền lợi khách yêu cầu.
 
 ### Bước 5: Lưu Đơn Hàng & Sinh QR Code
 - Lưu bảng `Orders` (Status: `Pending`).
