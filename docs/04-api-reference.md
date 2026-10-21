@@ -370,6 +370,14 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - Xóa/vô hiệu hóa phải tôn trọng FK: Category đang được Book tham chiếu không được hard-delete; Area bị xóa áp dụng quan hệ `SET NULL` theo schema. Ưu tiên deactivate nếu entity có `IsActive`.
 - Categories/Areas write endpoints đã được bổ sung trên nhánh `c8` với JWT role `Admin`, response wrapper, duplicate-name validation và xử lý FK khi xóa. Books write endpoints trên `main` vẫn chưa có authorization tương ứng, nên Task 9.1 chưa đủ điều kiện nghiệm thu toàn bộ.
 
+#### 3.6.1 Cảnh báo tồn kho thấp cho CMS Dashboard
+
+- **Endpoint nguồn:** `GET /api/inventory/stock?lowOnly=true`.
+- Backend hiện lọc theo tồn khả dụng `StockQuantity - ReservedQuantity <= 5`; service trả `AvailableStock = max(0, StockQuantity - ReservedQuantity)`. Không thay đổi route hoặc ngưỡng này trong quyết định Dashboard.
+- Response hiện tại trả toàn bộ bản ghi thỏa điều kiện và không mặc định giới hạn top 10 ở repository/service.
+- CMS dùng toàn bộ response để tính **Low Stock KPI**. Việc sắp xếp `AvailableStock` tăng dần và lấy tối đa 10 mục chỉ là presentation rule cho **Low Stock Preview**, không phải ý nghĩa hoặc giới hạn của KPI.
+- Chi tiết business requirement và acceptance cases được đồng bộ tại [SRS](10-srs-functional-requirements.md) và [E2E Test Plan](11-end-to-end-test-plan.md).
+
 ### 3.7 Reports (contract typed response)
 
 - `GET /api/reports/revenue?year={year}` → `ApiResponseDto<RevenueReportDto>` gồm `year` và `data[] { month, revenue, totalOrders }`.

@@ -124,6 +124,13 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
 * **2.5.1. Xem Dashboard Doanh thu**
   * **Input:** Khoảng thời gian (Ngày/Tuần/Tháng).
   * **Output:** Biểu đồ/bảng số liệu doanh thu tổng, có phân nhóm Kiosk vs Bán tại quầy.
+* **2.5.2. Cảnh báo tồn kho thấp trên Dashboard Admin — APPROVED 21/10/2026**
+  * **Nguồn dữ liệu:** Toàn bộ đầu sách do Backend trả về từ `GET /api/inventory/stock?lowOnly=true` theo contract tại [API Reference](04-api-reference.md).
+  * **Low Stock KPI:** Tổng số đầu sách đang thuộc nhóm tồn kho thấp trên toàn hệ thống; KPI không bị giới hạn bởi số mục preview.
+  * **Low Stock Preview:** Tối đa 10 đầu sách có `AvailableStock` thấp nhất, sắp xếp tăng dần để ưu tiên xử lý; không tính trùng đầu sách.
+  * Khi Backend trả hơn 10 cảnh báo, ví dụ 18 bản ghi, KPI phải là 18 còn preview chỉ hiển thị 10.
+  * Dashboard phải có đường dẫn đến trang quản lý tồn kho để xem danh sách chi tiết.
+  * **Trạng thái triển khai:** Đây là business requirement đã được Leader duyệt. Implementation PR #40 tại HEAD `84bc85d` vẫn tính KPI từ danh sách đã giới hạn `.Take(10)` và phải được sửa, targeted retest trước khi nghiệm thu.
 
 ---
 

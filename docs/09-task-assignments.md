@@ -145,6 +145,8 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 11.4 | CMS: Biểu đồ Pie Chart Trạng thái Kiosk | | | @lehuukhang | `[ ]` |
 | 11.5 | **[Leader]** Ghép nối data thống kê giữa BE & FE | @Unknown4505 | | | `[ ]` |
 
+**Leader decision — CMS-DASHBOARD-COUNT-01 (21/10/2026):** Trong phạm vi Dashboard/Report của @lehuukhang ở PR #40, Low Stock KPI phải là tổng số đầu sách tồn thấp từ toàn bộ response Backend; Low Stock Preview mới bị giới hạn tối đa 10 và sắp xếp theo `AvailableStock` tăng dần. FE tại HEAD `84bc85d` còn tính KPI từ danh sách sau `.Take(10)`, nên task liên quan vẫn `[ ]` và yêu cầu sửa + targeted retest theo [SRS](10-srs-functional-requirements.md) và [test plan](11-end-to-end-test-plan.md). Targeted QA trên HEAD này cũng chưa PASS toàn bộ PR do `CMS-MANAGER-01` vẫn mở; không thay đổi ownership Backend/Frontend.
+
 ### MODULE 12: KIỂM THỬ, BÁO CÁO & ĐÓNG GÓI
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
