@@ -46,13 +46,13 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
   * **Output:** Slideshow tự động; mặc định đề xuất 8 giây/slide và có thể cấu hình; không tạo timer/request trùng.
 * **1.4.2. Current Promotions**
   * **Input:** Dữ liệu promotion từ Backend.
-  * **Output:** Chỉ hiển thị promotion `IsActive` trong `StartDate..EndDate`, đúng loại toàn đơn/sản phẩm và đúng mức giảm do API cung cấp.
+  * **Output:** Chỉ hiển thị promotion `IsActive` trong `StartDate..EndDate`; `promotionType=1` dùng order discount, `promotionType=2` dùng danh sách product discount; tiền là numeric và không suy diễn mức giảm.
 * **1.4.3. New Arrivals**
-  * **Input:** Danh sách sách mới do Backend xác định.
-  * **Output:** Hiển thị ảnh bìa, tên và giá khi contract hỗ trợ; không tự gắn nhãn bằng mock/local inference.
+  * **Input:** Backend lấy lần nhập gần nhất từ `ImportReceipt.CreatedAt`/`ImportReceiptDetail.BookId` trong rolling 30 ngày UTC.
+  * **Output:** Tối đa 10 sách active và `AvailableStock > 0`, mỗi sách một lần; sort lần nhập gần nhất giảm dần rồi `BookId ASC`; hiển thị ảnh bìa, tên, giá, tồn và lần nhập; không dùng `Books.CreatedAt` hoặc mock/local inference.
 * **1.4.4. Best Sellers**
-  * **Input:** Thống kê Backend từ đơn `Paid`.
-  * **Output:** Hiển thị sách bán chạy; không tính từ cart local, `Pending` hoặc `Cancelled`.
+  * **Input:** Backend tổng `OrderDetails.Quantity` từ order `Paid` có `CompletedAt` trong rolling 30 ngày UTC.
+  * **Output:** Tối đa 10 sách active và `AvailableStock > 0`; sort tổng bán giảm dần rồi `BookId ASC`; không tính cart local, `Pending` hoặc `Cancelled`.
 * **1.4.5. Touch to Start**
   * **Input:** Khách chạm màn hình quảng cáo.
   * **Output:** Dừng/dispose slideshow timer và điều hướng tới `SearchPage`.
@@ -65,6 +65,12 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
 * **1.4.8. Error/Offline fallback**
   * **Input:** API advertising lỗi, timeout hoặc không có dữ liệu hợp lệ.
   * **Output:** Không crash; bỏ nhóm rỗng và hiển thị “Chạm để bắt đầu”/asset tĩnh đã duyệt; không giả promotion thực tế.
+* **1.4.9. Contract response, cache và retry**
+  * **Input:** `ApiResponseDto<KioskAdvertisingDto>` từ `GET /api/kiosk/advertising`.
+  * **Output:** FE xử lý shape cố định, enum 1/2, nullable image, empty arrays, `success/code/message/data`; HTTP 200 `PARTIAL_SUCCESS` với allow-list `unavailableSections`; HTTP 503 `SERVICE_UNAVAILABLE` khi toàn bộ nguồn lỗi; cache tối đa 5 phút nhưng không vượt `endDate`; không request mỗi slide; tối đa một retry mỗi lượt Idle sau ít nhất 30 giây và fallback/cooldown an toàn.
+* **1.4.10. An toàn ProductDiscount**
+  * **Input:** Contract có thể chứa `promotionType=2` và danh sách `productDiscounts` theo từng sách.
+  * **Output:** Không quảng cáo hoặc tự tính ProductDiscount như ưu đãi Kiosk cho đến khi Checkout thực tế hỗ trợ và được xác minh; mở rộng Checkout là scope riêng, không thuộc Advertising #37/#38.
 
 ---
 
