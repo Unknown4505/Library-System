@@ -26,7 +26,13 @@ namespace BookKiosk.CMS.ViewModels.Dashboard
         /// </summary>
         public int TotalAnnualOrders => RevenueReport?.MonthlyData?.Sum(m => m.TotalOrders) ?? 0;
 
-        public int LowStockCount => LowStockItems.Count;
+        /// <summary>
+        /// Rule 3: Tổng số đầu sách sắp hết kho do Backend trả về (trước khi cắt danh sách hiển thị).
+        /// Ngoại lệ có tên: "Count of Backend low-stock result before display truncation"
+        /// </summary>
+        public int TotalLowStockCount { get; set; }
+
+        public int LowStockCount => TotalLowStockCount;
 
         public bool IsRevenueUnavailable { get; set; }
         public bool IsTopBooksUnavailable { get; set; }

@@ -209,6 +209,113 @@ namespace BookKiosk.Tests.Cms
             model.LowStockItems.Should().HaveCount(2);
         }
 
+        // ==========================================
+        // CMS-DASHBOARD-COUNT-01: TÁCH TỔNG SỐ KHỎI DANH SÁCH HIỂN THỊ
+        // ==========================================
+        [Theory]
+        [InlineData(0, 0, 0)]
+        [InlineData(10, 10, 10)]
+        [InlineData(18, 18, 10)]
+        [InlineData(25, 25, 10)]
+        public async Task Index_LowStockScenarios_KpiMatchesBackendTotalAndListCappedAtTen(int totalReturned, int expectedKpi, int expectedListCount)
+        {
+            // Arrange: Backend trả về danh sách low stock với số lượng totalReturned
+            var stockItems = Enumerable.Range(1, totalReturned).Select(i => new StockItemDto
+            {
+                BookId = i,
+                Title = $"Sách {i}",
+                AvailableStock = (i % 5)
+            }).ToList();
+
+            _reportApiMock.Setup(r => r.GetRevenueByMonthAsync(It.IsAny<int>()))
+                .ReturnsAsync(ApiResult<RevenueReportResponseDto>.Ok(new RevenueReportResponseDto()));
+            _reportApiMock.Setup(r => r.GetTopSellingBooksAsync(It.IsAny<int>()))
+                .ReturnsAsync(ApiResult<IEnumerable<TopSellingBookDto>>.Ok(new List<TopSellingBookDto>()));
+            _apiClientMock.Setup(c => c.GetStockAsync(true, null))
+                .ReturnsAsync(ApiResult<IEnumerable<StockItemDto>>.Ok(stockItems));
+
+            var controller = CreateController(PermissionHelper.RoleAdmin);
+
+            // Act
+            var result = await controller.Index();
+
+            // Assert
+            var viewResult = result.Should().BeOfType<ViewResult>().Subject;
+            var model = viewResult.Model.Should().BeOfType<AdminDashboardViewModel>().Subject;
+
+            model.TotalLowStockCount.Should().Be(expectedKpi);
+            model.LowStockCount.Should().Be(expectedKpi);
+            model.LowStockItems.Should().HaveCount(expectedListCount);
+        }
+
+        [Fact]
+        public async Task Index_LowStockItems_AreOrderedByAvailableStockAscendingWithBookIdTieBreaker()
+        {
+            // Arrange: 12 mặt hàng với AvailableStock lộn xộn
+            var stockItems = new List<StockItemDto>
+            {
+                new() { BookId = 101, Title = "Book 101", AvailableStock = 5 },
+                new() { BookId = 102, Title = "Book 102", AvailableStock = 1 },
+                new() { BookId = 103, Title = "Book 103", AvailableStock = 3 },
+                new() { BookId = 104, Title = "Book 104", AvailableStock = 0 },
+                new() { BookId = 105, Title = "Book 105", AvailableStock = 1 },
+                new() { BookId = 106, Title = "Book 106", AvailableStock = 4 },
+                new() { BookId = 107, Title = "Book 107", AvailableStock = 2 },
+                new() { BookId = 108, Title = "Book 108", AvailableStock = 0 },
+                new() { BookId = 109, Title = "Book 109", AvailableStock = 2 },
+                new() { BookId = 110, Title = "Book 110", AvailableStock = 5 },
+                new() { BookId = 111, Title = "Book 111", AvailableStock = 3 },
+                new() { BookId = 112, Title = "Book 112", AvailableStock = 1 }
+            };
+
+            _reportApiMock.Setup(r => r.GetRevenueByMonthAsync(It.IsAny<int>()))
+                .ReturnsAsync(ApiResult<RevenueReportResponseDto>.Ok(new RevenueReportResponseDto()));
+            _reportApiMock.Setup(r => r.GetTopSellingBooksAsync(It.IsAny<int>()))
+                .ReturnsAsync(ApiResult<IEnumerable<TopSellingBookDto>>.Ok(new List<TopSellingBookDto>()));
+            _apiClientMock.Setup(c => c.GetStockAsync(true, null))
+                .ReturnsAsync(ApiResult<IEnumerable<StockItemDto>>.Ok(stockItems));
+
+            var controller = CreateController(PermissionHelper.RoleAdmin);
+
+            // Act
+            var result = await controller.Index();
+
+            // Assert
+            var viewResult = result.Should().BeOfType<ViewResult>().Subject;
+            var model = viewResult.Model.Should().BeOfType<AdminDashboardViewModel>().Subject;
+
+            model.TotalLowStockCount.Should().Be(12);
+            model.LowStockItems.Should().HaveCount(10);
+
+            // Kiểm tra thứ tự: AvailableStock tăng dần, tie-breaker BookId tăng dần
+            var expectedOrdered = stockItems.OrderBy(s => s.AvailableStock).ThenBy(s => s.BookId).Take(10).ToList();
+            model.LowStockItems.Select(x => x.BookId).Should().Equal(expectedOrdered.Select(x => x.BookId));
+        }
+
+        [Fact]
+        public async Task Index_WhenStockApiFails_SetsIsLowStockUnavailableTrueAndDoesNotCrash()
+        {
+            // Arrange
+            _reportApiMock.Setup(r => r.GetRevenueByMonthAsync(It.IsAny<int>()))
+                .ReturnsAsync(ApiResult<RevenueReportResponseDto>.Ok(new RevenueReportResponseDto()));
+            _reportApiMock.Setup(r => r.GetTopSellingBooksAsync(It.IsAny<int>()))
+                .ReturnsAsync(ApiResult<IEnumerable<TopSellingBookDto>>.Ok(new List<TopSellingBookDto>()));
+            _apiClientMock.Setup(c => c.GetStockAsync(true, null))
+                .ReturnsAsync(ApiResult<IEnumerable<StockItemDto>>.Fail("Backend stock service timeout"));
+
+            var controller = CreateController(PermissionHelper.RoleAdmin);
+
+            // Act
+            var result = await controller.Index();
+
+            // Assert
+            var viewResult = result.Should().BeOfType<ViewResult>().Subject;
+            var model = viewResult.Model.Should().BeOfType<AdminDashboardViewModel>().Subject;
+
+            model.IsLowStockUnavailable.Should().BeTrue();
+            model.LowStockItems.Should().BeEmpty();
+        }
+
         [Fact]
         public void ViewModel_Sums12MonthsCorrectly_WithDecimalPrecision()
         {

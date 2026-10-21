@@ -101,14 +101,17 @@ namespace BookKiosk.CMS.Controllers
                 _logger.LogError(ex, "Lỗi gọi API top sách bán chạy");
             }
 
-            // 3. Low Stock Items (Lấy tối đa 10 mục do Backend đã lọc lowOnly)
+            // 3. Low Stock Items (CMS-DASHBOARD-COUNT-01: Tách tổng số Backend trả về khỏi danh sách hiển thị tối đa 10)
             try
             {
                 var stockResult = await _apiClient.GetStockAsync(lowOnly: true);
                 if (stockResult.Success && stockResult.Data != null)
                 {
-                    viewModel.LowStockItems = stockResult.Data
+                    var allLowStock = stockResult.Data.ToList();
+                    viewModel.TotalLowStockCount = allLowStock.Count;
+                    viewModel.LowStockItems = allLowStock
                         .OrderBy(s => s.AvailableStock)
+                        .ThenBy(s => s.BookId)
                         .Take(10)
                         .ToList();
                 }
