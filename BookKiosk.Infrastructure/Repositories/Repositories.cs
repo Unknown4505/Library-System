@@ -81,9 +81,26 @@ public class PromotionRepository : IPromotionRepository
 {
     private readonly ApplicationDbContext _context;
     public PromotionRepository(ApplicationDbContext context) => _context = context;
-    public async Task<IEnumerable<Promotion>> GetAllActiveAsync() => await _context.Promotions.Include(p => p.OrderDiscount).Where(p => p.IsActive && p.StartDate <= DateTime.Now && p.EndDate >= DateTime.Now).ToListAsync();
-    public async Task<IEnumerable<Promotion>> GetAllAsync() => await _context.Promotions.Include(p => p.OrderDiscount).OrderByDescending(p => p.PromotionId).ToListAsync();
-    public async Task<Promotion?> GetByIdAsync(int id) => await _context.Promotions.FindAsync(id);
+    public async Task<IEnumerable<Promotion>> GetAllActiveAsync()
+    {
+        var now = DateTime.UtcNow;
+        return await _context.Promotions
+            .Include(p => p.OrderDiscount)
+            .Include(p => p.ProductDiscounts)
+            .Where(p => p.IsActive && p.StartDate <= now && p.EndDate >= now)
+            .ToListAsync();
+    }
+    public async Task<IEnumerable<Promotion>> GetAllAsync() =>
+        await _context.Promotions
+            .Include(p => p.OrderDiscount)
+            .Include(p => p.ProductDiscounts)
+            .OrderByDescending(p => p.PromotionId)
+            .ToListAsync();
+    public async Task<Promotion?> GetByIdAsync(int id) =>
+        await _context.Promotions
+            .Include(p => p.OrderDiscount)
+            .Include(p => p.ProductDiscounts)
+            .FirstOrDefaultAsync(p => p.PromotionId == id);
     public async Task AddAsync(Promotion promotion) => await _context.Promotions.AddAsync(promotion);
     public async Task<bool> ToggleActiveAsync(int id, bool isActive)
     {
@@ -91,6 +108,33 @@ public class PromotionRepository : IPromotionRepository
             .Where(p => p.PromotionId == id)
             .ExecuteUpdateAsync(s => s.SetProperty(p => p.IsActive, isActive));
         return affected > 0;
+    }
+    public async Task<List<int>> GetExistingBookIdsAsync(IEnumerable<int> bookIds)
+    {
+        return await _context.Books
+            .Where(b => bookIds.Contains(b.BookId))
+            .Select(b => b.BookId)
+            .ToListAsync();
+    }
+    public async Task ClearPromotionDetailsAsync(int promotionId)
+    {
+        var orderDiscounts = await _context.PromotionOrderDiscounts
+            .Where(od => od.PromotionId == promotionId)
+            .ToListAsync();
+        if (orderDiscounts.Count != 0)
+        {
+            _context.PromotionOrderDiscounts.RemoveRange(orderDiscounts);
+        }
+
+        var productDiscounts = await _context.PromotionProductDiscounts
+            .Where(pd => pd.PromotionId == promotionId)
+            .ToListAsync();
+        if (productDiscounts.Count != 0)
+        {
+            _context.PromotionProductDiscounts.RemoveRange(productDiscounts);
+        }
+
+        await _context.SaveChangesAsync();
     }
 }
 
@@ -223,7 +267,13 @@ public class OrderRepository : IOrderRepository
     public async Task<Order?> GetOrderByIdAsync(int orderId) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderId == orderId);
     // F01: Đọc trực tiếp từ DB bỏ qua EF tracking cache, dùng sau rollback để xác định trạng thái thật
     public async Task<Order?> GetOrderByCodeNoTrackingAsync(string orderCode) => await _context.Orders.AsNoTracking().Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode);
-    public async Task<Order?> GetReceiptOrderByIdAsync(int orderId) => await _context.Orders.AsNoTracking().Include(o => o.OrderDetails).ThenInclude(od => od.Book).FirstOrDefaultAsync(o => o.OrderId == orderId);
+    public async Task<Order?> GetReceiptOrderByIdAsync(int orderId) =>
+        await _context.Orders
+            .AsNoTracking()
+            .Include(o => o.Promotion)
+            .Include(o => o.OrderDetails)
+                .ThenInclude(od => od.Book)
+            .FirstOrDefaultAsync(o => o.OrderId == orderId);
     public async Task ReleaseReservedQuantityAsync(int bookId, int quantity)
     {
         await _context.Books

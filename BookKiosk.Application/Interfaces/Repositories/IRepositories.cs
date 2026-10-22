@@ -47,6 +47,8 @@ public interface IPromotionRepository
     Task<Promotion?> GetByIdAsync(int id);
     Task AddAsync(Promotion promotion);
     Task<bool> ToggleActiveAsync(int id, bool isActive);
+    Task<List<int>> GetExistingBookIdsAsync(IEnumerable<int> bookIds);
+    Task ClearPromotionDetailsAsync(int promotionId);
 }
 
 public interface IReportRepository
