@@ -153,14 +153,13 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
   "memberId": 12,
   "pointsToUse": 50,
   "items": [
-    { "bookId": 1, "quantity": 2 },
-    { "bookId": 5, "quantity": 1 }
+    { "bookId": 1, "quantity": 2 }
   ]
 }
 ```
 `memberId` nullable nếu khách không nhập số điện thoại; `pointsToUse` tối đa 100 điểm/đơn. Kiosk gọi `/api/books/barcode/{barcode}` để lấy `bookId` trước khi checkout.
 - **Xử lý Backend:** 
-  - Tự động quét Promotion (`IsActive = true`, ngày hợp lệ) và áp dụng loại ngon nhất cho đơn hàng.
+  - Tự động tính benefit của mọi Promotion hợp lệ bằng thời gian UTC, chọn đúng một Promotion giảm nhiều nhất; đồng hạng chọn `promotionId` nhỏ nhất.
   - Validate `pointsToUse` không âm, không vượt quá **100 điểm/đơn** và không vượt quá số điểm hiện có của thành viên.
   - Quy đổi điểm: **1 điểm = 1.000 VNĐ**.
   - Tính toán lại giá, trừ `pointsToUse * 1000` VNĐ.
@@ -168,17 +167,37 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - **Response (Success - 200 OK):**
 ```json
 {
+  "success": true,
+  "code": "SUCCESS",
+  "message": "Tạo đơn hàng thành công. Vui lòng quét mã QR để thanh toán.",
   "data": {
     "orderId": 105,
     "orderCode": "ORD-20261101-0105",
-    "subTotal": 315000,
+    "subTotal": 210000,
+    "promotionId": 8,
+    "promotionName": "Tuần lễ sách Việt",
+    "promotionType": 2,
     "discountAmount": 50000,
     "pointsUsedAmount": 50000,
-    "totalAmount": 215000,
-    "sepayQrCodeUrl": "https://qr.sepay.vn/img?bank=demo&amount=215000&code=ORD-20261101-0105"
+    "totalAmount": 110000,
+    "sepayQrCodeUrl": "https://qr.sepay.vn/img?bank=demo&amount=110000&code=ORD-20261101-0105",
+    "items": [
+      {
+        "bookId": 1,
+        "bookTitle": "Cây Cam Ngọt Của Tôi",
+        "quantity": 2,
+        "unitPriceAtTime": 105000,
+        "discountPerUnit": 25000,
+        "lineTotal": 210000,
+        "lineDiscountAmount": 50000,
+        "netLineTotal": 160000
+      }
+    ]
   }
 }
 ```
+
+`discountPerUnit` là field API ánh xạ từ snapshot `OrderDetails.DiscountPerUnitAtTime`; không phải nguồn tính tiền thứ hai. Nếu kết quả sau Promotion và điểm `<= 0`, Backend trả HTTP 400 với wrapper `BAD_REQUEST`, `data=null`, rollback transaction và không tạo QR/Pending.
 
 #### Khách tự hủy đơn trên Kiosk (Bấm nút X)
 - **Endpoint:** `POST /api/orders/kiosk/{orderId}/cancel`
@@ -196,8 +215,9 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - **Request Body:** Giống Kiốsk, thêm `promotionId` (nhân viên bấm áp KM thủ công) và `paymentMethod` (Cash / QR).
 - **Xử lý Backend:**
   - Giữ chỗ kho: `ReservedQuantity += quantity` (giống Kiosk).
+  - Chỉ áp `promotionId` nhân viên chọn; không tự thay bằng Promotion khác. Promotion hết hạn, sai type/detail hoặc không thỏa điều kiện phải trả lỗi có message.
   - Lưu Order trạng thái **`Pending`**.
-- **Response:** Trả về `orderId`, thông tin giỏ hàng, tổng tiền để nhân viên xác nhận với khách.
+- **Response:** Dùng cùng promotion metadata và item discount breakdown như Kiosk (`discountPerUnit`, `lineDiscountAmount`, `netLineTotal`) để nhân viên xác nhận với khách.
 
 #### Xác nhận thanh toán tại quầy (Thu tiền mặt hoặc QR khách đã trả)
 - **Trạng thái:** `Planned` — chưa có endpoint trên `main`.
@@ -251,13 +271,19 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
     "orderCode": "ORD-20261101-0105",
     "createdAt": "2026-11-01T03:14:00Z",
     "completedAt": "2026-11-01T03:15:00Z",
+    "promotionId": 8,
+    "promotionName": "Tuần lễ sách Việt",
+    "promotionType": 2,
     "items": [
       {
         "bookId": 1,
         "bookTitle": "Cây Cam Ngọt Của Tôi",
         "quantity": 2,
         "unitPriceAtTime": 105000,
-        "lineTotal": 210000
+        "discountPerUnit": 25000,
+        "lineTotal": 210000,
+        "lineDiscountAmount": 50000,
+        "netLineTotal": 160000
       }
     ],
     "subTotal": 210000,
@@ -273,7 +299,8 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - Order không tồn tại: `404 NOT_FOUND`.
 - Order còn `Pending` hoặc đã `Cancelled`: `409 CONFLICT`; không trả payload hóa đơn.
 - Không trả `CostPrice`, số điện thoại hoặc dữ liệu cá nhân thành viên.
-- `UnitPriceAtTime`, `Quantity`, `LineTotal` và các tổng tiền lấy từ snapshot hiện có. Schema hiện tại chưa có `BookTitleAtTime`; `BookTitle` tạm đọc qua quan hệ `OrderDetails.Book`. Vì vậy việc đổi tên sách sau khi bán có thể đổi phần tiêu đề khi in lại. Không thêm cột khi checkout hiện tại chưa ghi snapshot; Thiện phải ghi snapshot trong cùng transaction nếu triển khai mở rộng schema sau này.
+- Đơn mới đọc snapshot `BookTitleAtTime`, `PromotionNameAtTime`, `PromotionTypeAtTime`, `DiscountPerUnitAtTime`, `PointsUsedAmountAtTime` và các tổng persisted; không tính lại từ Promotion hiện tại.
+- Đơn legacy: title fallback `Book.Title` hiện tại hoặc nhãn an toàn theo `BookId`; tiền điểm fallback `PointsUsed × 1000`; promotion name nullable/`"Khuyến mãi"`; promotion type nullable. Không suy đoán ProductDiscount và không sửa ngược đơn Paid.
 
 ---
 
@@ -342,6 +369,14 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - Areas: `POST /api/areas`, `PUT /api/areas/{id}`, `DELETE /api/areas/{id}` dùng `CreateAreaDto`/`UpdateAreaDto` (`name` bắt buộc, tối đa 255; `mapCoordinates` tối đa 500 ký tự).
 - Xóa/vô hiệu hóa phải tôn trọng FK: Category đang được Book tham chiếu không được hard-delete; Area bị xóa áp dụng quan hệ `SET NULL` theo schema. Ưu tiên deactivate nếu entity có `IsActive`.
 - Categories/Areas write endpoints đã được bổ sung trên nhánh `c8` với JWT role `Admin`, response wrapper, duplicate-name validation và xử lý FK khi xóa. Books write endpoints trên `main` vẫn chưa có authorization tương ứng, nên Task 9.1 chưa đủ điều kiện nghiệm thu toàn bộ.
+
+#### 3.6.1 Cảnh báo tồn kho thấp cho CMS Dashboard
+
+- **Endpoint nguồn:** `GET /api/inventory/stock?lowOnly=true`.
+- Backend hiện lọc theo tồn khả dụng `StockQuantity - ReservedQuantity <= 5`; service trả `AvailableStock = max(0, StockQuantity - ReservedQuantity)`. Không thay đổi route hoặc ngưỡng này trong quyết định Dashboard.
+- Response hiện tại trả toàn bộ bản ghi thỏa điều kiện và không mặc định giới hạn top 10 ở repository/service.
+- CMS dùng toàn bộ response để tính **Low Stock KPI**. Việc sắp xếp `AvailableStock` tăng dần và lấy tối đa 10 mục chỉ là presentation rule cho **Low Stock Preview**, không phải ý nghĩa hoặc giới hạn của KPI.
+- Chi tiết business requirement và acceptance cases được đồng bộ tại [SRS](10-srs-functional-requirements.md) và [E2E Test Plan](11-end-to-end-test-plan.md).
 
 ### 3.7 Reports (contract typed response)
 
@@ -707,6 +742,55 @@ Mẫu lỗi 503 — **APPROVED CONTRACT / NOT IMPLEMENTED**:
 - FE phải xét cả HTTP status và `success`/`code`/`message`/`data`; HTTP 200 không đồng nghĩa thành công nếu wrapper báo lỗi. Background refresh/slideshow/inactivity không hiện toast lặp; chỉ log an toàn và hiển thị fallback thân thiện.
 
 Owner: Backend [#37](https://github.com/Unknown4505/Library-System/issues/37) `@thien33`; Frontend [#38](https://github.com/Unknown4505/Library-System/issues/38) `@lehuukhang`. Contract đã được Leader duyệt; implementation và runtime QA vẫn **PLANNED / NOT RUN**. Không tạo bảng `Advertisements`, migration, endpoint hay DTO thật trong lượt docs này.
+
+---
+
+### 3.10 Promotion CRUD & ProductDiscount Shared Contract — APPROVED V7.1
+
+Các route hiện hữu `GET/POST /api/promotions` và `PUT /api/promotions/{id}` tiếp tục dùng `ApiResponseDto<T>`; không tạo endpoint update detail riêng nếu PUT hiện tại mở rộng được.
+
+#### Create/Update request
+
+```json
+{
+  "name": "Tuần lễ sách Việt",
+  "description": "Giảm theo từng đầu sách trong chương trình.",
+  "promotionType": 2,
+  "startDate": "2026-11-01T00:00:00Z",
+  "endDate": "2026-11-07T23:59:59Z",
+  "isActive": true,
+  "orderDiscount": null,
+  "productDiscounts": [
+    { "bookId": 12, "discountAmount": 15000 },
+    { "bookId": 18, "discountAmount": 20000 }
+  ]
+}
+```
+
+- `promotionType=1`: `orderDiscount` bắt buộc; `productDiscounts=[]`.
+- `promotionType=2`: `orderDiscount=null`; `productDiscounts` bắt buộc không rỗng, `bookId` không trùng, mỗi `discountAmount > 0`.
+- Money là JSON number và phải là số tiền nguyên VNĐ ở validation layer; timestamp là ISO 8601 UTC.
+- `PUT` dùng **replace-all**: validate toàn payload rồi đồng bộ toàn bộ detail trong một transaction; lỗi phải rollback và không để detail cũ sót lại.
+
+Response trả lại cùng shape và thêm `promotionId`. `PromotionType` là JSON number `1/2`, không serialize thành chuỗi.
+
+#### Selection, non-stacking và zero payable
+
+- Một Order tối đa một Promotion. Kiosk chọn benefit cao nhất; đồng hạng chọn `PromotionId ASC`. POS chỉ dùng Promotion được chọn thủ công.
+- OrderDiscount và ProductDiscount không cộng chung; không cộng hai Promotion cùng loại. Cả hai được kết hợp với điểm thành viên.
+- ProductDiscount benefit: `SUM(MIN(configuredDiscount, unitPriceAtTime) × quantity)` cho các sách thuộc Promotion.
+- Nếu `TotalAmount <= 0`, không clamp, không tạo Pending/QR và không giữ kho/trừ điểm vĩnh viễn.
+
+```json
+{
+  "success": false,
+  "code": "BAD_REQUEST",
+  "message": "Tổng tiền thanh toán sau khuyến mãi và điểm thành viên phải lớn hơn 0 đồng.",
+  "data": null
+}
+```
+
+Shared DTO/Domain/mapping là foundation; Promotion CRUD, calculation, persistence và Receipt runtime vẫn thuộc các task Backend/Frontend tiếp theo, chưa được đánh dấu PASS.
 
 ---
 

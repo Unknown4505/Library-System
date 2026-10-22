@@ -421,7 +421,17 @@ namespace BookKiosk.Infrastructure.Migrations
                     b.Property<int>("PointsUsed")
                         .HasColumnType("int");
 
+                    b.Property<decimal?>("PointsUsedAmountAtTime")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int?>("PromotionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PromotionNameAtTime")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("PromotionTypeAtTime")
                         .HasColumnType("int");
 
                     b.Property<int>("SaleChannel")
@@ -460,6 +470,16 @@ namespace BookKiosk.Infrastructure.Migrations
 
                     b.Property<int>("BookId")
                         .HasColumnType("int");
+
+                    b.Property<string>("BookTitleAtTime")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<decimal>("DiscountPerUnitAtTime")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<decimal>("LineTotal")
                         .HasColumnType("decimal(18,2)");

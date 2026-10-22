@@ -54,6 +54,9 @@ Dự án Kiosk bắt buộc tuân theo mô hình **MVVM (Model - View - ViewMode
 - **Giao diện:** Hiển thị tổng tiền và 1 mã QR code lớn ở giữa màn hình.
 - **Logic:**
   - Gọi API `POST /api/orders/kiosk/checkout` để lấy mã QR.
+  - Giá catalog/cart trước checkout là giá niêm yết. Promotion, điểm và tổng cuối cùng phải lấy từ response Backend; FE không tự chọn Promotion hoặc tự tính final price.
+  - Hiển thị `promotionName`, `discountAmount`, `pointsUsedAmount` và item breakdown `discountPerUnit`/`netLineTotal` do Backend trả về. Empty/null promotion phải có trạng thái không giảm giá rõ ràng.
+  - HTTP 400 `BAD_REQUEST` khi tổng sau giảm `<= 0` hoặc payload không hợp lệ phải hiển thị message tiếng Việt, giữ người dùng ở bước có thể chỉnh điểm/giỏ và không dựng QR cục bộ.
   - Polling mỗi **3 giây** qua `GET /api/orders/kiosk/{orderId}/payment-status` (contract hiện tại; SignalR chưa triển khai).
   - Khóa màn hình (chặn nút Back) để tránh tình trạng khách vừa chuyển tiền xong lại bấm Back gây lỗi giỏ hàng.
   - UI hiện đếm ngược 3 phút; Backend dọn đơn `Pending` sau 4 phút. Khoảng đệm cho phép request hủy/poll cuối hoàn tất. Hai timeout có chủ đích khác nhau.
@@ -70,6 +73,7 @@ Dự án Kiosk bắt buộc tuân theo mô hình **MVVM (Model - View - ViewMode
 - **Logic:**
   - Chỉ chuyển sang Success khi polling Backend trả `Paid`; lỗi mạng không được diễn giải thành `Cancelled` hay `Paid`.
   - Gọi `GET /api/orders/kiosk/{orderId}/receipt` và dựng bản in từ response Backend. Không dùng cart local làm nguồn hóa đơn.
+  - Receipt/PDF dùng promotion metadata và line discount từ snapshot persisted. Với đơn legacy, chỉ dùng fallback đã được API chuẩn hóa; FE không tự suy đoán ProductDiscount.
   - Gửi lệnh in (ESC/POS) xuống máy in nhiệt.
   - Mốc hiển thị Receipt hiện hành là **5 giây**. Sau khi dữ liệu Receipt/PDF đã được giữ an toàn và thao tác hiển thị/in hoàn tất, xóa giỏ cùng trạng thái giao dịch cũ rồi chuyển về `SearchPage`.
   - Không tự hủy đơn đã `Paid`, không bỏ qua Receipt và không quay thẳng về `IdlePage`. Đây là **UX CHANGE / PLANNED**; source hiện tại vẫn còn luồng cũ cho đến khi FE triển khai.

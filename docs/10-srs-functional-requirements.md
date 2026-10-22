@@ -35,7 +35,16 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
 * **1.3.3. Tạo đơn hàng & Chờ thanh toán QR**
   * **Input:** Yêu cầu Thanh toán với danh sách sách, điểm TV sử dụng, ID của máy Kiosk.
   * **Output:** Tạo đơn hàng ở trạng thái `Pending`, cộng dồn vào `ReservedQuantity` (tạm giữ kho), tạo và hiển thị QR Code động SePay, bắt đầu đếm ngược timeout 3-4 phút.
-* **1.3.4. Hoàn tất thanh toán Kiosk**
+* **1.3.4. ProductDiscount và chọn Promotion tốt nhất**
+  * **Input:** Giỏ hàng cùng các Promotion active trong khoảng UTC, có detail đúng `PromotionType`.
+  * **Output:** Backend tính benefit thực tế của từng Promotion, chọn tối đa một Promotion có benefit lớn nhất; đồng hạng chọn `PromotionId ASC`. ProductDiscount giảm mỗi đơn vị tối đa bằng `UnitPriceAtTime`.
+* **1.3.5. Promotion kết hợp điểm và zero payable**
+  * **Input:** Promotion đã chọn và số điểm hợp lệ do khách yêu cầu.
+  * **Output:** Cho phép Promotion + points, không stacking nhiều Promotion. Nếu tổng cuối `<= 0`, trả 400 `BAD_REQUEST`, rollback toàn bộ và không tạo QR/Pending.
+* **1.3.6. Snapshot tại Pending**
+  * **Input:** Checkout đã chọn Promotion và tính tổng hợp lệ.
+  * **Output:** Persist promotion name/type, points amount, book title, unit price và discount per unit trong cùng transaction; không tính lại khi Paid.
+* **1.3.7. Hoàn tất thanh toán Kiosk**
   * **Input:** Tín hiệu từ Backend (SignalR/Polling) thông báo đơn hàng đã Paid.
   * **Output:** Giao diện hiển thị "Thanh toán thành công", hiển thị điểm vừa được cộng thêm, sinh file hóa đơn PDF để hiển thị; hoàn tất Receipt rồi dọn phiên và về `SearchPage`.
 
@@ -104,11 +113,24 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
 * **2.4.1. Thiết lập quy tắc Khuyến mãi**
   * **Input:** Tham số KM (Điều kiện tổng đơn tối thiểu, Số tiền giảm, Ngày bắt đầu - kết thúc, trạng thái).
   * **Output:** Luật khuyến mãi được lưu để Backend tự động tính toán (ở tính năng 3.3.1).
+* **2.4.2. ProductDiscount nhiều sách**
+  * **Input:** Promotion type 2 cùng danh sách không rỗng các `bookId` duy nhất và `discountAmount > 0`.
+  * **Output:** Persist toàn bộ detail; mỗi sách có mức giảm riêng, không dùng phần trăm.
+* **2.4.3. PUT replace-all**
+  * **Input:** Toàn bộ state đích của Promotion và detail.
+  * **Output:** Validate trước, thay thế detail trong một transaction; lỗi rollback, không để bản ghi cũ dư lại và không tính lại đơn đã chốt.
 
 ### 2.5. Báo cáo & Thống kê
 * **2.5.1. Xem Dashboard Doanh thu**
   * **Input:** Khoảng thời gian (Ngày/Tuần/Tháng).
   * **Output:** Biểu đồ/bảng số liệu doanh thu tổng, có phân nhóm Kiosk vs Bán tại quầy.
+* **2.5.2. Cảnh báo tồn kho thấp trên Dashboard Admin — APPROVED 21/10/2026**
+  * **Nguồn dữ liệu:** Toàn bộ đầu sách do Backend trả về từ `GET /api/inventory/stock?lowOnly=true` theo contract tại [API Reference](04-api-reference.md).
+  * **Low Stock KPI:** Tổng số đầu sách đang thuộc nhóm tồn kho thấp trên toàn hệ thống; KPI không bị giới hạn bởi số mục preview.
+  * **Low Stock Preview:** Tối đa 10 đầu sách có `AvailableStock` thấp nhất, sắp xếp tăng dần để ưu tiên xử lý; không tính trùng đầu sách.
+  * Khi Backend trả hơn 10 cảnh báo, ví dụ 18 bản ghi, KPI phải là 18 còn preview chỉ hiển thị 10.
+  * Dashboard phải có đường dẫn đến trang quản lý tồn kho để xem danh sách chi tiết.
+  * **Trạng thái triển khai:** Đây là business requirement đã được Leader duyệt. Implementation PR #40 tại HEAD `84bc85d` vẫn tính KPI từ danh sách đã giới hạn `.Take(10)` và phải được sửa, targeted retest trước khi nghiệm thu.
 
 ---
 
@@ -131,7 +153,13 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
 ### 3.3. Promotion Engine
 * **3.3.1. Tự động áp dụng Khuyến mãi (Kiosk)**
   * **Input:** Tổng giá trị giỏ hàng (`SubTotal`) khi khách bấm Thanh toán trên Kiosk.
-  * **Output:** Tìm trong danh sách các CTKM đang Active, lọc ra các CTKM thỏa mãn điều kiện `MinOrderValue <= SubTotal`, tự động chọn 1 CTKM có mức giảm `DiscountAmount` cao nhất để áp dụng. Trả về mức chiết khấu.
+  * **Output:** Tính benefit OrderDiscount/ProductDiscount hợp lệ, tự động chọn một CTKM có benefit cao nhất; đồng hạng `PromotionId ASC`.
+* **3.3.2. POS chọn Promotion thủ công**
+  * **Input:** `promotionId` do nhân viên chọn.
+  * **Output:** Chỉ áp Promotion đó nếu hợp lệ; nếu không hợp lệ trả lỗi có message, không tự thay thế.
+* **3.3.3. Receipt snapshot và legacy**
+  * **Input:** Order Paid.
+  * **Output:** Trả persisted totals/snapshot. Đơn legacy fallback title và points theo rule lịch sử; promotion name/type có thể nullable, không suy đoán ProductDiscount.
 
 ---
 

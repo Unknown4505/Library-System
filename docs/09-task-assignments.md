@@ -145,6 +145,8 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 11.4 | CMS: Biểu đồ Pie Chart Trạng thái Kiosk | | | @lehuukhang | `[ ]` |
 | 11.5 | **[Leader]** Ghép nối data thống kê giữa BE & FE | @Unknown4505 | | | `[ ]` |
 
+**Leader decision — CMS-DASHBOARD-COUNT-01 (21/10/2026):** Trong phạm vi Dashboard/Report của @lehuukhang ở PR #40, Low Stock KPI phải là tổng số đầu sách tồn thấp từ toàn bộ response Backend; Low Stock Preview mới bị giới hạn tối đa 10 và sắp xếp theo `AvailableStock` tăng dần. FE tại HEAD `84bc85d` còn tính KPI từ danh sách sau `.Take(10)`, nên task liên quan vẫn `[ ]` và yêu cầu sửa + targeted retest theo [SRS](10-srs-functional-requirements.md) và [test plan](11-end-to-end-test-plan.md). Targeted QA trên HEAD này cũng chưa PASS toàn bộ PR do `CMS-MANAGER-01` vẫn mở; không thay đổi ownership Backend/Frontend.
+
 ### MODULE 12: KIỂM THỬ, BÁO CÁO & ĐÓNG GÓI
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
@@ -199,6 +201,21 @@ Rule QA: chỉ đánh dấu `[x]` khi toàn bộ scope tương ứng có evidenc
 - **12.3 giữ trạng thái hoàn thành:** ERD đã được đối chiếu có đúng 17 entity, không thêm bảng ngoài model và có quan hệ nullable `Kiosks.AreaId -> Areas.AreaId` đúng cấu hình `SET NULL`.
 
 ---
+
+### Handoff ProductDiscount V7.1 — LEADER FOUNDATION / IMPLEMENTATION PLANNED
+
+| Workstream | Owner | Scope | Acceptance | Trạng thái |
+|---|---|---|---|---|
+| Leader domain/schema/shared DTO/docs | Leader | Snapshot properties, EF mapping, CRUD/Checkout/Receipt DTO contract, stacking rules, migration gate và QA contract | Build + serialization/schema consistency; không sửa runtime calculation | **READY FOR REVIEW / MIGRATION READY** |
+| BE-01 Promotion CRUD | `@thien33` | Persist OrderDiscount/ProductDiscount, validation, PUT replace-all, auth/message | Transactional replace, no duplicate BookId, type/detail consistency | **PLANNED / NOT RUN** |
+| BE-02 Promotion calculation & Checkout | `@thien33` | Kiosk best benefit/tie-break, POS manual, points, zero-payable rollback, snapshot persistence | SQL/contract tests cho totals, stock, points và QR amount | **PLANNED / NOT RUN** |
+| BE-03 Receipt API | `@thien33` | Snapshot-first mapping và legacy fallback | Paid-only receipt, không recalculate, regression #28 | **PLANNED / NOT RUN** |
+| FE-01 CMS Promotion Management | `@lehuukhang` | Chọn type, OrderDiscount, nhiều ProductDiscount book rows | Backend-authoritative validation/message; không hardcode | **PLANNED / NOT RUN** |
+| FE-02 Kiosk/POS Promotion Display | `@lehuukhang` | Hiển thị promotion/totals/item breakdown từ Backend | Không tự tính final price; xử lý loading/empty/error | **PLANNED / NOT RUN** |
+| FE-03 Receipt/PDF | `@lehuukhang` | Promotion metadata và line discount từ Receipt API | Không dùng cart local; regression #29 | **PLANNED / NOT RUN** |
+| Integration QA | Leader | Contract, SQL, E2E, legacy, cancel/stock/points/payment regression | Evidence thật trước khi mở quảng cáo ProductDiscount | **PLANNED / NOT RUN** |
+
+Dependencies: BE-01 → BE-02 → BE-03; FE-01 phụ thuộc BE-01; FE-02 phụ thuộc BE-02; FE-03 phụ thuộc BE-03/#28/#29. Advertising #37/#38 chỉ được mở ProductDiscount sau Checkout E2E PASS.
 
 ## 4. Lưu ý Phụ thuộc & Trình tự thực hiện (Dependencies)
 

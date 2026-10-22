@@ -13,7 +13,16 @@ public class MappingProfile : Profile
         CreateMap<CreateMemberDto, Member>();
         CreateMap<UpdateMemberDto, Member>();
 
+        CreateMap<PromotionOrderDiscount, PromotionOrderDiscountDto>().ReverseMap();
+        CreateMap<PromotionProductDiscount, PromotionProductDiscountDto>().ReverseMap();
         CreateMap<Promotion, PromotionDto>().ReverseMap();
-        CreateMap<CreatePromotionDto, Promotion>();
+        CreateMap<CreatePromotionDto, Promotion>()
+            .ForMember(destination => destination.PromotionId, options => options.Ignore())
+            .ForMember(destination => destination.CreatedAt, options => options.Ignore())
+            .ForMember(destination => destination.UpdatedAt, options => options.Ignore());
+        CreateMap<UpdatePromotionDto, Promotion>()
+            .ForMember(destination => destination.PromotionId, options => options.Ignore())
+            .ForMember(destination => destination.CreatedAt, options => options.Ignore())
+            .ForMember(destination => destination.UpdatedAt, options => options.Ignore());
     }
 }
