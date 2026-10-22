@@ -72,7 +72,10 @@ public class KioskAdvertisingRepository : IKioskAdvertisingRepository
             {
                 Book = b,
                 LastImportedAt = _context.ImportReceiptDetails
-                    .Where(d => d.BookId == b.BookId && d.ImportReceipt != null && d.ImportReceipt.CreatedAt >= cutoff)
+                    .Where(d => d.BookId == b.BookId 
+                                && d.ImportReceipt != null 
+                                && d.ImportReceipt.CreatedAt >= cutoff 
+                                && d.ImportReceipt.CreatedAt <= utcNow)
                     .Max(d => (DateTime?)d.ImportReceipt!.CreatedAt)
             })
             .Where(x => x.LastImportedAt != null)
@@ -117,7 +120,8 @@ public class KioskAdvertisingRepository : IKioskAdvertisingRepository
                                  && od.Order != null 
                                  && od.Order.OrderStatus == OrderStatus.Paid 
                                  && od.Order.CompletedAt.HasValue 
-                                 && od.Order.CompletedAt.Value >= cutoff)
+                                 && od.Order.CompletedAt.Value >= cutoff
+                                 && od.Order.CompletedAt.Value <= utcNow)
                     .Sum(od => (int?)od.Quantity) ?? 0
             })
             .Where(x => x.TotalSold > 0)
