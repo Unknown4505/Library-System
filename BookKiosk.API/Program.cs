@@ -37,6 +37,7 @@ try
     builder.Services.AddScoped<BookKiosk.Application.Services.IReportService, BookKiosk.Application.Services.ReportService>();
     builder.Services.AddScoped<BookKiosk.Application.Services.IInventoryService, BookKiosk.Application.Services.InventoryService>();
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Services.IKioskService, BookKiosk.Application.Services.KioskService>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Services.IKioskAdvertisingService, BookKiosk.Application.Services.KioskAdvertisingService>();
     builder.Services.AddScoped<BookKiosk.Application.Services.IAuthService, BookKiosk.Application.Services.AuthService>();
     builder.Services.AddScoped<BookKiosk.Application.Services.ISupplierService, BookKiosk.Application.Services.SupplierService>();
 
@@ -51,6 +52,7 @@ try
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IOrderRepository, BookKiosk.Infrastructure.Repositories.OrderRepository>();
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IPaymentRepository, BookKiosk.Infrastructure.Repositories.PaymentRepository>();
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IKioskRepository, BookKiosk.Infrastructure.Repositories.KioskRepository>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IKioskAdvertisingRepository, BookKiosk.Infrastructure.Repositories.KioskAdvertisingRepository>();
     
     // Đăng ký AutoMapper
     builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
