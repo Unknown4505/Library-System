@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -55,7 +56,16 @@ namespace BookKiosk.Kiosk.ViewModels
         private int _retryCount;
         private bool _isProcessing;
         private bool _isPrinting;
-        private bool _hasPrinted;
+
+        // Quản lý Lifecycle & State Machine tạo PDF (Issue #29 hardening)
+        private bool _isCleanedUp;
+        private int _currentRequestId;
+        private bool _dialogShown;
+        private bool _pdfCompleted;
+        private int _pdfRetryCount;
+        private bool _isPdfGenerationError;
+        private string _pdfErrorMessage = string.Empty;
+        private bool _canRetryPrint;
 
         private ReceiptState _currentState = ReceiptState.Loading;
         public ReceiptState CurrentState
@@ -70,6 +80,7 @@ namespace BookKiosk.Kiosk.ViewModels
                     OnPropertyChanged(nameof(IsStateLoading));
                     OnPropertyChanged(nameof(IsStateSuccess));
                     OnPropertyChanged(nameof(IsStateError));
+                    OnPropertyChanged(nameof(IsPdfNormalSuccess));
                 }
             }
         }
@@ -106,6 +117,48 @@ namespace BookKiosk.Kiosk.ViewModels
             }
         }
 
+        public bool IsPdfGenerationError
+        {
+            get => _isPdfGenerationError;
+            private set
+            {
+                if (_isPdfGenerationError != value)
+                {
+                    _isPdfGenerationError = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsPdfNormalSuccess));
+                }
+            }
+        }
+
+        public bool IsPdfNormalSuccess => CurrentState == ReceiptState.Success && !IsPdfGenerationError;
+
+        public string PdfErrorMessage
+        {
+            get => _pdfErrorMessage;
+            private set
+            {
+                if (_pdfErrorMessage != value)
+                {
+                    _pdfErrorMessage = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool CanRetryPrint
+        {
+            get => _canRetryPrint;
+            private set
+            {
+                if (_canRetryPrint != value)
+                {
+                    _canRetryPrint = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         private int _autoExitCountdown = 5;
         public int AutoExitCountdown
         {
@@ -122,6 +175,7 @@ namespace BookKiosk.Kiosk.ViewModels
         }
 
         public string CountdownText => $"Tự quay về màn hình chính sau {AutoExitCountdown}s";
+        public bool IsAutoExitTimerRunning => _timer != null && _timer.IsEnabled;
 
         private ReceiptDto? _receipt;
         public ReceiptDto? Receipt
@@ -140,6 +194,7 @@ namespace BookKiosk.Kiosk.ViewModels
         public string OrderCode => _orderCode;
 
         public ICommand RetryCommand { get; }
+        public ICommand RetryPrintCommand { get; }
         public ICommand GoHomeCommand { get; }
 
         public ReceiptViewModel(
@@ -154,6 +209,7 @@ namespace BookKiosk.Kiosk.ViewModels
             _receiptService = receiptService ?? throw new ArgumentNullException(nameof(receiptService));
 
             RetryCommand = new RelayCommand(_ => ExecuteRetry(), _ => CanRetry && !IsLoading);
+            RetryPrintCommand = new RelayCommand(_ => ExecuteRetryPrint(), _ => CanRetryPrint && !_isPrinting);
             GoHomeCommand = new RelayCommand(_ => ExecuteGoHome());
         }
 
@@ -164,11 +220,17 @@ namespace BookKiosk.Kiosk.ViewModels
         {
             base.Initialize(parameter);
 
+            _isCleanedUp = false;
             _orderId = 0;
             _orderCode = string.Empty;
             _retryCount = 0;
-            _hasPrinted = false;
+            _pdfRetryCount = 0;
+            _dialogShown = false;
+            _pdfCompleted = false;
             _isPrinting = false;
+            IsPdfGenerationError = false;
+            PdfErrorMessage = string.Empty;
+            CanRetryPrint = false;
 
             if (parameter is ReceiptParameter rp)
             {
@@ -200,7 +262,7 @@ namespace BookKiosk.Kiosk.ViewModels
         /// </summary>
         public async Task FetchReceiptAsync()
         {
-            if (_isProcessing)
+            if (_isProcessing || _isCleanedUp)
             {
                 return;
             }
@@ -214,11 +276,16 @@ namespace BookKiosk.Kiosk.ViewModels
             _cts?.Dispose();
             _cts = new CancellationTokenSource();
 
+            // LỖI 2: Chụp token và generation vào biến cục bộ TRƯỚC await
+            var token = _cts.Token;
+            var requestId = ++_currentRequestId;
+
             try
             {
-                var response = await _apiClient.GetReceiptAsync(_orderId, _cts.Token);
+                var response = await _apiClient.GetReceiptAsync(_orderId, token);
 
-                if (_cts.IsCancellationRequested)
+                // Sau await: kiểm tra token và cờ cleanup, tuyệt đối không dùng _cts field
+                if (token.IsCancellationRequested || _isCleanedUp || requestId != _currentRequestId)
                 {
                     return;
                 }
@@ -243,10 +310,14 @@ namespace BookKiosk.Kiosk.ViewModels
             }
             catch (OperationCanceledException)
             {
-                // Bị hủy khi người dùng rời trang
+                // Bị hủy khi người dùng rời trang -> nuốt im lặng
             }
             catch (Exception ex)
             {
+                if (token.IsCancellationRequested || _isCleanedUp || requestId != _currentRequestId)
+                {
+                    return;
+                }
                 HandleErrorResponse("UNKNOWN_ERROR", ex.Message);
             }
             finally
@@ -322,55 +393,100 @@ namespace BookKiosk.Kiosk.ViewModels
 
         /// <summary>
         /// Mở Mock Printer và xuất PDF từ dữ liệu ReceiptDto (đúng 1 lần duy nhất cho mỗi đơn).
-        /// Sau khi hoàn tất sẽ kích hoạt Timer 5 giây đếm ngược quay về IdlePage.
+        /// Sau khi hoàn tất thành công sẽ kích hoạt Timer 5 giây đếm ngược quay về IdlePage.
         /// </summary>
         private async Task ProcessPrintAndStartTimerAsync(ReceiptDto receiptDto)
         {
-            if (_hasPrinted || _isPrinting)
+            if (_pdfCompleted || _isPrinting || _isCleanedUp)
             {
                 return;
             }
 
             _isPrinting = true;
+            IsPdfGenerationError = false;
+            PdfErrorMessage = string.Empty;
 
             try
             {
-                // 1. Mở cửa sổ giả lập in hóa đơn nhiệt
-                try
+                // 1. Mở cửa sổ giả lập in hóa đơn nhiệt (đúng 1 lần duy nhất cho mỗi đơn)
+                if (!_dialogShown)
                 {
-                    CloseMockDialog();
-                    _mockDialog = new MockReceiptDialog(receiptDto);
-                    _mockDialog.Show();
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[ReceiptViewModel] Không thể mở MockReceiptDialog: {ex.Message}");
+                    try
+                    {
+                        CloseMockDialog();
+                        _mockDialog = new MockReceiptDialog(receiptDto);
+                        _mockDialog.Show();
+                        _dialogShown = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[ReceiptViewModel] Không thể mở MockReceiptDialog: {ex.Message}");
+                    }
                 }
 
                 // 2. Xuất file PDF hóa đơn chính thức
                 var pdfPath = await _receiptService.GenerateReceiptPdfAsync(receiptDto);
-                try
+
+                if (!string.IsNullOrWhiteSpace(pdfPath) && File.Exists(pdfPath))
                 {
-                    Process.Start(new ProcessStartInfo(pdfPath) { UseShellExecute = true });
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[ReceiptViewModel] Lỗi mở trình đọc PDF: {ex.Message}");
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo(pdfPath) { UseShellExecute = true });
+                    }
+                    catch (Exception ex)
+                    {
+                        // Lỗi mở viewer ngoài không làm mất trạng thái tạo PDF thành công
+                        Debug.WriteLine($"[ReceiptViewModel] Lỗi mở trình đọc PDF: {ex.Message}");
+                    }
                 }
 
-                _hasPrinted = true;
+                _pdfCompleted = true;
+                IsPdfGenerationError = false;
+                CanRetryPrint = false;
+                PdfErrorMessage = string.Empty;
+
+                // 3. Khởi tạo Timer 5 giây CHỈ SAU KHI hóa đơn đã hiển thị & in/PDF thành công
+                StartAutoExitTimer();
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[ReceiptViewModel] Lỗi xử lý in hóa đơn: {ex.Message}");
+                // Ghi log an toàn không chứa PII (chỉ log loại exception và message)
+                Debug.WriteLine($"[ReceiptViewModel] Lỗi xử lý tạo PDF hóa đơn: {ex.GetType().Name} - {ex.Message}");
+
+                _pdfCompleted = false;
+                IsPdfGenerationError = true;
+                EvaluatePdfRetryLimit("Không thể tạo file PDF hóa đơn. Vui lòng bấm Thử lại hoặc liên hệ nhân viên.");
             }
             finally
             {
                 _isPrinting = false;
+                OnPropertyChanged(nameof(IsPdfGenerationError));
+                OnPropertyChanged(nameof(PdfErrorMessage));
+                OnPropertyChanged(nameof(CanRetryPrint));
             }
+        }
 
-            // 3. Khởi tạo Timer 5 giây CHỈ SAU KHI hóa đơn đã hiển thị & in/PDF xong
-            StartAutoExitTimer();
+        private void EvaluatePdfRetryLimit(string baseMessage)
+        {
+            _pdfRetryCount++;
+            if (_pdfRetryCount >= 3)
+            {
+                CanRetryPrint = false;
+                PdfErrorMessage = "Đã thử lại tạo/in PDF 3 lần không thành công. Quý khách vui lòng liên hệ nhân viên tại quầy để in hóa đơn.";
+            }
+            else
+            {
+                CanRetryPrint = true;
+                PdfErrorMessage = $"{baseMessage} (Lần {_pdfRetryCount}/3)";
+            }
+        }
+
+        private void ExecuteRetryPrint()
+        {
+            if (CanRetryPrint && !_isPrinting && Receipt != null)
+            {
+                _ = ProcessPrintAndStartTimerAsync(Receipt);
+            }
         }
 
         private void StartAutoExitTimer()
@@ -435,12 +551,25 @@ namespace BookKiosk.Kiosk.ViewModels
 
         /// <summary>
         /// Dọn dẹp tài nguyên khi rời trang (hủy request ngầm, hủy timer, đóng dialog).
+        /// Đảm bảo tính idempotent: gọi nhiều lần an toàn, không ném exception.
         /// </summary>
         public void Cleanup()
         {
-            _cts?.Cancel();
-            _cts?.Dispose();
-            _cts = null;
+            _isCleanedUp = true;
+
+            if (_cts != null)
+            {
+                try
+                {
+                    _cts.Cancel();
+                    _cts.Dispose();
+                }
+                catch
+                {
+                    // Nuốt lỗi an toàn khi dispose
+                }
+                _cts = null;
+            }
 
             StopTimer();
             CloseMockDialog();

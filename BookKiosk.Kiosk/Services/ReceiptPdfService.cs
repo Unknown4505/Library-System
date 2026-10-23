@@ -39,11 +39,13 @@ namespace BookKiosk.Kiosk.Services
                     page.ContinuousSize(226, Unit.Point);
                     page.Margin(10, Unit.Point);
 
-                    // Cấu hình Fallback font an toàn chống lỗi ô vuông ký tự tiếng Việt
+                    // Cấu hình danh sách font ưu tiên Segoe UI/Arial/Tahoma và fallback về Lato (font nhúng sẵn trong QuestPDF)
+                    // Tắt ThrowOnMissingFontFamilies để tương thích môi trường QA/container không có system fonts
+                    QuestPDF.Settings.ThrowOnMissingFontFamilies = false;
+
                     page.DefaultTextStyle(x => x
                         .FontSize(10)
-                        .FontFamily(Fonts.Arial)
-                        .Fallback(f => f.FontFamily(Fonts.Tahoma).FontFamily(Fonts.TimesNewRoman)));
+                        .FontFamily("Segoe UI", "Arial", "Tahoma", "Lato"));
 
                     page.Header().Element(c => ComposeHeader(c, receipt));
                     page.Content().Element(c => ComposeContent(c, receipt));

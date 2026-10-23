@@ -178,27 +178,76 @@ public class BookKioskApiClient : IBookKioskApiClient
 
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                var errorObj = await response.Content.ReadFromJsonAsync<ApiResponseDto<ReceiptDto>>(
-                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }, cancellationToken);
-                return errorObj ?? ApiResponseDto<ReceiptDto>.Error("NOT_FOUND", "Không tìm thấy hóa đơn cho đơn hàng này.");
+                var msg = "Không tìm thấy hóa đơn cho đơn hàng này.";
+                try
+                {
+                    var errorObj = await response.Content.ReadFromJsonAsync<ApiResponseDto<ReceiptDto>>(
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }, cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(errorObj?.Message) && !errorObj.Message.TrimStart().StartsWith("<"))
+                    {
+                        msg = errorObj.Message;
+                    }
+                }
+                catch
+                {
+                    // Body không phải JSON (HTML trang lỗi proxy, body rỗng...) -> giữ nguyên thông điệp an toàn
+                }
+                return ApiResponseDto<ReceiptDto>.Error("NOT_FOUND", msg);
             }
 
             if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
             {
-                var errorObj = await response.Content.ReadFromJsonAsync<ApiResponseDto<ReceiptDto>>(
-                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }, cancellationToken);
-                return errorObj ?? ApiResponseDto<ReceiptDto>.Error("CONFLICT", "Đơn hàng chưa hoàn tất thanh toán hoặc đã bị hủy.");
+                var msg = "Đơn hàng chưa hoàn tất thanh toán hoặc đã bị hủy.";
+                try
+                {
+                    var errorObj = await response.Content.ReadFromJsonAsync<ApiResponseDto<ReceiptDto>>(
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }, cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(errorObj?.Message) && !errorObj.Message.TrimStart().StartsWith("<"))
+                    {
+                        msg = errorObj.Message;
+                    }
+                }
+                catch
+                {
+                    // Body không phải JSON (HTML trang lỗi proxy, body rỗng...) -> giữ nguyên thông điệp an toàn
+                }
+                return ApiResponseDto<ReceiptDto>.Error("CONFLICT", msg);
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                return ApiResponseDto<ReceiptDto>.Error("UNAUTHORIZED", "Kiosk chưa được xác thực truy cập máy chủ.");
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                return ApiResponseDto<ReceiptDto>.Error("FORBIDDEN", "Kiosk không có quyền truy cập hóa đơn này.");
             }
 
             if (!response.IsSuccessStatusCode)
             {
-                return ApiResponseDto<ReceiptDto>.Error("SERVER_ERROR", $"Lỗi máy chủ: {(int)response.StatusCode} {response.ReasonPhrase}");
+                return ApiResponseDto<ReceiptDto>.Error("SERVER_ERROR", $"Lỗi máy chủ (HTTP {(int)response.StatusCode}). Vui lòng liên hệ nhân viên hỗ trợ.");
             }
 
-            var result = await response.Content.ReadFromJsonAsync<ApiResponseDto<ReceiptDto>>(
-                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }, cancellationToken);
+            ApiResponseDto<ReceiptDto>? result = null;
+            try
+            {
+                result = await response.Content.ReadFromJsonAsync<ApiResponseDto<ReceiptDto>>(
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }, cancellationToken);
+            }
+            catch (Exception)
+            {
+                return ApiResponseDto<ReceiptDto>.Error("PARSE_ERROR", "Dữ liệu hóa đơn từ máy chủ không hợp lệ.");
+            }
 
-            return result ?? ApiResponseDto<ReceiptDto>.Error("PARSE_ERROR", "Không thể đọc dữ liệu hóa đơn từ máy chủ.");
+            if (result == null || !result.Success || result.Data == null)
+            {
+                var errCode = string.IsNullOrWhiteSpace(result?.Code) ? "PARSE_ERROR" : result.Code;
+                var errMsg = string.IsNullOrWhiteSpace(result?.Message) ? "Dữ liệu hóa đơn từ máy chủ rỗng hoặc không hợp lệ." : result.Message;
+                return ApiResponseDto<ReceiptDto>.Error(errCode, errMsg);
+            }
+
+            return result;
         }
         catch (HttpRequestException ex)
         {
