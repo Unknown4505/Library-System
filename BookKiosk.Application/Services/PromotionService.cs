@@ -38,13 +38,7 @@ public class PromotionService : IPromotionService
     public async Task<ApiResponseDto<IEnumerable<PromotionDto>>> GetPromotionsAsync()
     {
         var promotions = await _promotionRepository.GetAllAsync();
-        var dtos = _mapper.Map<IEnumerable<PromotionDto>>(promotions).ToList();
-        foreach (var dto in dtos)
-        {
-            dto.StartDate = DateTime.SpecifyKind(dto.StartDate, DateTimeKind.Utc);
-            dto.EndDate = DateTime.SpecifyKind(dto.EndDate, DateTimeKind.Utc);
-        }
-        return ApiResponseDto<IEnumerable<PromotionDto>>.Ok(dtos);
+        return ApiResponseDto<IEnumerable<PromotionDto>>.Ok(promotions.Select(MapToDto).ToList());
     }
 
     public async Task<ApiResponseDto<PromotionDto>> GetPromotionByIdAsync(int id)
@@ -53,10 +47,7 @@ public class PromotionService : IPromotionService
         if (promotion == null)
             return ApiResponseDto<PromotionDto>.Error("NOT_FOUND", "Không tìm thấy khuyến mãi.");
 
-        var dto = _mapper.Map<PromotionDto>(promotion);
-        dto.StartDate = DateTime.SpecifyKind(dto.StartDate, DateTimeKind.Utc);
-        dto.EndDate = DateTime.SpecifyKind(dto.EndDate, DateTimeKind.Utc);
-        return ApiResponseDto<PromotionDto>.Ok(dto);
+        return ApiResponseDto<PromotionDto>.Ok(MapToDto(promotion));
     }
 
     public async Task<ApiResponseDto<PromotionDto>> CreatePromotionAsync(CreatePromotionDto request)
@@ -77,8 +68,8 @@ public class PromotionService : IPromotionService
             Name = request.Name.Trim(),
             Description = request.Description?.Trim(),
             PromotionType = request.PromotionType,
-            StartDate = DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc),
-            EndDate = DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc),
+            StartDate = request.StartDate.ToUniversalTime(),
+            EndDate = request.EndDate.ToUniversalTime(),
             IsActive = request.IsActive
         };
 
@@ -105,10 +96,7 @@ public class PromotionService : IPromotionService
         await _promotionRepository.AddAsync(promotion);
         await _unitOfWork.SaveChangesAsync();
 
-        var dto = _mapper.Map<PromotionDto>(promotion);
-        dto.StartDate = DateTime.SpecifyKind(promotion.StartDate, DateTimeKind.Utc);
-        dto.EndDate = DateTime.SpecifyKind(promotion.EndDate, DateTimeKind.Utc);
-        return ApiResponseDto<PromotionDto>.Ok(dto, "Tạo chương trình khuyến mãi thành công.");
+        return ApiResponseDto<PromotionDto>.Ok(MapToDto(promotion), "Tạo chương trình khuyến mãi thành công.");
     }
 
     public async Task<ApiResponseDto<PromotionDto>> UpdatePromotionAsync(int id, UpdatePromotionDto request)
@@ -140,8 +128,8 @@ public class PromotionService : IPromotionService
             promotion.Name = request.Name.Trim();
             promotion.Description = request.Description?.Trim();
             promotion.PromotionType = request.PromotionType;
-            promotion.StartDate = DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc);
-            promotion.EndDate = DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc);
+            promotion.StartDate = request.StartDate.ToUniversalTime();
+            promotion.EndDate = request.EndDate.ToUniversalTime();
             promotion.IsActive = request.IsActive;
 
             if (request.PromotionType == PromotionType.OrderDiscount)
@@ -170,10 +158,7 @@ public class PromotionService : IPromotionService
             await _unitOfWork.CommitAsync();
 
             var updated = await _promotionRepository.GetByIdAsync(id) ?? promotion;
-            var dto = _mapper.Map<PromotionDto>(updated);
-            dto.StartDate = DateTime.SpecifyKind(updated.StartDate, DateTimeKind.Utc);
-            dto.EndDate = DateTime.SpecifyKind(updated.EndDate, DateTimeKind.Utc);
-            return ApiResponseDto<PromotionDto>.Ok(dto, "Cập nhật chương trình khuyến mãi thành công.");
+            return ApiResponseDto<PromotionDto>.Ok(MapToDto(updated), "Cập nhật chương trình khuyến mãi thành công.");
         }
         catch
         {
@@ -224,6 +209,14 @@ public class PromotionService : IPromotionService
         return ApiResponseDto<bool>.Ok(true);
     }
 
+    private PromotionDto MapToDto(Promotion promotion)
+    {
+        var dto = _mapper.Map<PromotionDto>(promotion);
+        dto.StartDate = DateTime.SpecifyKind(promotion.StartDate, DateTimeKind.Utc);
+        dto.EndDate = DateTime.SpecifyKind(promotion.EndDate, DateTimeKind.Utc);
+        return dto;
+    }
+
     private async Task<string?> ValidatePromotionDataAsync(
         string name,
         DateTime startDate,
@@ -235,7 +228,13 @@ public class PromotionService : IPromotionService
         if (string.IsNullOrWhiteSpace(name))
             return "Tên chương trình khuyến mãi không được để trống.";
 
-        if (startDate > endDate)
+        if (startDate.Kind == DateTimeKind.Unspecified || endDate.Kind == DateTimeKind.Unspecified)
+            return "Thời gian bắt đầu và kết thúc phải có định dạng múi giờ UTC hợp lệ (chứa hậu tố 'Z' hoặc độ lệch múi giờ offset).";
+
+        var utcStartDate = startDate.ToUniversalTime();
+        var utcEndDate = endDate.ToUniversalTime();
+
+        if (utcStartDate > utcEndDate)
             return "Ngày bắt đầu không được lớn hơn ngày kết thúc.";
 
         if (promotionType == PromotionType.OrderDiscount)

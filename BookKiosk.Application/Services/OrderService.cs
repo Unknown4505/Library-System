@@ -433,6 +433,11 @@ public class OrderService : IOrderService
             throw new ArgumentException("Cần cung cấp thông tin thành viên để sử dụng điểm.");
         }
 
+        if (request.PromotionId.HasValue && request.PromotionId.Value <= 0)
+        {
+            throw new ArgumentException("Mã chương trình khuyến mãi không hợp lệ.");
+        }
+
         var sortedItems = request.Items.OrderBy(i => i.BookId).ToList();
         var bookIds = sortedItems.Select(i => i.BookId).ToList();
 
@@ -469,7 +474,7 @@ public class OrderService : IOrderService
 
             var cartItems = sortedItems.Select(i => (i.BookId, i.Quantity)).ToList();
 
-            if (request.PromotionId.HasValue && request.PromotionId.Value > 0)
+            if (request.PromotionId.HasValue)
             {
                 var promo = await _promotionRepository.GetByIdAsync(request.PromotionId.Value);
                 if (promo == null || !promo.IsActive)
