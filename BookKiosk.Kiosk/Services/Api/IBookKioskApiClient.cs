@@ -57,6 +57,13 @@ public interface IBookKioskApiClient
     /// </summary>
     Task<ApiResponseDto<PaymentStatusDto>?> GetPaymentStatusAsync(int orderId);
 
+    // ── RECEIPT ──────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Lấy thông tin hóa đơn chính thức từ server cho đơn hàng Kiosk đã thanh toán (Task 8.2.1, Issue #29).
+    /// </summary>
+    Task<ApiResponseDto<ReceiptDto>?> GetReceiptAsync(int orderId, CancellationToken cancellationToken = default);
+
     // ── KIOSK HEARTBEAT ───────────────────────────────────────────────────────
 
     /// <summary>Gửi heartbeat theo contract chuẩn dùng ID số trong database.</summary>

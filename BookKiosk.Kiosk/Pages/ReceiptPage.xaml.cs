@@ -4,6 +4,9 @@ using BookKiosk.Kiosk.ViewModels;
 
 namespace BookKiosk.Kiosk.Pages
 {
+    /// <summary>
+    /// Trang hiển thị hóa đơn và trạng thái thanh toán trên Kiosk (Task 8.2.1, Issue #29).
+    /// </summary>
     public partial class ReceiptPage : Page
     {
         public ReceiptPage()

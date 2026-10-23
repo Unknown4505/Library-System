@@ -4,6 +4,10 @@
         Title="Giả lập In Hóa đơn" Height="700" Width="400"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         WindowStartupLocation="CenterScreen" Topmost="True" ShowInTaskbar="False">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
     
     <!-- Tờ hóa đơn mô phỏng giấy in nhiệt K80 -->
     <Border Background="#fdfbf7" BorderBrush="#bdc3c7" BorderThickness="1" CornerRadius="0,0,10,10" Margin="20">
@@ -19,30 +23,31 @@
             
             <!-- Header Hóa đơn -->
             <StackPanel Grid.Row="0">
-                <TextBlock Text="BOOK KIOSK" FontFamily="Courier New" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
-                <TextBlock Text="Trường Đại học Bách Khoa" FontFamily="Courier New" FontSize="14" HorizontalAlignment="Center"/>
-                <TextBlock Text="--------------------------------" FontFamily="Courier New" FontSize="18" HorizontalAlignment="Center" Margin="0,10,0,10"/>
+                <TextBlock Text="BOOK KIOSK" FontFamily="Courier New" FontSize="26" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock Text="123 Nguyễn Văn Cừ, Q.5, TP.HCM" FontFamily="Courier New" FontSize="12" HorizontalAlignment="Center"/>
+                <TextBlock Text="--------------------------------" FontFamily="Courier New" FontSize="18" HorizontalAlignment="Center" Margin="0,5,0,5"/>
                 <TextBlock Text="HÓA ĐƠN BÁN HÀNG" FontFamily="Courier New" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
-                <TextBlock Text="{Binding CurrentDate, StringFormat='Ngày: {0:dd/MM/yyyy HH:mm}'}" FontFamily="Courier New" FontSize="14" Margin="0,5,0,10" HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding Receipt.OrderCode, StringFormat='Mã ĐH: #{0}'}" FontFamily="Courier New" FontSize="13" Margin="0,3,0,2" HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding DisplayCompletedAt, StringFormat='Thời gian: {0:dd/MM/yyyy HH:mm:ss}'}" FontFamily="Courier New" FontSize="12" Margin="0,0,0,5" HorizontalAlignment="Center"/>
                 <TextBlock Text="--------------------------------" FontFamily="Courier New" FontSize="18" HorizontalAlignment="Center"/>
             </StackPanel>
             
             <!-- Danh sách Hàng hóa -->
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" Margin="0,10,0,10">
-                <ItemsControl ItemsSource="{Binding Items}">
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" Margin="0,5,0,5">
+                <ItemsControl ItemsSource="{Binding Receipt.Items}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Margin="0,0,0,10">
-                                <TextBlock Text="{Binding Book.Title}" FontFamily="Courier New" FontSize="14" TextWrapping="Wrap" Margin="0,0,0,2"/>
+                            <StackPanel Margin="0,0,0,8">
+                                <TextBlock Text="{Binding BookTitle}" FontFamily="Courier New" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,2"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding Quantity, StringFormat={}{0} x }" FontFamily="Courier New" FontSize="14"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Book.SellingPrice, StringFormat='{}{0:N0}'}" FontFamily="Courier New" FontSize="14"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding TotalPrice, StringFormat='{}{0:N0}'}" FontFamily="Courier New" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                    <TextBlock Grid.Column="0" Text="{Binding Quantity, StringFormat={}{0} x }" FontFamily="Courier New" FontSize="12"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding UnitPriceAtTime, StringFormat='{}{0:N0} đ'}" FontFamily="Courier New" FontSize="12"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding NetLineTotal, StringFormat='{}{0:N0} đ'}" FontFamily="Courier New" FontSize="12" FontWeight="Bold" HorizontalAlignment="Right"/>
                                 </Grid>
                             </StackPanel>
                         </DataTemplate>
@@ -53,14 +58,39 @@
             <!-- Footer Hóa đơn -->
             <StackPanel Grid.Row="2">
                 <TextBlock Text="--------------------------------" FontFamily="Courier New" FontSize="18" HorizontalAlignment="Center"/>
-                <Grid Margin="0,10,0,10">
-                    <TextBlock Text="TỔNG TIỀN:" FontFamily="Courier New" FontSize="18" FontWeight="Bold"/>
-                    <TextBlock Text="{Binding TotalAmount, StringFormat='{}{0:N0} VNĐ'}" FontFamily="Courier New" FontSize="18" FontWeight="Bold" HorizontalAlignment="Right"/>
+                
+                <!-- Tạm tính -->
+                <Grid Margin="0,3,0,2">
+                    <TextBlock Text="Tạm tính:" FontFamily="Courier New" FontSize="13"/>
+                    <TextBlock Text="{Binding Receipt.SubTotal, StringFormat='{}{0:N0} đ'}" FontFamily="Courier New" FontSize="13" HorizontalAlignment="Right"/>
                 </Grid>
-                <TextBlock Text="ĐÃ THANH TOÁN (QR Pay)" FontFamily="Courier New" FontSize="14" HorizontalAlignment="Right" Margin="0,0,0,10" FontWeight="Bold"/>
+
+                <!-- Giảm giá khuyến mãi -->
+                <Grid Margin="0,2,0,2" Visibility="{Binding HasPromotionDiscount, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="{Binding PromotionDisplayName, StringFormat='{}{0}:'}" FontFamily="Courier New" FontSize="13"/>
+                    <TextBlock Text="{Binding Receipt.DiscountAmount, StringFormat='-{0:N0} đ'}" FontFamily="Courier New" FontSize="13" HorizontalAlignment="Right"/>
+                </Grid>
+
+                <!-- Điểm thành viên -->
+                <Grid Margin="0,2,0,2" Visibility="{Binding HasPointsDiscount, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="{Binding Receipt.PointsUsed, StringFormat='Điểm ({0}đ):'}" FontFamily="Courier New" FontSize="13"/>
+                    <TextBlock Text="{Binding Receipt.PointsUsedAmount, StringFormat='-{0:N0} đ'}" FontFamily="Courier New" FontSize="13" HorizontalAlignment="Right"/>
+                </Grid>
+
                 <TextBlock Text="--------------------------------" FontFamily="Courier New" FontSize="18" HorizontalAlignment="Center"/>
-                <TextBlock Text="Cảm ơn quý khách!" FontFamily="Courier New" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,5" FontWeight="Bold"/>
-                <TextBlock Text="Hẹn gặp lại" FontFamily="Courier New" FontSize="14" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+
+                <!-- Tổng tiền -->
+                <Grid Margin="0,5,0,5">
+                    <TextBlock Text="TỔNG TIỀN:" FontFamily="Courier New" FontSize="16" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding Receipt.TotalAmount, StringFormat='{}{0:N0} đ'}" FontFamily="Courier New" FontSize="16" FontWeight="Bold" HorizontalAlignment="Right"/>
+                </Grid>
+
+                <!-- Phương thức thanh toán -->
+                <TextBlock Text="{Binding Receipt.PaymentMethod, StringFormat='ĐÃ THANH TOÁN ({0})'}" FontFamily="Courier New" FontSize="12" HorizontalAlignment="Right" Margin="0,0,0,5" FontWeight="Bold"/>
+                
+                <TextBlock Text="--------------------------------" FontFamily="Courier New" FontSize="18" HorizontalAlignment="Center"/>
+                <TextBlock Text="Cảm ơn quý khách!" FontFamily="Courier New" FontSize="14" HorizontalAlignment="Center" Margin="0,5,0,2" FontWeight="Bold"/>
+                <TextBlock Text="Hẹn gặp lại" FontFamily="Courier New" FontSize="12" HorizontalAlignment="Center" Margin="0,0,0,5"/>
             </StackPanel>
         </Grid>
     </Border>
