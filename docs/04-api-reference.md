@@ -374,8 +374,9 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 
 - **Endpoint nguồn:** `GET /api/inventory/stock?lowOnly=true`.
 - Backend hiện lọc theo tồn khả dụng `StockQuantity - ReservedQuantity <= 5`; service trả `AvailableStock = max(0, StockQuantity - ReservedQuantity)`. Không thay đổi route hoặc ngưỡng này trong quyết định Dashboard.
-- Response hiện tại trả toàn bộ bản ghi thỏa điều kiện và không mặc định giới hạn top 10 ở repository/service.
+- Response hiện tại trả toàn bộ `Book` thỏa điều kiện, không paginate hoặc giới hạn top 10 ở repository/service, và chưa có trường `totalCount`. Mỗi phần tử tương ứng một `BookId`, nên CMS có thể đếm toàn bộ response mà không cộng lặp theo các bản ghi nhập kho.
 - CMS dùng toàn bộ response để tính **Low Stock KPI**. Việc sắp xếp `AvailableStock` tăng dần và lấy tối đa 10 mục chỉ là presentation rule cho **Low Stock Preview**, không phải ý nghĩa hoặc giới hạn của KPI.
+- API lỗi hoặc không trả được dữ liệu không mang nghĩa tổng cảnh báo bằng 0; CMS phải biểu diễn trạng thái dữ liệu không khả dụng riêng với empty response hợp lệ.
 - Chi tiết business requirement và acceptance cases được đồng bộ tại [SRS](10-srs-functional-requirements.md) và [E2E Test Plan](11-end-to-end-test-plan.md).
 
 ### 3.7 Reports (contract typed response)

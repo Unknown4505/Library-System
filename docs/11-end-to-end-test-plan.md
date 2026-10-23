@@ -167,22 +167,25 @@ Acceptance cần evidence UI/timer lifecycle, request log, trạng thái cart/se
 
 ## 8. Acceptance — CMS Low Stock KPI và Preview
 
-Các ca dưới đây là acceptance contract theo quyết định Leader ngày 21/10/2026. Implementation PR #40 phải được sửa và chạy targeted retest; chưa ca nào được ghi PASS chỉ từ tài liệu này.
+Các ca dưới đây là acceptance contract theo quyết định Leader ngày 21/10/2026. Các trạng thái PASS dựa trên targeted QA tại HEAD `5a24dc136d4779dca4731715888405b44887df53` ngày 23/10/2026, lưu tại `D:\BookKiosk_QA\PR40_5a24dc1`; không suy ra PASS chỉ từ tài liệu.
 
 | Test ID | Backend low-stock | Expected KPI | Expected preview | Trạng thái |
 |---|---:|---:|---:|---|
-| CMS-LOWSTOCK-00 | 0 | 0 | 0 | PLANNED / RETEST REQUIRED |
-| CMS-LOWSTOCK-10 | 10 | 10 | 10 | PLANNED / RETEST REQUIRED |
-| CMS-LOWSTOCK-18 | 18 | 18 | 10 | PLANNED / RETEST REQUIRED |
-| CMS-LOWSTOCK-25 | 25 | 25 | 10 | PLANNED / RETEST REQUIRED |
+| CMS-LOWSTOCK-00 | 0 | 0 | 0 | PASS — TARGETED QA |
+| CMS-LOWSTOCK-05 | 5 | 5 | 5 | PLANNED / RETEST REQUIRED |
+| CMS-LOWSTOCK-10 | 10 | 10 | 10 | PASS — TARGETED QA |
+| CMS-LOWSTOCK-18 | 18 | 18 | 10 | PASS — TARGETED QA |
+| CMS-LOWSTOCK-25 | 25 | 25 | 10 | PASS — TARGETED QA |
+| CMS-LOWSTOCK-ERR | API lỗi/không khả dụng | Không hiển thị số giả | Trạng thái không khả dụng | PASS — TARGETED QA |
 
 Acceptance bắt buộc:
 
 - KPI đếm toàn bộ đầu sách cảnh báo Backend trả về và không bị cap bởi `.Take(10)`.
 - Preview không vượt quá 10 mục và ưu tiên `AvailableStock` thấp nhất theo thứ tự tăng dần.
 - Mỗi đầu sách chỉ được tính một lần trong KPI và preview.
-- Dashboard có đường dẫn tới trang quản lý tồn kho để xem danh sách đầy đủ.
-- Chỉ chuyển sang PASS sau khi chạy lại targeted tests trên SHA chứa fix và lưu evidence; trạng thái hiện tại là `PLANNED / RETEST REQUIRED`.
+- Empty response hợp lệ được hiển thị là KPI 0; lỗi tải dữ liệu phải là trạng thái không khả dụng, không kết luận KPI 0.
+- Dashboard phải dẫn tới `/Inventory/Stock?lowOnly=true` để xem danh sách cảnh báo đầy đủ. PR HEAD hiện có route `/Inventory/Stock` nhưng link Dashboard chưa truyền bộ lọc; cần targeted retest sau khi sửa link.
+- Chỉ chuyển từng ca sang PASS sau khi chạy targeted tests trên SHA chứa fix và lưu evidence; ca `CMS-LOWSTOCK-05` và link điều hướng vẫn `RETEST REQUIRED`.
 
 ## 9. ProductDiscount V7.1 — targeted matrix
 
