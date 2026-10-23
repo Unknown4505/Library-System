@@ -126,11 +126,12 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
   * **Output:** Biểu đồ/bảng số liệu doanh thu tổng, có phân nhóm Kiosk vs Bán tại quầy.
 * **2.5.2. Cảnh báo tồn kho thấp trên Dashboard Admin — APPROVED 21/10/2026**
   * **Nguồn dữ liệu:** Toàn bộ đầu sách do Backend trả về từ `GET /api/inventory/stock?lowOnly=true` theo contract tại [API Reference](04-api-reference.md).
-  * **Low Stock KPI:** Tổng số đầu sách đang thuộc nhóm tồn kho thấp trên toàn hệ thống; KPI không bị giới hạn bởi số mục preview.
-  * **Low Stock Preview:** Tối đa 10 đầu sách có `AvailableStock` thấp nhất, sắp xếp tăng dần để ưu tiên xử lý; không tính trùng đầu sách.
-  * Khi Backend trả hơn 10 cảnh báo, ví dụ 18 bản ghi, KPI phải là 18 còn preview chỉ hiển thị 10.
-  * Dashboard phải có đường dẫn đến trang quản lý tồn kho để xem danh sách chi tiết.
-  * **Trạng thái triển khai:** Đây là business requirement đã được Leader duyệt. Implementation PR #40 tại HEAD `84bc85d` vẫn tính KPI từ danh sách đã giới hạn `.Take(10)` và phải được sửa, targeted retest trước khi nghiệm thu.
+  * **LOW-STOCK-KPI-01:** KPI là tổng số đầu sách đang thuộc nhóm tồn kho thấp tại thời điểm tải dữ liệu; KPI không bị giới hạn bởi số mục preview và không tính một đầu sách nhiều lần.
+  * **LOW-STOCK-LIST-01:** Preview dùng cùng tập dữ liệu với KPI, sắp xếp `AvailableStock` tăng dần và chỉ hiển thị tối đa 10 đầu sách. Khi Backend trả 18 cảnh báo, KPI là 18 còn preview là 10.
+  * Liên kết xem tất cả phải dẫn đến danh sách tồn kho với bộ lọc tương ứng, theo route hiện có `/Inventory/Stock?lowOnly=true`.
+  * **LOW-STOCK-ERROR-01:** Khi không tải được dữ liệu Backend, Dashboard phải hiển thị trạng thái không khả dụng; không được diễn giải lỗi thành KPI 0 hoặc tự tạo số lượng giả.
+  * Staff Workspace chỉ dùng preview tối đa 10 mục và không công bố KPI tổng, nên không mở rộng ý nghĩa KPI Admin sang widget này.
+  * **Trạng thái triển khai:** PR #40 tại HEAD `5a24dc136d4779dca4731715888405b44887df53` đã tách tổng KPI khỏi preview và vượt targeted QA ngày 23/10/2026. Trạng thái này không đồng nghĩa PR đã merge vào nhánh `c8` hiện tại; link xem tất cả trên PR HEAD vẫn cần truyền `lowOnly=true` để khớp yêu cầu điều hướng ở trên.
 
 ---
 
