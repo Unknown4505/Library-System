@@ -12,10 +12,12 @@ namespace BookKiosk.API.Controllers;
 public class KioskController : ControllerBase
 {
     private readonly IKioskService _kioskService;
+    private readonly IKioskAdvertisingService _advertisingService;
 
-    public KioskController(IKioskService kioskService)
+    public KioskController(IKioskService kioskService, IKioskAdvertisingService advertisingService)
     {
         _kioskService = kioskService;
+        _advertisingService = advertisingService;
     }
 
     /// <summary>
@@ -36,6 +38,28 @@ public class KioskController : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", ex.Message));
+        }
+    }
+
+    /// <summary>
+    /// Kiosk đọc dữ liệu quảng cáo (khuyến mãi, sách mới, sách bán chạy)
+    /// </summary>
+    [HttpGet("advertising")]
+    public async Task<IActionResult> GetAdvertising()
+    {
+        try
+        {
+            var result = await _advertisingService.GetAdvertisingAsync();
+            return result.Status switch
+            {
+                AdvertisingStatus.ServiceUnavailable => StatusCode(503, ApiResponseDto<KioskAdvertisingDto>.ServiceUnavailable(result.Message)),
+                AdvertisingStatus.PartialSuccess => Ok(ApiResponseDto<KioskAdvertisingDto>.PartialSuccess(result.Data, result.Message)),
+                _ => Ok(ApiResponseDto<KioskAdvertisingDto>.Ok(result.Data, result.Message))
+            };
+        }
+        catch (Exception)
+        {
+            return StatusCode(500, ApiResponseDto<object>.Error("INTERNAL_ERROR", "Hệ thống gặp sự cố. Vui lòng thử lại sau."));
         }
     }
 }

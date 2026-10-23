@@ -30,4 +30,28 @@ public class ApiResponseDto<T>
             Data = default
         };
     }
+
+    // Factory method for Partial Success
+    public static ApiResponseDto<T> PartialSuccess(T data, string message = "Một số nội dung quảng cáo tạm thời không khả dụng.")
+    {
+        return new ApiResponseDto<T>
+        {
+            Success = true,
+            Code = "PARTIAL_SUCCESS",
+            Message = message,
+            Data = data
+        };
+    }
+
+    // Factory method for Service Unavailable
+    public static ApiResponseDto<T> ServiceUnavailable(string message = "Nội dung quảng cáo tạm thời không khả dụng.")
+    {
+        return new ApiResponseDto<T>
+        {
+            Success = false,
+            Code = "SERVICE_UNAVAILABLE",
+            Message = message,
+            Data = default
+        };
+    }
 }

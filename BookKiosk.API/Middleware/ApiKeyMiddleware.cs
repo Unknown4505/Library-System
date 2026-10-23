@@ -25,7 +25,7 @@ public class ApiKeyMiddleware
             {
                 context.Response.StatusCode = 401; // Unauthorized
                 context.Response.ContentType = "application/json";
-                var response = BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("UNAUTHORIZED", "API Key was not provided.");
+                var response = BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("UNAUTHORIZED", "Thiếu thông tin xác thực Kiosk.");
                 await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
                 return;
             }
@@ -36,7 +36,7 @@ public class ApiKeyMiddleware
             {
                 context.Response.StatusCode = 500; // Internal Server Error
                 context.Response.ContentType = "application/json";
-                var response = BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("INTERNAL_ERROR", "Server configuration error: API Key is missing.");
+                var response = BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("INTERNAL_ERROR", "Hệ thống gặp sự cố. Vui lòng thử lại sau.");
                 await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
                 return;
             }
@@ -45,7 +45,7 @@ public class ApiKeyMiddleware
             {
                 context.Response.StatusCode = 403; // Forbidden
                 context.Response.ContentType = "application/json";
-                var response = BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("FORBIDDEN", "Unauthorized client. Invalid API Key.");
+                var response = BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("FORBIDDEN", "Kiosk không có quyền truy cập chức năng này.");
                 await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
                 return;
             }

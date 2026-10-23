@@ -114,22 +114,35 @@ public class OrderService : IOrderService
 
             var activePromotions = await _promotionRepository.GetAllActiveAsync();
 
-            decimal maxDiscountAmount = 0;
-            int? appliedPromotionId = null;
+            Promotion? selectedPromo = null;
+            decimal selectedBenefit = 0m;
+            Dictionary<int, decimal> selectedBookDiscounts = new();
+
+            var candidatePromotions = new List<(Promotion Promo, decimal Benefit, Dictionary<int, decimal> Discounts)>();
+            var cartItems = sortedItems.Select(i => (i.BookId, i.Quantity)).ToList();
 
             foreach (var promo in activePromotions)
             {
-                if (promo.OrderDiscount != null && subTotal >= promo.OrderDiscount.MinOrderValue)
+                var (benefit, discounts) = CalculatePromotionBenefit(promo, subTotal, books, cartItems);
+                if (benefit > 0)
                 {
-                    if (promo.OrderDiscount.DiscountAmount > maxDiscountAmount)
-                    {
-                        maxDiscountAmount = promo.OrderDiscount.DiscountAmount;
-                        appliedPromotionId = promo.PromotionId;
-                    }
+                    candidatePromotions.Add((promo, benefit, discounts));
                 }
             }
 
-            decimal totalAmountWithoutPoints = subTotal - maxDiscountAmount;
+            if (candidatePromotions.Count > 0)
+            {
+                var bestCandidate = candidatePromotions
+                    .OrderByDescending(c => c.Benefit)
+                    .ThenBy(c => c.Promo.PromotionId)
+                    .First();
+
+                selectedPromo = bestCandidate.Promo;
+                selectedBenefit = bestCandidate.Benefit;
+                selectedBookDiscounts = bestCandidate.Discounts;
+            }
+
+            decimal totalAmountWithoutPoints = subTotal - selectedBenefit;
             if (totalAmountWithoutPoints < 0) totalAmountWithoutPoints = 0;
 
             decimal pointsUsedAmount = 0m;
@@ -161,7 +174,12 @@ public class OrderService : IOrderService
             }
 
             decimal totalAmount = totalAmountWithoutPoints - pointsUsedAmount;
-            if (totalAmount < 0) totalAmount = 0;
+
+            // Zero-payable check: TotalAmount <= 0 ném ArgumentException để trả HTTP 400 BAD_REQUEST và rollback kho/điểm
+            if (totalAmount <= 0)
+            {
+                throw new ArgumentException("Tổng tiền thanh toán của đơn hàng sau giảm giá phải lớn hơn 0.");
+            }
 
             var tempOrderCode = $"ORD-{DateTime.UtcNow:yyyyMMdd}-TEMP-{Guid.NewGuid():N}";
             var order = new Order
@@ -171,21 +189,28 @@ public class OrderService : IOrderService
                 OrderStatus = OrderStatus.Pending,
                 PaymentMethod = PaymentMethod.QR,
                 MemberId = request.MemberId,
-                PromotionId = appliedPromotionId,
+                PromotionId = selectedPromo?.PromotionId,
+                PromotionNameAtTime = selectedPromo?.Name,
+                PromotionTypeAtTime = selectedPromo?.PromotionType,
                 SubTotal = subTotal,
-                DiscountAmount = maxDiscountAmount,
+                DiscountAmount = selectedBenefit,
                 PointsUsed = request.PointsToUse,
+                PointsUsedAmountAtTime = pointsUsedAmount,
                 TotalAmount = totalAmount,
             };
 
             foreach (var item in sortedItems)
             {
+                var book = books[item.BookId];
+                decimal discountPerUnit = selectedBookDiscounts.TryGetValue(item.BookId, out var disc) ? disc : 0m;
                 order.OrderDetails.Add(new OrderDetail
                 {
                     BookId = item.BookId,
+                    BookTitleAtTime = book.Title,
                     Quantity = item.Quantity,
-                    UnitPriceAtTime = books[item.BookId].SellingPrice,
-                    LineTotal = books[item.BookId].SellingPrice * item.Quantity
+                    UnitPriceAtTime = book.SellingPrice,
+                    DiscountPerUnitAtTime = discountPerUnit,
+                    LineTotal = book.SellingPrice * item.Quantity
                 });
             }
 
@@ -213,15 +238,39 @@ public class OrderService : IOrderService
 
             var sepayQrCodeUrl = $"https://qr.sepay.vn/img?acc=0366994409&bank=MB&amount={(int)totalAmount}&des={order.OrderCode}";
 
+            var checkoutItems = sortedItems.Select(item =>
+            {
+                var book = books[item.BookId];
+                decimal discountPerUnit = selectedBookDiscounts.TryGetValue(item.BookId, out var disc) ? disc : 0m;
+                decimal lineTotal = book.SellingPrice * item.Quantity;
+                decimal lineDiscountAmount = discountPerUnit * item.Quantity;
+                decimal netLineTotal = lineTotal - lineDiscountAmount;
+                return new CheckoutItemDiscountDto
+                {
+                    BookId = item.BookId,
+                    BookTitle = book.Title,
+                    Quantity = item.Quantity,
+                    UnitPriceAtTime = book.SellingPrice,
+                    DiscountPerUnit = discountPerUnit,
+                    LineTotal = lineTotal,
+                    LineDiscountAmount = lineDiscountAmount,
+                    NetLineTotal = netLineTotal
+                };
+            }).ToList();
+
             return new CheckoutResponseDto
             {
                 OrderId = order.OrderId,
                 OrderCode = order.OrderCode,
                 SubTotal = subTotal,
-                DiscountAmount = maxDiscountAmount,
+                PromotionId = order.PromotionId,
+                PromotionName = order.PromotionNameAtTime,
+                PromotionType = order.PromotionTypeAtTime,
+                DiscountAmount = order.DiscountAmount,
                 PointsUsedAmount = pointsUsedAmount,
                 TotalAmount = totalAmount,
-                SepayQrCodeUrl = sepayQrCodeUrl
+                SepayQrCodeUrl = sepayQrCodeUrl,
+                Items = checkoutItems
             };
         }
         catch (Exception)
@@ -299,6 +348,22 @@ public class OrderService : IOrderService
         if (order.OrderStatus != OrderStatus.Paid || !order.CompletedAt.HasValue)
             throw new InvalidOperationException("Đơn hàng chưa hoàn tất thanh toán hoặc đã bị hủy.");
 
+        string? promotionName = null;
+        PromotionType? promotionType = null;
+
+        if (!string.IsNullOrWhiteSpace(order.PromotionNameAtTime))
+        {
+            promotionName = order.PromotionNameAtTime;
+            promotionType = order.PromotionTypeAtTime;
+        }
+        else if (order.PromotionId.HasValue || order.DiscountAmount > 0)
+        {
+            promotionName = order.Promotion?.Name ?? "Khuyến mãi";
+            promotionType = order.Promotion?.PromotionType;
+        }
+
+        decimal pointsUsedAmount = order.PointsUsedAmountAtTime ?? (order.PointsUsed * 1000m);
+
         return new ReceiptDto
         {
             OrderId = order.OrderId,
@@ -306,18 +371,32 @@ public class OrderService : IOrderService
             CreatedAt = order.CreatedAt,
             CompletedAt = order.CompletedAt.Value,
             SubTotal = order.SubTotal,
+            PromotionId = order.PromotionId,
+            PromotionName = promotionName,
+            PromotionType = promotionType,
             DiscountAmount = order.DiscountAmount,
             PointsUsed = order.PointsUsed,
-            PointsUsedAmount = order.PointsUsed * 1000m,
+            PointsUsedAmount = pointsUsedAmount,
             TotalAmount = order.TotalAmount,
             PaymentMethod = order.PaymentMethod,
-            Items = order.OrderDetails.Select(od => new ReceiptLineDto
+            Items = order.OrderDetails.Select(od =>
             {
-                BookId = od.BookId,
-                BookTitle = od.Book?.Title ?? string.Empty,
-                Quantity = od.Quantity,
-                UnitPriceAtTime = od.UnitPriceAtTime,
-                LineTotal = od.LineTotal
+                var bookTitle = !string.IsNullOrWhiteSpace(od.BookTitleAtTime)
+                    ? od.BookTitleAtTime
+                    : (od.Book?.Title ?? $"Book #{od.BookId}");
+
+                var lineDiscount = od.DiscountPerUnitAtTime * od.Quantity;
+                return new ReceiptLineDto
+                {
+                    BookId = od.BookId,
+                    BookTitle = bookTitle,
+                    Quantity = od.Quantity,
+                    UnitPriceAtTime = od.UnitPriceAtTime,
+                    DiscountPerUnit = od.DiscountPerUnitAtTime,
+                    LineTotal = od.LineTotal,
+                    LineDiscountAmount = lineDiscount,
+                    NetLineTotal = od.LineTotal - lineDiscount
+                };
             }).ToList()
         };
     }
@@ -354,6 +433,11 @@ public class OrderService : IOrderService
             throw new ArgumentException("Cần cung cấp thông tin thành viên để sử dụng điểm.");
         }
 
+        if (request.PromotionId.HasValue && request.PromotionId.Value <= 0)
+        {
+            throw new ArgumentException("Mã chương trình khuyến mãi không hợp lệ.");
+        }
+
         var sortedItems = request.Items.OrderBy(i => i.BookId).ToList();
         var bookIds = sortedItems.Select(i => i.BookId).ToList();
 
@@ -367,7 +451,6 @@ public class OrderService : IOrderService
             var books = await _orderRepository.GetBooksByIdsAsync(bookIds);
 
             decimal subTotal = 0;
-            var orderItemDtos = new List<CounterOrderItemDto>();
 
             foreach (var item in sortedItems)
             {
@@ -383,34 +466,43 @@ public class OrderService : IOrderService
 
                 var lineTotal = book.SellingPrice * item.Quantity;
                 subTotal += lineTotal;
-
-                orderItemDtos.Add(new CounterOrderItemDto
-                {
-                    BookId = item.BookId,
-                    Title = book.Title,
-                    Quantity = item.Quantity,
-                    UnitPriceAtTime = book.SellingPrice,
-                    LineTotal = lineTotal
-                });
             }
 
-            decimal discountAmount = 0;
-            int? appliedPromotionId = null;
+            Promotion? appliedPromo = null;
+            decimal appliedDiscountAmount = 0m;
+            Dictionary<int, decimal> appliedBookDiscounts = new();
 
-            if (request.PromotionId.HasValue && request.PromotionId.Value > 0)
+            var cartItems = sortedItems.Select(i => (i.BookId, i.Quantity)).ToList();
+
+            if (request.PromotionId.HasValue)
             {
                 var promo = await _promotionRepository.GetByIdAsync(request.PromotionId.Value);
-                if (promo != null && promo.IsActive && promo.StartDate <= DateTime.Now && promo.EndDate >= DateTime.Now)
+                if (promo == null || !promo.IsActive)
                 {
-                    if (promo.OrderDiscount == null || subTotal >= promo.OrderDiscount.MinOrderValue)
-                    {
-                        discountAmount = promo.OrderDiscount?.DiscountAmount ?? 0;
-                        appliedPromotionId = promo.PromotionId;
-                    }
+                    throw new ArgumentException("Chương trình khuyến mãi không tồn tại hoặc đã ngừng hoạt động.");
                 }
+
+                var now = DateTime.UtcNow;
+                if (promo.StartDate > now || promo.EndDate < now)
+                {
+                    throw new ArgumentException("Chương trình khuyến mãi đã hết hạn hoặc chưa tới thời gian áp dụng.");
+                }
+
+                var (promoBenefit, bookDiscounts) = CalculatePromotionBenefit(promo, subTotal, books, cartItems);
+                if (promoBenefit <= 0)
+                {
+                    throw new ArgumentException("Đơn hàng không đủ điều kiện áp dụng chương trình khuyến mãi đã chọn.");
+                }
+
+                appliedPromo = promo;
+                appliedDiscountAmount = promoBenefit;
+                appliedBookDiscounts = bookDiscounts;
             }
 
-            decimal pointsUsedAmount = 0;
+            decimal totalAmountWithoutPoints = subTotal - appliedDiscountAmount;
+            if (totalAmountWithoutPoints < 0) totalAmountWithoutPoints = 0;
+
+            decimal pointsUsedAmount = 0m;
             if (request.PointsToUse > 0 && request.MemberId.HasValue)
             {
                 var member = await _memberRepository.GetByIdAsync(request.MemberId.Value);
@@ -420,14 +512,28 @@ public class OrderService : IOrderService
                 if (member.Points < request.PointsToUse)
                     throw new InvalidOperationException("Thành viên không đủ số điểm để sử dụng.");
 
+                decimal requestedPointsDiscount = request.PointsToUse * 1000m;
+                if (requestedPointsDiscount > totalAmountWithoutPoints)
+                    throw new InvalidOperationException("Số điểm sử dụng vượt quá giá trị thanh toán của đơn hàng.");
+
                 var deducted = await _memberRepository.TryDeductPointsAsync(member.MemberId, request.PointsToUse);
                 if (!deducted)
                     throw new InvalidOperationException("Thành viên không đủ số điểm để sử dụng.");
 
-                pointsUsedAmount = request.PointsToUse * 1000m;
+                pointsUsedAmount = requestedPointsDiscount;
+            }
+            else
+            {
+                request.PointsToUse = 0;
             }
 
-            decimal totalAmount = Math.Max(0, subTotal - discountAmount - pointsUsedAmount);
+            decimal totalAmount = totalAmountWithoutPoints - pointsUsedAmount;
+
+            // Zero-payable check: TotalAmount <= 0 ném ArgumentException để trả HTTP 400 BAD_REQUEST và rollback kho/điểm
+            if (totalAmount <= 0)
+            {
+                throw new ArgumentException("Tổng tiền thanh toán của đơn hàng sau giảm giá phải lớn hơn 0.");
+            }
 
             var order = new Order
             {
@@ -435,11 +541,14 @@ public class OrderService : IOrderService
                 OrderStatus = OrderStatus.Pending,
                 PaymentMethod = paymentMethod,
                 SubTotal = subTotal,
-                DiscountAmount = discountAmount,
+                PromotionId = appliedPromo?.PromotionId,
+                PromotionNameAtTime = appliedPromo?.Name,
+                PromotionTypeAtTime = appliedPromo?.PromotionType,
+                DiscountAmount = appliedDiscountAmount,
                 PointsUsed = request.PointsToUse,
+                PointsUsedAmountAtTime = pointsUsedAmount,
                 TotalAmount = totalAmount,
                 MemberId = request.MemberId,
-                PromotionId = appliedPromotionId,
                 UserId = cashierUserId > 0 ? cashierUserId : null,
                 CreatedAt = DateTime.UtcNow
             };
@@ -461,16 +570,38 @@ public class OrderService : IOrderService
                 });
             }
 
+            var orderItemDtos = new List<CounterOrderItemDto>();
+
             foreach (var item in sortedItems)
             {
                 var book = books[item.BookId];
+                decimal discountPerUnit = appliedBookDiscounts.TryGetValue(item.BookId, out var disc) ? disc : 0m;
+                decimal lineTotal = book.SellingPrice * item.Quantity;
+                decimal lineDiscount = discountPerUnit * item.Quantity;
+                decimal netLine = lineTotal - lineDiscount;
+
                 order.OrderDetails.Add(new OrderDetail
                 {
                     OrderId = order.OrderId,
                     BookId = item.BookId,
+                    BookTitleAtTime = book.Title,
                     Quantity = item.Quantity,
                     UnitPriceAtTime = book.SellingPrice,
-                    LineTotal = book.SellingPrice * item.Quantity
+                    DiscountPerUnitAtTime = discountPerUnit,
+                    LineTotal = lineTotal
+                });
+
+                orderItemDtos.Add(new CounterOrderItemDto
+                {
+                    BookId = item.BookId,
+                    Title = book.Title,
+                    BookTitle = book.Title,
+                    Quantity = item.Quantity,
+                    UnitPriceAtTime = book.SellingPrice,
+                    DiscountPerUnit = discountPerUnit,
+                    LineTotal = lineTotal,
+                    LineDiscountAmount = lineDiscount,
+                    NetLineTotal = netLine
                 });
             }
 
@@ -499,6 +630,9 @@ public class OrderService : IOrderService
                 OrderCode = order.OrderCode,
                 OrderStatus = order.OrderStatus,
                 SubTotal = order.SubTotal,
+                PromotionId = order.PromotionId,
+                PromotionName = order.PromotionNameAtTime,
+                PromotionType = order.PromotionTypeAtTime,
                 DiscountAmount = order.DiscountAmount,
                 PointsUsed = order.PointsUsed,
                 PointsUsedAmount = pointsUsedAmount,
@@ -671,6 +805,16 @@ public class OrderService : IOrderService
         if (order == null)
             throw new System.Collections.Generic.KeyNotFoundException("Không tìm thấy thông tin đơn hàng.");
 
+        string? promotionName = null;
+        if (!string.IsNullOrWhiteSpace(order.PromotionNameAtTime))
+        {
+            promotionName = order.PromotionNameAtTime;
+        }
+        else if (order.PromotionId.HasValue || order.DiscountAmount > 0)
+        {
+            promotionName = order.Promotion?.Name ?? "Khuyến mãi";
+        }
+
         return new OrderDetailDto
         {
             OrderId = order.OrderId,
@@ -682,9 +826,9 @@ public class OrderService : IOrderService
             PaymentMethod = order.PaymentMethod,
             SubTotal = order.SubTotal,
             DiscountAmount = order.DiscountAmount,
-            PromotionName = order.Promotion?.Name,
+            PromotionName = promotionName,
             PointsUsed = order.PointsUsed,
-            PointsUsedAmount = order.PointsUsed * 1000m,
+            PointsUsedAmount = order.PointsUsedAmountAtTime ?? (order.PointsUsed * 1000m),
             TotalAmount = order.TotalAmount,
             CashierName = order.CreatedByUser?.FullName,
             MemberName = order.Member?.FullName,
@@ -693,7 +837,7 @@ public class OrderService : IOrderService
             Items = order.OrderDetails.Select(od => new OrderDetailItemDto
             {
                 BookId = od.BookId,
-                BookTitle = od.Book?.Title ?? string.Empty,
+                BookTitle = !string.IsNullOrWhiteSpace(od.BookTitleAtTime) ? od.BookTitleAtTime : (od.Book?.Title ?? $"Book #{od.BookId}"),
                 Quantity = od.Quantity,
                 UnitPriceAtTime = od.UnitPriceAtTime,
                 LineTotal = od.LineTotal
@@ -753,6 +897,22 @@ public class OrderService : IOrderService
 
     private static PosReceiptDto BuildPosReceipt(Order order)
     {
+        string? promotionName = null;
+        PromotionType? promotionType = null;
+
+        if (!string.IsNullOrWhiteSpace(order.PromotionNameAtTime))
+        {
+            promotionName = order.PromotionNameAtTime;
+            promotionType = order.PromotionTypeAtTime;
+        }
+        else if (order.PromotionId.HasValue || order.DiscountAmount > 0)
+        {
+            promotionName = order.Promotion?.Name ?? "Khuyến mãi";
+            promotionType = order.Promotion?.PromotionType;
+        }
+
+        decimal pointsUsedAmount = order.PointsUsedAmountAtTime ?? (order.PointsUsed * 1000m);
+
         return new PosReceiptDto
         {
             OrderCode = order.OrderCode,
@@ -761,20 +921,89 @@ public class OrderService : IOrderService
             CashierName = order.CreatedByUser?.FullName ?? "Thu ngân",
             MemberDisplayName = !string.IsNullOrWhiteSpace(order.Member?.FullName) ? order.Member.FullName : "Thành viên",
             SubTotal = order.SubTotal,
+            PromotionId = order.PromotionId,
+            PromotionName = promotionName,
+            PromotionType = promotionType,
             DiscountAmount = order.DiscountAmount,
             PointsUsed = order.PointsUsed,
-            PointsUsedAmount = order.PointsUsed * 1000m,
+            PointsUsedAmount = pointsUsedAmount,
             TotalAmount = order.TotalAmount,
             PaymentMethod = order.PaymentMethod.ToString(),
-            Items = order.OrderDetails.Select(od => new PosReceiptItemDto
+            Items = order.OrderDetails.Select(od =>
             {
-                BookId = od.BookId,
-                Title = od.Book?.Title ?? string.Empty,
-                Quantity = od.Quantity,
-                UnitPrice = od.UnitPriceAtTime,
-                LineTotal = od.LineTotal
+                var bookTitle = !string.IsNullOrWhiteSpace(od.BookTitleAtTime)
+                    ? od.BookTitleAtTime
+                    : (od.Book?.Title ?? $"Book #{od.BookId}");
+
+                var lineDiscount = od.DiscountPerUnitAtTime * od.Quantity;
+                return new PosReceiptItemDto
+                {
+                    BookId = od.BookId,
+                    Title = bookTitle,
+                    BookTitle = bookTitle,
+                    Quantity = od.Quantity,
+                    UnitPrice = od.UnitPriceAtTime,
+                    UnitPriceAtTime = od.UnitPriceAtTime,
+                    DiscountPerUnit = od.DiscountPerUnitAtTime,
+                    LineTotal = od.LineTotal,
+                    LineDiscountAmount = lineDiscount,
+                    NetLineTotal = od.LineTotal - lineDiscount
+                };
             }).ToList()
         };
+    }
+
+    private static (decimal TotalBenefit, Dictionary<int, decimal> BookDiscountsPerUnit) CalculatePromotionBenefit(
+        Promotion promo,
+        decimal subTotal,
+        Dictionary<int, Book> books,
+        IEnumerable<(int BookId, int Quantity)> items)
+    {
+        var bookDiscounts = new Dictionary<int, decimal>();
+        if (!promo.IsActive)
+        {
+            return (0m, bookDiscounts);
+        }
+
+        var now = DateTime.UtcNow;
+        if (promo.StartDate > now || promo.EndDate < now)
+        {
+            return (0m, bookDiscounts);
+        }
+
+        if (promo.PromotionType == PromotionType.OrderDiscount)
+        {
+            if (promo.OrderDiscount != null && subTotal >= promo.OrderDiscount.MinOrderValue)
+            {
+                decimal benefit = Math.Min(promo.OrderDiscount.DiscountAmount, subTotal);
+                return (benefit, bookDiscounts);
+            }
+            return (0m, bookDiscounts);
+        }
+        else if (promo.PromotionType == PromotionType.ProductDiscount)
+        {
+            decimal totalBenefit = 0m;
+            var promoProductDiscounts = promo.ProductDiscounts.ToDictionary(pd => pd.BookId, pd => pd.DiscountAmount);
+
+            foreach (var (bookId, quantity) in items)
+            {
+                if (promoProductDiscounts.TryGetValue(bookId, out var configuredDiscount))
+                {
+                    if (books.TryGetValue(bookId, out var book))
+                    {
+                        decimal discountPerUnit = Math.Min(configuredDiscount, book.SellingPrice);
+                        if (discountPerUnit > 0)
+                        {
+                            bookDiscounts[bookId] = discountPerUnit;
+                            totalBenefit += discountPerUnit * quantity;
+                        }
+                    }
+                }
+            }
+            return (totalBenefit, bookDiscounts);
+        }
+
+        return (0m, bookDiscounts);
     }
 }
 

@@ -25,20 +25,43 @@ public class PromotionsController : ControllerBase
         return Ok(await _promotionService.GetPromotionsAsync());
     }
 
+    [HttpGet("{id:int}")]
+    [Authorize(Roles = "Admin,Manager,Staff")]
+    public async Task<IActionResult> GetPromotionById(int id)
+    {
+        var result = await _promotionService.GetPromotionByIdAsync(id);
+        if (!result.Success && result.Code == "NOT_FOUND")
+            return NotFound(result);
+        return Ok(result);
+    }
+
     [HttpPost]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreatePromotion([FromBody] CreatePromotionDto request)
     {
-        return Ok(await _promotionService.CreatePromotionAsync(request));
+        var result = await _promotionService.CreatePromotionAsync(request);
+        if (!result.Success)
+        {
+            if (result.Code == "BAD_REQUEST")
+                return BadRequest(result);
+            return StatusCode(500, result);
+        }
+        return Ok(result);
     }
 
     [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> UpdatePromotion(int id, [FromBody] PromotionDto request)
+    public async Task<IActionResult> UpdatePromotion(int id, [FromBody] UpdatePromotionDto request)
     {
         var result = await _promotionService.UpdatePromotionAsync(id, request);
-        if (!result.Success && result.Code == "NOT_FOUND")
-            return NotFound(result);
+        if (!result.Success)
+        {
+            if (result.Code == "NOT_FOUND")
+                return NotFound(result);
+            if (result.Code == "BAD_REQUEST")
+                return BadRequest(result);
+            return StatusCode(500, result);
+        }
         return Ok(result);
     }
 
