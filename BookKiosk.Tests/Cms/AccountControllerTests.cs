@@ -104,6 +104,30 @@ namespace BookKiosk.Tests.Cms
             redirect.ControllerName.Should().Be("Pos");
         }
 
+        [Fact]
+        public async Task Login_ManagerRole_RedirectsToStaffWorkspace()
+        {
+            // Arrange
+            _apiClientMock.Setup(c => c.LoginAsync(It.IsAny<LoginRequestModel>()))
+                .ReturnsAsync(ApiResult<LoginResponseData>.Ok(new LoginResponseData
+                {
+                    FullName = "Store Manager",
+                    Role = "Manager",
+                    AccessToken = "mock-token",
+                    ExpiresAt = DateTime.UtcNow.AddHours(8)
+                }));
+
+            var controller = CreateController();
+
+            // Act
+            var result = await controller.Login(new LoginRequestModel { Username = "manager", Password = "123" }, null);
+
+            // Assert
+            var redirect = result.Should().BeOfType<RedirectToActionResult>().Subject;
+            redirect.ActionName.Should().Be("StaffWorkspace");
+            redirect.ControllerName.Should().Be("Home");
+        }
+
         [Theory]
         [InlineData("https://malicious.com/steal-cookie")]
         [InlineData("//malicious.com")]

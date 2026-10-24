@@ -52,6 +52,14 @@ namespace BookKiosk.Kiosk
             // Khởi tạo Frame cho Navigation và bắt đầu đếm giờ
             _navigationService.Initialize(MainFrame);
             _idleTimerService.Start();
+
+#if DEBUG
+            // Khi dev: Cho phép Alt+Tab và xem các cửa sổ khác bình thường
+            Topmost = false;
+#else
+            // Khi Release ở Kiosk thực tế: Ghim cửa sổ lớp trên cùng để chống thoát
+            Topmost = true;
+#endif
         }
 
         private void Window_PreviewInteraction(object sender, InputEventArgs e)
@@ -165,10 +173,11 @@ namespace BookKiosk.Kiosk
                 _clickCount = 0; // Reset
                 
 #if DEBUG
-                // [MAINT-02] Debug: Đọc PIN từ config ngoài source (env var hoặc appsettings.Development.json).
-                // Không có fallback mặc định — fail closed nếu chưa cấu hình.
+                // [MAINT-02] Debug: Đọc PIN từ config ngoài source (env var hoặc appsettings.json/Development).
+                // Mặc định dev fallback "123456" khi chạy local DEBUG
                 string? configuredPin = Environment.GetEnvironmentVariable("KIOSK_MAINTENANCE_PIN")
-                    ?? _configuration?["KioskSettings:MaintenancePin"];
+                    ?? _configuration?["KioskSettings:MaintenancePin"]
+                    ?? "123456";
 
                 if (string.IsNullOrWhiteSpace(configuredPin))
                 {

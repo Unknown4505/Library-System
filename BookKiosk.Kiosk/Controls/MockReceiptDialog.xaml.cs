@@ -1,25 +1,31 @@
 using System;
-using System.Collections.Generic;
 using System.Windows;
-using BookKiosk.Kiosk.Models;
+using BookKiosk.Application.DTOs.Order;
 
 namespace BookKiosk.Kiosk.Controls
 {
     public partial class MockReceiptDialog : Window
     {
-        public List<CartItemModel> Items { get; }
-        public decimal TotalAmount { get; }
-        public DateTime CurrentDate { get; }
+        public ReceiptDto Receipt { get; }
+        public DateTime DisplayCompletedAt { get; }
+        public bool HasPromotionDiscount => Receipt.DiscountAmount > 0;
+        public bool HasPointsDiscount => Receipt.PointsUsedAmount > 0;
+        public string PromotionDisplayName => !string.IsNullOrWhiteSpace(Receipt.PromotionName)
+            ? Receipt.PromotionName
+            : "Khuyến mãi";
 
-        public MockReceiptDialog(List<CartItemModel> items, decimal totalAmount)
+        public MockReceiptDialog(ReceiptDto receipt)
         {
             InitializeComponent();
-            
-            Items = items;
-            TotalAmount = totalAmount;
-            CurrentDate = DateTime.Now;
-            
-            // Set DataContext so XAML can bind to the properties above
+
+            Receipt = receipt ?? throw new ArgumentNullException(nameof(receipt));
+
+            var utcTime = receipt.CompletedAt.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(receipt.CompletedAt, DateTimeKind.Utc)
+                : receipt.CompletedAt.ToUniversalTime();
+            DisplayCompletedAt = utcTime.ToLocalTime();
+
+            // Set DataContext so XAML can bind to properties
             DataContext = this;
         }
     }

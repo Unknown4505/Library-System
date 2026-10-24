@@ -5,21 +5,252 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       mc:Ignorable="d" 
       d:DesignHeight="1080" d:DesignWidth="1920"
-      Title="ReceiptPage" Background="#2ecc71"
+      Title="ReceiptPage" Background="#f0f2f5"
       Unloaded="Page_Unloaded">
-    <Grid>
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-            <!-- Icon Tick V -->
-            <Border Width="200" Height="200" Background="White" CornerRadius="100" Margin="0,0,0,50" HorizontalAlignment="Center">
+
+    <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Page.Resources>
+
+    <Grid Margin="60">
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- 1. TRẠNG THÁI: ĐANG TẢI (LOADING)                             -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <Border Background="White" CornerRadius="20" Padding="60"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Visibility="{Binding IsStateLoading, Converter={StaticResource BoolToVis}}">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="25" ShadowDepth="8" Opacity="0.12"/>
+            </Border.Effect>
+            <StackPanel HorizontalAlignment="Center">
+                <Border Width="120" Height="120" Background="#ecf0f1" CornerRadius="60" Margin="0,0,0,30" HorizontalAlignment="Center">
+                    <TextBlock Text="⌛" FontSize="60" Foreground="#3498db" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="Đang lấy hóa đơn từ hệ thống..." FontSize="36" FontWeight="Bold" Foreground="#2c3e50" HorizontalAlignment="Center" Margin="0,0,0,15"/>
+                <TextBlock Text="Vui lòng đợi trong giây lát, hóa đơn sẽ tự động xuất sau khi tải xong" FontSize="20" Foreground="#7f8c8d" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- 2. TRẠNG THÁI: LỖI (ERROR)                                     -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <Border Background="White" CornerRadius="20" Padding="60" MaxWidth="900"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Visibility="{Binding IsStateError, Converter={StaticResource BoolToVis}}">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="25" ShadowDepth="8" Opacity="0.12"/>
+            </Border.Effect>
+            <StackPanel HorizontalAlignment="Center">
+                <!-- Icon cảnh báo / lỗi -->
+                <Border Width="140" Height="140" Background="#fde8e7" CornerRadius="70" Margin="0,0,0,30" HorizontalAlignment="Center">
+                    <TextBlock Text="!" FontSize="84" FontWeight="Bold" Foreground="#e74c3c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <TextBlock Text="Không thể tải hóa đơn" FontSize="40" FontWeight="Bold" Foreground="#2c3e50" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                
+                <!-- Thông điệp lỗi chi tiết -->
+                <TextBlock Text="{Binding ErrorMessage}" FontSize="24" Foreground="#7f8c8d"
+                           TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,40" LineHeight="36"/>
+
+                <!-- Nút thao tác chạm cảm ứng (Chiều cao >= 60px) -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <!-- Nút Thử lại (chỉ hiện khi CanRetry = true) -->
+                    <Button Command="{Binding RetryCommand}"
+                            Visibility="{Binding CanRetry, Converter={StaticResource BoolToVis}}"
+                            Background="#3498db" Foreground="White"
+                            FontSize="24" FontWeight="Bold"
+                            Height="65" MinWidth="220" Padding="30,0" Margin="0,0,25,0"
+                            Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="15"/>
+                            </Style>
+                        </Button.Resources>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔄 " FontSize="22" VerticalAlignment="Center"/>
+                            <TextBlock Text="Thử lại" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Nút Về trang chủ -->
+                    <Button Command="{Binding GoHomeCommand}"
+                            Background="#34495e" Foreground="White"
+                            FontSize="24" FontWeight="Bold"
+                            Height="65" MinWidth="220" Padding="30,0"
+                            Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="15"/>
+                            </Style>
+                        </Button.Resources>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🏠 " FontSize="22" VerticalAlignment="Center"/>
+                            <TextBlock Text="Về trang chủ" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- 3. TRẠNG THÁI: THÀNH CÔNG (SUCCESS)                           -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <Grid Visibility="{Binding IsStateSuccess, Converter={StaticResource BoolToVis}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Tiêu đề & Trạng thái hoàn tất -->
+            <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,25">
+                <Border Width="100" Height="100" Background="#2ecc71" CornerRadius="50" Margin="0,0,0,15" HorizontalAlignment="Center">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="15" ShadowDepth="4" Opacity="0.25"/>
+                    </Border.Effect>
+                    <TextBlock Text="✓" FontSize="60" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <TextBlock Text="Thanh toán thành công!" FontSize="48" FontWeight="Bold" Foreground="#2c3e50" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                
+                <!-- Khi in PDF thành công: Hiện Countdown đếm ngược tự về trang chủ -->
+                <TextBlock Text="{Binding CountdownText}" FontSize="20" FontWeight="Bold" Foreground="#27ae60" HorizontalAlignment="Center"
+                           Visibility="{Binding IsPdfNormalSuccess, Converter={StaticResource BoolToVis}}"/>
+
+                <!-- Khi tạo/in PDF gặp lỗi: Thông báo thân thiện và cho phép thử lại hoặc về trang chủ -->
+                <StackPanel Visibility="{Binding IsPdfGenerationError, Converter={StaticResource BoolToVis}}" HorizontalAlignment="Center" Margin="0,5,0,0">
+                    <TextBlock Text="{Binding PdfErrorMessage}" FontSize="18" FontWeight="SemiBold" Foreground="#e74c3c" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Command="{Binding RetryPrintCommand}"
+                                Visibility="{Binding CanRetryPrint, Converter={StaticResource BoolToVis}}"
+                                Background="#3498db" Foreground="White"
+                                FontSize="18" FontWeight="Bold"
+                                Height="50" MinWidth="180" Padding="20,0" Margin="0,0,15,0"
+                                Cursor="Hand">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="10"/>
+                                </Style>
+                            </Button.Resources>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🔄 " FontSize="18" VerticalAlignment="Center"/>
+                                <TextBlock Text="Thử lại in PDF" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Command="{Binding GoHomeCommand}"
+                                Background="#34495e" Foreground="White"
+                                FontSize="18" FontWeight="Bold"
+                                Height="50" MinWidth="180" Padding="20,0"
+                                Cursor="Hand">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="10"/>
+                                </Style>
+                            </Button.Resources>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🏠 " FontSize="18" VerticalAlignment="Center"/>
+                                <TextBlock Text="Về trang chủ" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Khung tóm tắt hóa đơn chính thức (Dạng bảng dễ đọc trên màn hình cảm ứng) -->
+            <Border Grid.Row="1" Background="White" CornerRadius="20" Padding="40" MaxWidth="900" HorizontalAlignment="Center">
                 <Border.Effect>
-                    <DropShadowEffect BlurRadius="20" ShadowDepth="5" Opacity="0.3"/>
+                    <DropShadowEffect BlurRadius="25" ShadowDepth="8" Opacity="0.12"/>
                 </Border.Effect>
-                <TextBlock Text="✓" FontSize="120" FontWeight="Bold" Foreground="#27ae60" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,15,0,0"/>
+
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header chi tiết đơn hàng -->
+                    <Grid Grid.Row="0" Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="{Binding Receipt.OrderCode, StringFormat='MÃ ĐƠN HÀNG: #{0}'}" FontSize="22" FontWeight="Bold" Foreground="#2c3e50"/>
+                            <TextBlock Text="{Binding Receipt.PaymentMethod, StringFormat='Phương thức: {0}'}" FontSize="18" Foreground="#7f8c8d" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+                            <TextBlock Text="ĐÃ IN HÓA ĐƠN" FontSize="18" FontWeight="Bold" Foreground="#27ae60"
+                                       Visibility="{Binding IsPdfNormalSuccess, Converter={StaticResource BoolToVis}}"/>
+                            <TextBlock Text="ĐANG XUẤT HÓA ĐƠN..." FontSize="18" FontWeight="Bold" Foreground="#3498db"
+                                       Visibility="{Binding IsPdfCreating, Converter={StaticResource BoolToVis}}"/>
+                            <TextBlock Text="CHƯA XUẤT FILE IN" FontSize="18" FontWeight="Bold" Foreground="#e67e22"
+                                       Visibility="{Binding IsPdfGenerationError, Converter={StaticResource BoolToVis}}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Separator Grid.Row="0" VerticalAlignment="Bottom" Background="#ecf0f1" Height="2" Margin="0,10,0,0"/>
+
+                    <!-- Danh sách các mặt hàng (ScrollViewer cảm ứng mượt mà) -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,15,0,15">
+                        <ItemsControl ItemsSource="{Binding Receipt.Items}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#f4f6f7" BorderThickness="0,0,0,1" Padding="0,10">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="3*"/>
+                                                <ColumnDefinition Width="1*"/>
+                                                <ColumnDefinition Width="2*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Tên sách & Giảm giá dòng -->
+                                            <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                                <TextBlock Text="{Binding BookTitle}" FontSize="20" FontWeight="Bold" Foreground="#2c3e50" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding UnitPriceAtTime, StringFormat='Đơn giá: {0:N0} đ'}" FontSize="16" Foreground="#7f8c8d" Margin="0,3,0,0"/>
+                                            </StackPanel>
+
+                                            <!-- Số lượng -->
+                                            <TextBlock Grid.Column="1" Text="{Binding Quantity, StringFormat='x{0}'}" FontSize="20" FontWeight="Bold" Foreground="#34495e" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+
+                                            <!-- Thành tiền dòng sau giảm -->
+                                            <TextBlock Grid.Column="2" Text="{Binding NetLineTotal, StringFormat='{}{0:N0} đ'}" FontSize="22" FontWeight="Bold" Foreground="#2c3e50" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- Footer tính tiền: Tạm tính, Khuyến mãi, Điểm, Tổng cộng -->
+                    <Border Grid.Row="2" Background="#fafbfc" CornerRadius="0,0,20,20" Margin="-40,0,-40,-40" Padding="40,20,40,25">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <TextBlock Text="Tạm tính:" FontSize="18" Foreground="#7f8c8d"/>
+                                <TextBlock Text="{Binding Receipt.SubTotal, StringFormat='{}{0:N0} đ'}" FontSize="18" Foreground="#2c3e50" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,8">
+                                <TextBlock Text="Khuyến mãi:" FontSize="18" Foreground="#e67e22"/>
+                                <TextBlock Text="{Binding Receipt.DiscountAmount, StringFormat='-{0:N0} đ'}" FontSize="18" FontWeight="Bold" Foreground="#e67e22" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,12">
+                                <TextBlock Text="{Binding Receipt.PointsUsed, StringFormat='Điểm thành viên ({0} điểm):'}" FontSize="18" Foreground="#2980b9"/>
+                                <TextBlock Text="{Binding Receipt.PointsUsedAmount, StringFormat='-{0:N0} đ'}" FontSize="18" FontWeight="Bold" Foreground="#2980b9" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <Separator Background="#bdc3c7" Height="1" Margin="0,5,0,12"/>
+
+                            <!-- TỔNG THANH TOÁN NỔI BẬT -->
+                            <Grid>
+                                <TextBlock Text="TỔNG THANH TOÁN:" FontSize="26" FontWeight="Bold" Foreground="#2c3e50" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding Receipt.TotalAmount, StringFormat='{}{0:N0} đ'}" FontSize="32" FontWeight="Bold" Foreground="#e74c3c" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Border>
-            
-            <!-- Thông báo -->
-            <TextBlock Text="Thanh toán thành công!" FontSize="72" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,20"/>
-            <TextBlock Text="Đang in hóa đơn..." FontSize="40" Foreground="White" HorizontalAlignment="Center" Opacity="0.9"/>
-        </StackPanel>
+        </Grid>
     </Grid>
 </Page>

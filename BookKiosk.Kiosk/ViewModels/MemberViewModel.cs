@@ -244,6 +244,9 @@ namespace BookKiosk.Kiosk.ViewModels
         /// <summary>[MEMBER-01] Cho phép user chủ động bỏ qua thành viên và tạo đơn khách.</summary>
         public ICommand SkipMemberCommand { get; }
 
+        /// <summary>Quay lại trang trước (SearchPage / Giỏ hàng).</summary>
+        public ICommand BackCommand { get; }
+
         public MemberViewModel(CartService cartService, NavigationService navigationService, IBookKioskApiClient api)
         {
             _cartService = cartService;
@@ -256,6 +259,9 @@ namespace BookKiosk.Kiosk.ViewModels
 
             // [MEMBER-01] Nút Bỏ qua chỉ active khi lookup thất bại
             SkipMemberCommand = new RelayCommand(_ => ExecuteSkipMember(), _ => CanSkip());
+
+            // Nút quay lại trang trước
+            BackCommand = new RelayCommand(_ => ExecuteBack(), _ => !IsLoading);
         }
 
         private bool CanConfirm()
@@ -291,6 +297,12 @@ namespace BookKiosk.Kiosk.ViewModels
             PointsUsed = 0;
             LookupState = MemberLookupState.Skipped;
             ErrorMessage = "Bạn đã chọn bỏ qua tích điểm. Đơn hàng sẽ được xử lý với tài khoản khách.";
+        }
+
+        private void ExecuteBack()
+        {
+            if (IsLoading) return;
+            _navigationService.GoBack();
         }
 
         public override void Initialize(object parameter)

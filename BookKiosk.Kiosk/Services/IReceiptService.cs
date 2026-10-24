@@ -1,17 +1,13 @@
-using System.Collections.Generic;
 using System.Threading.Tasks;
-using BookKiosk.Kiosk.Models;
+using BookKiosk.Application.DTOs.Order;
 
 namespace BookKiosk.Kiosk.Services
 {
     public interface IReceiptService
     {
-        Task<string> GenerateReceiptPdfAsync(
-            IEnumerable<CartItemModel> cartItems,
-            decimal totalAmount,
-            int orderId = 0,
-            string orderCode = "",
-            decimal promotionDiscount = 0,
-            decimal pointsDiscount = 0);
+        /// <summary>
+        /// Tạo file PDF hóa đơn chính thức từ dữ liệu ReceiptDto trả về bởi máy chủ.
+        /// </summary>
+        Task<string> GenerateReceiptPdfAsync(ReceiptDto receipt);
     }
 }

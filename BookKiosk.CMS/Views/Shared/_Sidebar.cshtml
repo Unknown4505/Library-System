@@ -17,9 +17,13 @@
         {
             <!-- SECTION: TỔNG QUAN -->
             <div class="sidebar-heading">Tổng quan</div>
-            <a href="/" class="nav-link @(currentPath == "/" || currentPath.StartsWith("/Home") ? "active" : "")">
+            <a href="/" class="nav-link @((currentPath == "/" || currentPath == "/Home" || currentPath == "/Home/Index") ? "active" : "")">
                 <i class="fas fa-tachometer-alt"></i>
                 <span>Dashboard</span>
+            </a>
+            <a href="/Home/StaffWorkspace" class="nav-link @(currentPath.StartsWith("/Home/StaffWorkspace") ? "active" : "")">
+                <i class="fas fa-briefcase"></i>
+                <span>Trang làm việc</span>
             </a>
 
             <!-- SECTION: QUẢN LÝ CATALOG -->
@@ -86,6 +90,10 @@
         {
             <!-- SECTION CHO ROLE STAFF -->
             <div class="sidebar-heading">Bàn làm việc</div>
+            <a href="/Home/StaffWorkspace" class="nav-link @(currentPath.StartsWith("/Home/StaffWorkspace") ? "active" : "")">
+                <i class="fas fa-briefcase"></i>
+                <span>Trang làm việc</span>
+            </a>
             <a href="/Pos" class="nav-link @(currentPath.StartsWith("/Pos") || currentPath == "/" ? "active" : "")">
                 <i class="fas fa-cash-register"></i>
                 <span>Bán tại quầy (POS)</span>

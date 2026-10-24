@@ -1,0 +1,107 @@
+@model BookKiosk.CMS.ViewModels.Dashboard.AdminDashboardViewModel
+
+<div class="card shadow-sm border-0 mb-4 h-100">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+        <h6 class="m-0 fw-bold text-primary">
+            <i class="fas fa-chart-column me-2"></i>Doanh thu theo tháng
+        </h6>
+        <div class="d-flex align-items-center gap-2">
+            <label for="revenueYearSelect" class="form-label mb-0 small text-muted fw-semibold">Năm:</label>
+            <select id="revenueYearSelect" class="form-select form-select-sm" style="width: 105px;">
+                @foreach (var y in Model.AvailableYears)
+                {
+                    if (y == Model.SelectedYear)
+                    {
+                        <option value="@y" selected>@y</option>
+                    }
+                    else
+                    {
+                        <option value="@y">@y</option>
+                    }
+                }
+            </select>
+        </div>
+    </div>
+    <div class="card-body">
+        @if (Model.IsRevenueUnavailable)
+        {
+            <div class="alert alert-warning py-3 text-center my-4">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Không thể tải dữ liệu báo cáo doanh thu từ máy chủ. Vui lòng thử lại sau.
+            </div>
+        }
+        else
+        {
+            <!-- Chart Container -->
+            <div class="position-relative" style="height: 320px;">
+                <canvas id="revenueBarChart"
+                        role="img"
+                        aria-label="Biểu đồ cột thể hiện doanh thu 12 tháng trong năm @Model.SelectedYear"
+                        data-revenue='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.RevenueReport?.MonthlyData ?? new()))'
+                        data-year="@Model.SelectedYear">
+                    <p>Trình duyệt của bạn không hỗ trợ canvas. Vui lòng xem bảng đối chiếu số liệu bên dưới.</p>
+                </canvas>
+            </div>
+
+            <!-- Accessible & Verification Semantic Data Table -->
+            <div class="mt-4 pt-3 border-top">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small fw-bold text-secondary text-uppercase">
+                        <i class="fas fa-table me-1"></i>Bảng đối chiếu 12 tháng (Năm <span id="tableYearLabel">@Model.SelectedYear</span>)
+                    </span>
+                    <button class="btn btn-sm btn-link text-decoration-none p-0 text-muted small" 
+                            type="button" 
+                            data-bs-toggle="collapse" 
+                            data-bs-target="#revenueTableCollapse" 
+                            aria-expanded="false" 
+                            aria-controls="revenueTableCollapse">
+                        <i class="fas fa-eye me-1"></i>Xem chi tiết số liệu
+                    </button>
+                </div>
+                <div class="collapse" id="revenueTableCollapse" aria-live="polite">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover table-bordered align-middle mb-0" id="revenueDataTable">
+                            <thead class="table-light">
+                                <tr class="text-center">
+                                    <th style="width: 25%;">Tháng</th>
+                                    <th style="width: 45%;" class="text-end">Doanh thu (VNĐ)</th>
+                                    <th style="width: 30%;" class="text-end">Số đơn hàng</th>
+                                </tr>
+                            </thead>
+                            <tbody id="revenueTableBody">
+                                @if (Model.RevenueReport?.MonthlyData != null && Model.RevenueReport.MonthlyData.Any())
+                                {
+                                    @foreach (var item in Model.RevenueReport.MonthlyData)
+                                    {
+                                        <tr>
+                                            <td class="text-center fw-semibold">Tháng @item.Month</td>
+                                            <td class="text-end">@item.Revenue.ToString("N0") đ</td>
+                                            <td class="text-end">@item.TotalOrders.ToString("N0")</td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted py-2">Không có dữ liệu tháng nào.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot class="table-group-divider fw-bold bg-light">
+                                <tr>
+                                    <td class="text-center text-primary">Tổng cộng</td>
+                                    <td class="text-end text-primary" id="revenueTableTotalRevenue">
+                                        @Model.TotalAnnualRevenue.ToString("N0") đ
+                                    </td>
+                                    <td class="text-end text-primary" id="revenueTableTotalOrders">
+                                        @Model.TotalAnnualOrders.ToString("N0")
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

@@ -2,6 +2,7 @@ using BookKiosk.Application.DTOs.Books;
 using BookKiosk.Application.DTOs.Common;
 using BookKiosk.Application.DTOs.Members;
 using BookKiosk.Application.DTOs.Order;
+using BookKiosk.Domain.Enums;
 
 namespace BookKiosk.Kiosk.Services.Api;
 
@@ -116,6 +117,55 @@ public class MockBookKioskApiClient : IBookKioskApiClient
         await Task.Delay(500);
         return ApiResponseDto<PaymentStatusDto>.Ok(
             new PaymentStatusDto { OrderId = orderId, OrderCode = $"ORD-MOCK-{orderId}", Status = "Pending" });
+    }
+
+    public async Task<ApiResponseDto<ReceiptDto>?> GetReceiptAsync(int orderId, CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(300, cancellationToken);
+        var now = DateTime.UtcNow;
+        var receipt = new ReceiptDto
+        {
+            OrderId = orderId,
+            OrderCode = $"ORD-MOCK-{orderId}",
+            CreatedAt = now.AddMinutes(-2),
+            CompletedAt = now,
+            SubTotal = 300000m,
+            PromotionId = null,
+            PromotionName = null,
+            PromotionType = null,
+            DiscountAmount = 0m,
+            PointsUsed = 0,
+            PointsUsedAmount = 0m,
+            TotalAmount = 300000m,
+            PaymentMethod = PaymentMethod.QR,
+            Items = new List<ReceiptLineDto>
+            {
+                new ReceiptLineDto
+                {
+                    BookId = 1,
+                    BookTitle = "Cây Cam Ngọt Của Tôi",
+                    Quantity = 2,
+                    UnitPriceAtTime = 105000m,
+                    DiscountPerUnit = 0m,
+                    LineTotal = 210000m,
+                    LineDiscountAmount = 0m,
+                    NetLineTotal = 210000m
+                },
+                new ReceiptLineDto
+                {
+                    BookId = 2,
+                    BookTitle = "Nhà Giả Kim",
+                    Quantity = 1,
+                    UnitPriceAtTime = 90000m,
+                    DiscountPerUnit = 0m,
+                    LineTotal = 90000m,
+                    LineDiscountAmount = 0m,
+                    NetLineTotal = 90000m
+                }
+            }
+        };
+
+        return ApiResponseDto<ReceiptDto>.Ok(receipt, "Lấy hóa đơn thành công (Mock)");
     }
 
     public Task<ApiResponseDto<object>?> SendHeartbeatAsync(int kioskId, int status = 1, string? errorCode = null, string? errorMessage = null)

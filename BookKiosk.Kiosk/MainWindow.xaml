@@ -7,7 +7,7 @@
         xmlns:controls="clr-namespace:BookKiosk.Kiosk.Controls"
         mc:Ignorable="d"
         Title="BookKiosk" Height="1080" Width="1920"
-        WindowStyle="None" WindowState="Maximized" Topmost="True" ResizeMode="NoResize"
+        WindowStyle="None" WindowState="Maximized" Topmost="False" ResizeMode="NoResize"
         PreviewMouseMove="Window_PreviewInteraction"
         PreviewTouchDown="Window_PreviewInteraction"
         PreviewMouseDown="Window_PreviewInteraction"
@@ -16,10 +16,21 @@
         <!-- Bộ khung chứa các trang -->
         <Frame x:Name="MainFrame" NavigationUIVisibility="Hidden" />
         
-        <!-- Nút thoát ẩn [DEV-ONLY] (trong suốt ở góc trên trái) -->
-        <Button Width="50" Height="50" HorizontalAlignment="Left" VerticalAlignment="Top" 
-                Background="Transparent" BorderBrush="Transparent" Foreground="Transparent"
-                Click="DevExitButton_Click" Cursor="Arrow" Focusable="False" />
+        <!-- Nút thoát [DEV-ONLY] (Nút dấu X màu đỏ ở góc trên trái) -->
+        <Button Width="46" Height="46" HorizontalAlignment="Left" VerticalAlignment="Top" 
+                Margin="12" Content="✕" FontSize="24" FontWeight="Bold"
+                Foreground="#e74c3c" Background="White" BorderBrush="#e74c3c" BorderThickness="2"
+                Click="DevExitButton_Click" Cursor="Hand" Focusable="False"
+                Panel.ZIndex="9999" ToolTip="Nhấp đúp để thoát Kiosk (Bảo trì)">
+            <Button.Resources>
+                <Style TargetType="Border">
+                    <Setter Property="CornerRadius" Value="23"/>
+                </Style>
+            </Button.Resources>
+            <Button.Effect>
+                <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.3" Color="Black"/>
+            </Button.Effect>
+        </Button>
                 
         <!-- [DEV-ONLY] TextBox để nhập tay mã Barcode (Mở bằng F2) -->
         <Border x:Name="DevBarcodeBorder" Visibility="Collapsed" 

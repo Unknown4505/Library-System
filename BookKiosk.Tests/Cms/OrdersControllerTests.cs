@@ -373,5 +373,27 @@ namespace BookKiosk.Tests.Cms
             // 2. PosReceiptDto không có thuộc tính MemberPhone nào để ngăn rò rỉ SĐT
             typeof(PosReceiptDto).GetProperty("MemberPhone").Should().BeNull();
         }
+
+        [Fact]
+        public async Task GetNeedsSupportCount_ReturnsJsonWithCountAndNoIncidentCount()
+        {
+            // Arrange
+            _orderApiMock.Setup(o => o.GetNeedsSupportCountAsync())
+                .ReturnsAsync(ApiResult<int>.Ok(7));
+
+            var controller = CreateController();
+
+            // Act
+            var result = await controller.GetNeedsSupportCount();
+
+            // Assert
+            var jsonResult = result.Should().BeOfType<JsonResult>().Subject;
+            var val = jsonResult.Value!;
+            var countProp = val.GetType().GetProperty("count")?.GetValue(val);
+            var incidentCountProp = val.GetType().GetProperty("incidentCount");
+
+            countProp.Should().Be(7);
+            incidentCountProp.Should().BeNull();
+        }
     }
 }

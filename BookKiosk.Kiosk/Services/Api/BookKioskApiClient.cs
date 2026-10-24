@@ -164,6 +164,109 @@ public class BookKioskApiClient : IBookKioskApiClient
         }
     }
 
+    // ── RECEIPT ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Lấy hóa đơn chính thức từ server cho đơn hàng Kiosk đã thanh toán (Task 8.2.1, Issue #29).
+    /// Phân loại: Success(ReceiptDto) | NotFound(404) | Conflict(409) | Timeout | Network | ServerError (5xx).
+    /// </summary>
+    public async Task<ApiResponseDto<ReceiptDto>?> GetReceiptAsync(int orderId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"api/orders/kiosk/{orderId}/receipt", cancellationToken);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                var msg = "Không tìm thấy hóa đơn cho đơn hàng này.";
+                try
+                {
+                    var errorObj = await response.Content.ReadFromJsonAsync<ApiResponseDto<ReceiptDto>>(
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }, cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(errorObj?.Message) && !errorObj.Message.TrimStart().StartsWith("<"))
+                    {
+                        msg = errorObj.Message;
+                    }
+                }
+                catch
+                {
+                    // Body không phải JSON (HTML trang lỗi proxy, body rỗng...) -> giữ nguyên thông điệp an toàn
+                }
+                return ApiResponseDto<ReceiptDto>.Error("NOT_FOUND", msg);
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                var msg = "Đơn hàng chưa hoàn tất thanh toán hoặc đã bị hủy.";
+                try
+                {
+                    var errorObj = await response.Content.ReadFromJsonAsync<ApiResponseDto<ReceiptDto>>(
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }, cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(errorObj?.Message) && !errorObj.Message.TrimStart().StartsWith("<"))
+                    {
+                        msg = errorObj.Message;
+                    }
+                }
+                catch
+                {
+                    // Body không phải JSON (HTML trang lỗi proxy, body rỗng...) -> giữ nguyên thông điệp an toàn
+                }
+                return ApiResponseDto<ReceiptDto>.Error("CONFLICT", msg);
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                return ApiResponseDto<ReceiptDto>.Error("UNAUTHORIZED", "Kiosk chưa được xác thực truy cập máy chủ.");
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                return ApiResponseDto<ReceiptDto>.Error("FORBIDDEN", "Kiosk không có quyền truy cập hóa đơn này.");
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return ApiResponseDto<ReceiptDto>.Error("SERVER_ERROR", $"Lỗi máy chủ (HTTP {(int)response.StatusCode}). Vui lòng liên hệ nhân viên hỗ trợ.");
+            }
+
+            ApiResponseDto<ReceiptDto>? result = null;
+            try
+            {
+                result = await response.Content.ReadFromJsonAsync<ApiResponseDto<ReceiptDto>>(
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }, cancellationToken);
+            }
+            catch (Exception)
+            {
+                return ApiResponseDto<ReceiptDto>.Error("PARSE_ERROR", "Dữ liệu hóa đơn từ máy chủ không hợp lệ.");
+            }
+
+            if (result == null || !result.Success || result.Data == null)
+            {
+                var errCode = string.IsNullOrWhiteSpace(result?.Code) ? "PARSE_ERROR" : result.Code;
+                var errMsg = string.IsNullOrWhiteSpace(result?.Message) ? "Dữ liệu hóa đơn từ máy chủ rỗng hoặc không hợp lệ." : result.Message;
+                return ApiResponseDto<ReceiptDto>.Error(errCode, errMsg);
+            }
+
+            return result;
+        }
+        catch (HttpRequestException ex)
+        {
+            return ApiResponseDto<ReceiptDto>.Error("NETWORK_ERROR", $"Lỗi kết nối tới máy chủ: {ex.Message}");
+        }
+        catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return ApiResponseDto<ReceiptDto>.Error("CANCELLED", "Yêu cầu lấy hóa đơn đã bị hủy.");
+        }
+        catch (TaskCanceledException)
+        {
+            return ApiResponseDto<ReceiptDto>.Error("TIMEOUT_ERROR", "Yêu cầu tới máy chủ bị hết giờ (timeout 30s).");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponseDto<ReceiptDto>.Error("UNKNOWN_ERROR", $"Lỗi không xác định: {ex.Message}");
+        }
+    }
+
     // ── KIOSK HEARTBEAT ───────────────────────────────────────────────────────
 
     public async Task<ApiResponseDto<object>?> SendHeartbeatAsync(int kioskId, int status = 1, string? errorCode = null, string? errorMessage = null)

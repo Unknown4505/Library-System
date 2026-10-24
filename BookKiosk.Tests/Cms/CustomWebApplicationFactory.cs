@@ -21,13 +21,28 @@ namespace BookKiosk.Tests.Cms
 
         protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            var claims = new[]
+            var roleClaims = new System.Collections.Generic.List<Claim>();
+            if (Request.Headers.TryGetValue("X-Test-Roles", out var rolesHeader) && !string.IsNullOrWhiteSpace(rolesHeader))
+            {
+                var roles = rolesHeader.ToString().Split(',', System.StringSplitOptions.RemoveEmptyEntries | System.StringSplitOptions.TrimEntries);
+                foreach (var r in roles)
+                {
+                    roleClaims.Add(new Claim(ClaimTypes.Role, r));
+                }
+            }
+            else
+            {
+                roleClaims.Add(new Claim(ClaimTypes.Role, "Staff"));
+                roleClaims.Add(new Claim(ClaimTypes.Role, "Admin"));
+            }
+
+            var claims = new System.Collections.Generic.List<Claim>
             {
                 new Claim(ClaimTypes.Name, "Test Staff"),
-                new Claim(ClaimTypes.NameIdentifier, "staff01"),
-                new Claim(ClaimTypes.Role, "Staff"),
-                new Claim(ClaimTypes.Role, "Admin")
+                new Claim(ClaimTypes.NameIdentifier, "staff01")
             };
+            claims.AddRange(roleClaims);
+
             var identity = new ClaimsIdentity(claims, "Test");
             var principal = new ClaimsPrincipal(identity);
             var ticket = new AuthenticationTicket(principal, "Test");

@@ -1,0 +1,280 @@
+@model BookKiosk.CMS.ViewModels.Dashboard.StaffWorkspaceViewModel
+@{
+    ViewData["Title"] = "Bàn làm việc nhân viên - BookKiosk Staff";
+}
+
+@if (Model.UseMockApi)
+{
+    <div class="alert alert-warning py-2 mb-4 d-flex align-items-center shadow-sm" role="alert">
+        <i class="fas fa-flask-vial fa-lg me-2 text-warning"></i>
+        <div>
+            <strong>Chế độ Mock:</strong> Hệ thống đang sử dụng dữ liệu giả lập (Cms:UseMockApi = true). Các tác nghiệp không phản ánh cơ sở dữ liệu thật.
+        </div>
+    </div>
+}
+
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0 fw-bold text-dark">
+            <i class="fas fa-briefcase text-primary me-2"></i>Bàn làm việc nhân viên
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb small mb-0">
+                <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Hệ thống</a></li>
+                <li class="breadcrumb-item active">Bàn làm việc nhân viên</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="text-muted small">
+        <i class="fas fa-clock me-1"></i>
+        Thời gian: @DateTimeHelper.FormatVietnamDateTime(DateTime.UtcNow)
+    </div>
+</div>
+
+<!-- Lối tắt tác nghiệp nhanh (Quick Action Cards) -->
+<div class="row g-3 mb-4">
+    <!-- Phím tắt 1: POS Bán tại quầy -->
+    <div class="col-xl-3 col-md-6">
+        <a asp-controller="Pos" asp-action="Index" class="card border-start border-primary border-4 shadow-sm h-100 text-decoration-none hover-shadow transition-all">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-uppercase fw-bold text-primary small mb-1">Thu ngân & Bán hàng</div>
+                    <div class="h5 mb-0 fw-bold text-dark">Bán tại quầy (POS)</div>
+                    <div class="text-muted small mt-1">Mở giao diện thanh toán tại quầy</div>
+                </div>
+                <div class="text-primary opacity-75">
+                    <i class="fas fa-cash-register fa-2x"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Phím tắt 2: Tra cứu thành viên -->
+    <div class="col-xl-3 col-md-6">
+        <a asp-controller="Members" asp-action="Index" class="card border-start border-info border-4 shadow-sm h-100 text-decoration-none hover-shadow transition-all">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-uppercase fw-bold text-info small mb-1">Khách hàng thân thiết</div>
+                    <div class="h5 mb-0 fw-bold text-dark">Tra cứu Thành viên</div>
+                    <div class="text-muted small mt-1">Tìm số điện thoại & tích điểm</div>
+                </div>
+                <div class="text-info opacity-75">
+                    <i class="fas fa-id-card fa-2x"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Phím tắt 3: Lập phiếu nhập kho -->
+    <div class="col-xl-3 col-md-6">
+        <a asp-controller="Inventory" asp-action="Create" class="card border-start border-success border-4 shadow-sm h-100 text-decoration-none hover-shadow transition-all">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-uppercase fw-bold text-success small mb-1">Kho vận & Hàng hóa</div>
+                    <div class="h5 mb-0 fw-bold text-dark">Lập phiếu nhập sách</div>
+                    <div class="text-muted small mt-1">Tiếp nhận sách mới từ nhà cung cấp</div>
+                </div>
+                <div class="text-success opacity-75">
+                    <i class="fas fa-dolly-flatbed fa-2x"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Phím tắt 4: Tra cứu sách & Barcode -->
+    <div class="col-xl-3 col-md-6">
+        <a asp-controller="Books" asp-action="Index" class="card border-start border-warning border-4 shadow-sm h-100 text-decoration-none hover-shadow transition-all">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-uppercase fw-bold text-warning small mb-1">Danh mục & Kệ sách</div>
+                    <div class="h5 mb-0 fw-bold text-dark">Tra cứu Sách</div>
+                    <div class="text-muted small mt-1">Kiểm tra mã vạch & vị trí khu vực</div>
+                </div>
+                <div class="text-warning opacity-75">
+                    <i class="fas fa-barcode fa-2x"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- Hai Widget Tác nghiệp: Đơn cần hỗ trợ & Sách sắp hết kho -->
+<div class="row g-4">
+    <!-- Widget 1: Đơn hàng cần hỗ trợ / Đối soát -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                <h6 class="m-0 fw-bold text-dark">
+                    <i class="fas fa-headset text-danger me-2"></i>Đơn hàng Kiosk cần hỗ trợ
+                </h6>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge @(Model.NeedsSupportCount > 0 ? "bg-danger" : "bg-secondary") small">
+                        @Model.NeedsSupportCount đơn
+                    </span>
+                    <a asp-controller="Orders" asp-action="Index" asp-route-tab="support" class="btn btn-sm btn-outline-danger py-0 px-2" title="Mở danh sách hỗ trợ đầy đủ">
+                        Xem tất cả
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.IsOrdersUnavailable)
+                {
+                    <div class="alert alert-warning m-3 py-3 text-center small">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        Không thể tải danh sách đơn hàng cần hỗ trợ từ máy chủ.
+                    </div>
+                }
+                else if (!Model.NeedsSupportOrders.Any())
+                {
+                    <div class="text-center text-success py-5">
+                        <i class="fas fa-circle-check fa-3x mb-2 d-block"></i>
+                        <span class="fw-semibold">Tất cả đơn hàng hoạt động bình thường!</span>
+                        <div class="text-muted small mt-1">Không có đơn hàng nào tại Kiosk đang cần can thiệp xử lý.</div>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr class="small text-uppercase text-secondary">
+                                    <th style="width: 35%;">Mã đơn</th>
+                                    <th style="width: 20%;">Kênh</th>
+                                    <th style="width: 25%;">Thời gian</th>
+                                    <th style="width: 20%;" class="text-end">Xử lý</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var order in Model.NeedsSupportOrders)
+                                {
+                                    <tr>
+                                        <td>
+                                            <a asp-controller="Orders" asp-action="Index" asp-route-orderCode="@order.OrderCode" class="fw-bold text-decoration-none">
+                                                <code>@order.OrderCode</code>
+                                            </a>
+                                            <div class="small">
+                                                @if (order.OrderStatus == BookKiosk.CMS.Models.Api.Orders.OrderStatus.Pending)
+                                                {
+                                                    <span class="badge bg-warning text-dark py-0 px-1" style="font-size: 0.7rem;">Chờ xử lý</span>
+                                                }
+                                                else if (order.OrderStatus == BookKiosk.CMS.Models.Api.Orders.OrderStatus.Cancelled)
+                                                {
+                                                    <span class="badge bg-danger py-0 px-1" style="font-size: 0.7rem;">Đã hủy</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary py-0 px-1" style="font-size: 0.7rem;">Cần đối soát</span>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td>
+                                            @if (order.SaleChannel == BookKiosk.CMS.Models.Api.Orders.SaleChannel.Kiosk)
+                                            {
+                                                <span class="badge bg-info-subtle text-info border small"><i class="fas fa-desktop me-1"></i>Kiosk</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-light text-secondary border small"><i class="fas fa-cash-register me-1"></i>Quầy</span>
+                                            }
+                                        </td>
+                                        <td class="small text-muted">
+                                            @DateTimeHelper.FormatVietnamDateTime(order.CreatedAt)
+                                        </td>
+                                        <td class="text-end">
+                                            <a asp-controller="Orders" asp-action="Index" asp-route-orderCode="@order.OrderCode" class="btn btn-sm btn-outline-danger py-0 px-2" title="Mở chi tiết đối soát">
+                                                <i class="fas fa-arrow-right"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Widget 2: Cảnh báo Sách sắp hết kho (Tồn <= 5) -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                <h6 class="m-0 fw-bold text-dark">
+                    <i class="fas fa-triangle-exclamation text-warning me-2"></i>Sách sắp hết kho
+                </h6>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge @(Model.LowStockCount > 0 ? "bg-warning text-dark" : "bg-secondary") small">
+                        @Model.LowStockCount đầu sách
+                    </span>
+                    <a asp-controller="Inventory" asp-action="Stock" class="btn btn-sm btn-outline-primary py-0 px-2" title="Xem danh sách tồn kho">
+                        Xem kho
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.IsLowStockUnavailable)
+                {
+                    <div class="alert alert-warning m-3 py-3 text-center small">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        Không thể tải danh sách tồn kho từ máy chủ.
+                    </div>
+                }
+                else if (!Model.LowStockItems.Any())
+                {
+                    <div class="text-center text-success py-5">
+                        <i class="fas fa-circle-check fa-3x mb-2 d-block"></i>
+                        <span class="fw-semibold">Tồn kho tại quầy và kho phụ an toàn!</span>
+                        <div class="text-muted small mt-1">Hiện không có đầu sách nào dưới ngưỡng cảnh báo.</div>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr class="small text-uppercase text-secondary">
+                                    <th style="width: 25%;">Mã vạch</th>
+                                    <th style="width: 45%;">Tựa sách</th>
+                                    <th style="width: 15%;" class="text-center">Tồn</th>
+                                    <th style="width: 15%;" class="text-end">Nhập</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.LowStockItems)
+                                {
+                                    <tr>
+                                        <td>
+                                            <code class="small">@item.Barcode</code>
+                                        </td>
+                                        <td>
+                                            <div class="text-truncate fw-semibold text-dark small" style="max-width: 200px;" title="@item.Title">
+                                                @item.Title
+                                            </div>
+                                            <div class="text-muted" style="font-size: 0.72rem;">@item.CategoryName</div>
+                                        </td>
+                                        <td class="text-center">
+                                            @if (item.AvailableStock <= 0)
+                                            {
+                                                <span class="badge bg-danger py-0 px-1" style="font-size: 0.7rem;">0</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-warning text-dark py-0 px-1" style="font-size: 0.7rem;">@item.AvailableStock</span>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            <a asp-controller="Inventory" asp-action="Create" class="btn btn-sm btn-outline-success py-0 px-2" title="Lập phiếu nhập sách này">
+                                                <i class="fas fa-plus"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
