@@ -65,7 +65,7 @@ Ghi lại và so sánh trực tiếp các trường: `OrderId`, `OrderCode`, `Su
 
 Task chỉ được chuyển sang hoàn thành khi toàn bộ kịch bản bắt buộc đã chạy hoặc blocker được Leader chấp nhận bằng văn bản, không có lỗi P0/P1 mở, và có ma trận kết quả Actual/PASS-FAIL gắn với một bộ SHA cụ thể. Tại thời điểm tạo tài liệu này, Task 12.1 vẫn chưa hoàn thành.
 
-## 6. Delta verification cho HR và Receipt (2026-10-16)
+## 6. Delta verification cho HR và Receipt (2026-10-16; Receipt sync 2026-10-24)
 
 Các dòng kết quả 2026-10-11 ở trên là evidence lịch sử. #19/#20 hiện closed/completed và PR #26 đã merge; không mở lại. Trạng thái mới phải gắn SHA mới, không suy diễn từ log cũ.
 
@@ -74,11 +74,11 @@ Các dòng kết quả 2026-10-11 ở trên là evidence lịch sử. #19/#20 hi
 | HR-MODEL-01 | Build/model | `Admin=1`, `Staff=2`, `Manager=3`; Employee/User filtered unique; salary unique/check/RESTRICT | PASS — 2/2 automated model-contract tests |
 | HR-SQL-01 | SQL integration | Migration additive tạo 19 bảng, giữ dữ liệu/precision cũ, rollback sạch trên DB QA disposable | BLOCKED — ENV |
 | RECEIPT-DTO | Contract/serialization | Shared `ReceiptDto` có đủ field server-owned và không serialize dữ liệu nhạy cảm | PASS — 2/2 contract tests |
-| RECEIPT-200 | HTTP contract | Paid + CompletedAt → 200 `ApiResponseDto<ReceiptDto>` từ persisted rows, GET không side effect | BLOCKED — #28 |
-| RECEIPT-404 | HTTP contract | order không tồn tại → 404 | BLOCKED — #28 |
-| RECEIPT-409 | HTTP contract | Pending/Cancelled → 409, không trả receipt | BLOCKED — #28 |
-| RECEIPT-PRIVACY | Contract/security | Không có CostPrice, phone/member PII | BLOCKED — #28 |
-| RECEIPT-UI-PDF | WPF/E2E | Paid polling → API → UI/mock printer/PDF cùng DTO | BLOCKED — #29 depends #28 |
+| RECEIPT-200 | HTTP contract | Paid + CompletedAt → 200 `ApiResponseDto<ReceiptDto>` từ persisted rows, GET không side effect | PASS — BACKEND TARGETED QA; PR #35/#52 MERGED |
+| RECEIPT-404 | HTTP contract | order không tồn tại → 404 | PASS — BACKEND TARGETED QA |
+| RECEIPT-409 | HTTP contract | Pending/Cancelled → 409, không trả receipt | PASS — BACKEND TARGETED QA |
+| RECEIPT-PRIVACY | Contract/security | Không có CostPrice, phone/member PII | PASS — BACKEND TARGETED QA |
+| RECEIPT-UI-PDF | WPF/targeted | Paid polling → API → UI/mock printer/PDF cùng DTO | PASS — TARGETED QA; PR #40 MERGED; UI E2E NOT RUN |
 | SALARY-RBAC | HTTP/security | Admin/Manager/Staff đúng policy và row authorization, không lộ lương người khác | BLOCKED — API chưa implement |
 
 Không chạy API để thử migration vì startup auto-migrate. EF CLI scaffold qua design-time factory không khởi chạy API. SQL chỉ được chạy khi `BOOKKIOSK_TEST_SQLSERVER` đã được xác minh trỏ tới database `BookKiosk_QA_<run-id>` disposable.
@@ -119,55 +119,56 @@ Các ca dưới đây là acceptance plan cho HR-DEC-01/02/03. Salary Service/AP
 
 ## 7. Acceptance — Kiosk Idle Advertising & Navigation
 
-Feature chưa được triển khai/runtime-test; tất cả ca dưới đây là **PLANNED / NOT RUN**.
+Backend Advertising #37 đã merge qua PR #52 và có targeted runtime evidence. Frontend Advertising/Navigation #38 đang ở PR #54, **IN REVIEW / PENDING TARGETED QA**; các ca UI/timer bên dưới chưa được coi là E2E PASS.
 
 | ID | Kịch bản | Expected | Trạng thái |
 |---|---|---|---|
-| ADS-01 | Khởi động Kiosk | Vào `IdlePage`, slideshow quảng cáo bắt đầu; không yêu cầu login | PLANNED / NOT RUN |
-| ADS-02 | Không tương tác 60 giây tại `SearchPage` | Chuyển về Idle Advertising đúng một lần | PLANNED / NOT RUN |
-| ADS-03 | Chạm màn hình quảng cáo | Dừng/dispose slideshow timer và vào `SearchPage` có search + danh sách sách | PLANNED / NOT RUN |
-| ADS-04 | Backend trả đủ ba nhóm | Promotion/new arrivals/best sellers map đúng field và ảnh; không dùng dữ liệu local giả | PLANNED / NOT RUN |
-| ADS-05 | Không có promotion active | Bỏ slide promotion; các nhóm hợp lệ khác vẫn chạy | PLANNED / NOT RUN |
-| ADS-06 | Promotion inactive/chưa tới ngày/hết hạn | Không hiển thị | PLANNED / NOT RUN |
-| ADS-07 | API advertising lỗi/timeout | Không crash; hiện fallback “Chạm để bắt đầu”; touch vẫn hoạt động khi Search API khả dụng | PLANNED / NOT RUN |
-| ADS-08 | Rời/quay lại `IdlePage` nhiều lần | Không còn timer cũ, không nhân đôi timer/request; slide interval cấu hình mặc định 8s | PLANNED / NOT RUN |
-| ADS-09 | Đang Member/chọn điểm/checkout/Pending/đang tải hoặc xem Receipt | Inactivity không đưa về Idle; payment polling/timeout/cancel hiện hữu không bị thay đổi | PLANNED / NOT RUN |
-| NAV-01 | Polling trả `Paid` | Vào Receipt; không gọi cancel và không bỏ qua hiển thị/in | PLANNED / NOT RUN |
-| NAV-02 | Receipt hoàn tất/hết 5s hợp lệ | Giữ dữ liệu UI/PDF/in an toàn, clear cart/session rồi về `SearchPage`, không về Idle ngay | PLANNED / NOT RUN |
-| NAV-03 | Search sau Receipt | Không còn item, điểm dùng, OrderId hoặc state giao dịch cũ | PLANNED / NOT RUN |
-| NAV-04 | Sau Receipt về Search rồi không tương tác 60s | Chuyển sang Idle Advertising | PLANNED / NOT RUN |
-| NAV-05 | Receipt API/PDF lỗi hoặc in chưa hoàn tất | Retry/error state; không dựng receipt giả và timer không cắt ngang thao tác | PLANNED / NOT RUN |
+| ADS-01 | Khởi động Kiosk | Vào `IdlePage`, slideshow quảng cáo bắt đầu; không yêu cầu login | IN REVIEW / PENDING TARGETED QA — PR #54 |
+| ADS-02 | Không tương tác 60 giây tại `SearchPage` | Chuyển về Idle Advertising đúng một lần | IN REVIEW / PENDING TARGETED QA — PR #54 |
+| ADS-03 | Chạm màn hình quảng cáo | Dừng/dispose slideshow timer và vào `SearchPage` có search + danh sách sách | IN REVIEW / PENDING TARGETED QA — PR #54 |
+| ADS-04 | Backend trả đủ ba nhóm | Promotion/new arrivals/best sellers map đúng field và ảnh; không dùng dữ liệu local giả | BACKEND PASS / FE PENDING TARGETED QA |
+| ADS-05 | Không có promotion active | Bỏ slide promotion; các nhóm hợp lệ khác vẫn chạy | BACKEND PASS / FE PENDING TARGETED QA |
+| ADS-06 | Promotion inactive/chưa tới ngày/hết hạn | Không hiển thị | BACKEND PASS / FE PENDING TARGETED QA |
+| ADS-07 | API advertising lỗi/timeout | Không crash; hiện fallback “Chạm để bắt đầu”; touch vẫn hoạt động khi Search API khả dụng | IN REVIEW / PENDING TARGETED QA — PR #54 |
+| ADS-08 | Rời/quay lại `IdlePage` nhiều lần | Không còn timer cũ, không nhân đôi timer/request; slide interval cấu hình mặc định 8s | IN REVIEW / PENDING TARGETED QA — PR #54 |
+| ADS-09 | Đang Member/chọn điểm/checkout/Pending/đang tải hoặc xem Receipt | Inactivity không đưa về Idle; payment polling/timeout/cancel hiện hữu không bị thay đổi | IN REVIEW / PENDING TARGETED QA — PR #54 |
+| ADS-10 | Đang ở `BookDetailPage` đủ 60 giây | Không kích hoạt Search inactivity và không tự điều hướng về Idle; timer chỉ eligible tại `SearchPage` | IN REVIEW / PENDING TARGETED QA — PR #54 |
+| NAV-01 | Polling trả `Paid` | Vào Receipt; không gọi cancel và không bỏ qua hiển thị/in | PASS — RECEIPT TARGETED QA; UI E2E NOT RUN |
+| NAV-02 | Receipt hoàn tất/hết 5s hợp lệ | Giữ dữ liệu UI/PDF/in an toàn, clear cart/session rồi về `SearchPage`, không về Idle ngay | IN REVIEW / PENDING TARGETED QA — PR #54 |
+| NAV-03 | Search sau Receipt | Không còn item, điểm dùng, OrderId hoặc state giao dịch cũ | IN REVIEW / PENDING TARGETED QA — PR #54 |
+| NAV-04 | Sau Receipt về Search rồi không tương tác 60s | Chuyển sang Idle Advertising | IN REVIEW / PENDING TARGETED QA — PR #54 |
+| NAV-05 | Receipt API/PDF lỗi hoặc in chưa hoàn tất | Retry/error state; không dựng receipt giả và timer không cắt ngang thao tác | PASS — RECEIPT TARGETED QA; UI E2E NOT RUN |
 
 ### Advertising API Contract V1 — targeted acceptance
 
-Các rule 30 ngày/limit 10, partial success, cache 5 phút và retry đã được Leader duyệt ở mức Contract V1. Endpoint/UI chưa implement nên toàn bộ case dưới đây vẫn `PLANNED / NOT RUN`, không phải runtime PASS.
+Các rule 30 ngày/limit 10 và partial success đã có Backend implementation trong PR #52 (merge `e537971`) cùng targeted runtime evidence. Chỉ các case Backend đã chạy mới được chuyển PASS; cache/retry/timer/navigation thuộc Frontend #38 vẫn giữ `PLANNED / NOT RUN`.
 
 | ID | Kịch bản | Expected | Trạng thái |
 |---|---|---|---|
-| ADS-API-01 | GET đúng route với API key hợp lệ | HTTP 200, wrapper/message không rỗng, `data` không null và bốn arrays luôn tồn tại | PLANNED / NOT RUN |
-| ADS-API-02 | Thiếu key / key sai | 401 `UNAUTHORIZED` / 403 `FORBIDDEN`, `data=null`, message không lộ key/config/nội bộ | PLANNED / NOT RUN |
-| ADS-API-03 | Promotion type 1 | `promotionType=1`, `orderDiscount` có decimal numeric, `productDiscounts=[]` | PLANNED / NOT RUN |
+| ADS-API-01 | GET đúng route với API key hợp lệ | HTTP 200, wrapper/message không rỗng, `data` không null và bốn arrays luôn tồn tại | PASS — BACKEND TARGETED QA |
+| ADS-API-02 | Thiếu key / key sai | 401 `UNAUTHORIZED` / 403 `FORBIDDEN`, `data=null`, message không lộ key/config/nội bộ | PASS — BACKEND TARGETED QA |
+| ADS-API-03 | Promotion type 1 | `promotionType=1`, `orderDiscount` có decimal numeric, `productDiscounts=[]` | PASS — BACKEND TARGETED QA |
 | ADS-API-04 | Promotion type 2 có nhiều sách | `promotionType=2`, `orderDiscount=null`, mỗi product có book/mức giảm riêng | PLANNED / NOT RUN |
 | ADS-API-05 | Enum serialization | JSON trả number `1/2`, không trả string hoặc giá trị ngoài enum | PLANNED / NOT RUN |
 | ADS-API-06 | `imageUrl=null` hoặc ảnh tải lỗi | Contract giữ field null; FE dùng placeholder, không crash | PLANNED / NOT RUN |
 | ADS-API-07 | Không có dữ liệu phù hợp | HTTP 200 `SUCCESS`, message empty-state, ba content arrays và `unavailableSections` đều `[]` | PLANNED / NOT RUN |
-| ADS-API-08 | Một hoặc nhiều data section lỗi | HTTP 200, `success=true`, `PARTIAL_SUCCESS`; nhóm lỗi `[]`, nhóm tốt giữ data, `unavailableSections` đúng allow-list | PLANNED / NOT RUN |
-| ADS-API-09 | Cả ba data source lỗi hoặc lỗi hệ thống ngoài dự kiến | Toàn bộ nguồn lỗi → 503 `SERVICE_UNAVAILABLE`; lỗi ngoài dự kiến → 500 `INTERNAL_ERROR`; wrapper/message an toàn | PLANNED / NOT RUN |
-| ADS-API-10 | New arrivals | Rolling 30 ngày UTC theo lần nhập gần nhất, distinct book, active/còn hàng, tối đa 10, sort time DESC rồi BookId ASC | PLANNED / NOT RUN |
-| ADS-API-11 | Best sellers | Rolling 30 ngày UTC; chỉ Paid/CompletedAt; sum Quantity; loại Pending/Cancelled; active/còn hàng; tối đa 10; sort totalSold DESC rồi BookId ASC | PLANNED / NOT RUN |
+| ADS-API-08 | Một hoặc nhiều data section lỗi | HTTP 200, `success=true`, `PARTIAL_SUCCESS`; nhóm lỗi `[]`, nhóm tốt giữ data, `unavailableSections` đúng allow-list | PASS — BACKEND TARGETED QA |
+| ADS-API-09 | Cả ba data source lỗi hoặc lỗi hệ thống ngoài dự kiến | Toàn bộ nguồn lỗi → 503 `SERVICE_UNAVAILABLE`; lỗi ngoài dự kiến → 500 `INTERNAL_ERROR`; wrapper/message an toàn | PASS — BACKEND TARGETED QA |
+| ADS-API-10 | New arrivals | Rolling 30 ngày UTC theo lần nhập gần nhất, distinct book, active/còn hàng, tối đa 10, sort time DESC rồi BookId ASC | PASS — BACKEND TARGETED QA |
+| ADS-API-11 | Best sellers | Rolling 30 ngày UTC; chỉ Paid/CompletedAt; sum Quantity; loại Pending/Cancelled; active/còn hàng; tối đa 10; sort totalSold DESC rồi BookId ASC | PASS — BACKEND TARGETED QA |
 | ADS-API-12 | Cache hết 5 phút hoặc promotion hết hạn sớm | Reload đúng lúc, không dùng promotion hết hạn và không request theo slide | PLANNED / NOT RUN |
 | ADS-API-13 | Message mọi nhánh | Success/empty/partial/error đều message tiếng Việt không rỗng; FE không hiển thị lỗi kỹ thuật thô | PLANNED / NOT RUN |
 | ADS-API-14 | Background refresh/timer | Không có toast trùng khi slide đổi, inactivity chạy, refresh hoặc retry nền | PLANNED / NOT RUN |
 | ADS-NAV-REG-01 | Paid → Receipt → Search → 60s Idle Ads | Không regression receipt/PDF/cart cleanup/payment; chỉ Idle sau 60s Search inactivity | PLANNED / NOT RUN |
 | ADS-PROMO-01 | Promotion enum/branch | JSON number `1/2`; order/product branch đúng nullability; collections không null | PLANNED / NOT RUN |
-| ADS-PROMO-02 | ProductDiscount chưa được Checkout hỗ trợ | Không đưa type 2 vào nội dung Kiosk, không hứa/tự tính mức giảm; type 1 vẫn hoạt động | PLANNED / NOT RUN |
+| ADS-PROMO-02 | ProductDiscount chưa được Advertising V1 công bố | Advertising không đưa type 2 vào nội dung Kiosk; Checkout ProductDiscount được triển khai và QA riêng trong cùng PR #52 | PASS — BACKEND TARGETED QA |
 | ADS-RETRY-01 | Advertising API lỗi trong một lượt Idle | Tối đa một retry sau ít nhất 30 giây; retry lỗi thì fallback/cooldown; không request storm | PLANNED / NOT RUN |
 
 Acceptance cần evidence UI/timer lifecycle, request log, trạng thái cart/session và regression payment/Receipt API/PDF. Không đánh dấu PASS chỉ từ docs hoặc mock.
 
 ## 8. Acceptance — CMS Low Stock KPI và Preview
 
-Các ca dưới đây là acceptance contract theo quyết định Leader ngày 21/10/2026. Các trạng thái PASS dựa trên targeted QA tại HEAD `5a24dc136d4779dca4731715888405b44887df53` ngày 23/10/2026, lưu tại `D:\BookKiosk_QA\PR40_5a24dc1`; không suy ra PASS chỉ từ tài liệu.
+Các ca dưới đây là acceptance contract theo quyết định Leader ngày 21/10/2026. PR #40 đã merge vào `main` tại `9a55b09760ad59aa2e7712e8ffbbc9016d235664`; trạng thái PASS dựa trên targeted QA tại HEAD `5a24dc136d4779dca4731715888405b44887df53`, lưu tại `D:\BookKiosk_QA\PR40_5a24dc1`, không phải full E2E.
 
 | Test ID | Backend low-stock | Expected KPI | Expected preview | Trạng thái |
 |---|---:|---:|---:|---|
@@ -191,20 +192,20 @@ Acceptance bắt buộc:
 
 | ID | Kịch bản | Expected | Trạng thái |
 |---|---|---|---|
-| PD-E2E-01 | OrderDiscount only | Chọn đúng promotion đủ `MinOrderValue`; line discount đều 0; order discount đúng snapshot | PLANNED / NOT RUN |
-| PD-E2E-02 | ProductDiscount only | Giảm đúng từng đơn vị, tổng line discount bằng `Orders.DiscountAmount` | PLANNED / NOT RUN |
-| PD-E2E-03 | Promotion + points | Promotion áp trước, points áp sau; tổng dương và snapshot đúng | PLANNED / NOT RUN |
-| PD-E2E-04 | Nhiều promotion | Chọn benefit lớn nhất, không stacking | PLANNED / NOT RUN |
-| PD-E2E-05 | Benefit đồng hạng | Chọn `PromotionId ASC` | PLANNED / NOT RUN |
-| PD-E2E-06 | ProductDiscount nhiều sách | Chỉ sách trong cùng Promotion được giảm, mỗi sách giữ mức riêng | PLANNED / NOT RUN |
-| PD-E2E-07 | Quantity > 1 | `lineDiscountAmount = discountPerUnit × quantity` | PLANNED / NOT RUN |
-| PD-E2E-08 | Promotion invalid/expired | Kiosk loại khỏi candidates; POS trả lỗi và không tự thay promotion | PLANNED / NOT RUN |
-| PD-E2E-09 | POS manual/no selection | Chọn đúng requested promotion; không chọn thì discount 0 | PLANNED / NOT RUN |
-| PD-E2E-10 | Zero/negative payable | HTTP 400 `BAD_REQUEST`, không Pending/QR, kho và điểm rollback | PLANNED / NOT RUN |
-| PD-E2E-11 | Pending → Paid | Promotion/totals không bị tính lại | PLANNED / NOT RUN |
-| PD-E2E-12 | Receipt snapshot | Receipt/PDF khớp snapshot promotion, points và từng line | PLANNED / NOT RUN |
-| PD-E2E-13 | Legacy order | Fallback title/points an toàn; không sửa Paid cũ, không suy đoán ProductDiscount | PLANNED / NOT RUN |
-| PD-E2E-14 | Cancel/stock/points regression | Hủy nhả reserve; lỗi rollback điểm/kho đúng một lần | PLANNED / NOT RUN |
-| PD-E2E-15 | QR amount | QR amount bằng persisted `TotalAmount`, là số nguyên VNĐ và > 0 | PLANNED / NOT RUN |
+| PD-E2E-01 | OrderDiscount only | Chọn đúng promotion đủ `MinOrderValue`; line discount đều 0; order discount đúng snapshot | PASS — BACKEND TARGETED QA |
+| PD-E2E-02 | ProductDiscount only | Giảm đúng từng đơn vị, tổng line discount bằng `Orders.DiscountAmount` | PASS — BACKEND TARGETED QA |
+| PD-E2E-03 | Promotion + points | Promotion áp trước, points áp sau; tổng dương và snapshot đúng | PASS — BACKEND TARGETED QA |
+| PD-E2E-04 | Nhiều promotion | Chọn benefit lớn nhất, không stacking | PASS — BACKEND TARGETED QA |
+| PD-E2E-05 | Benefit đồng hạng | Chọn `PromotionId ASC` | PASS — BACKEND TARGETED QA |
+| PD-E2E-06 | ProductDiscount nhiều sách | Chỉ sách trong cùng Promotion được giảm, mỗi sách giữ mức riêng | PASS — BACKEND TARGETED QA |
+| PD-E2E-07 | Quantity > 1 | `lineDiscountAmount = discountPerUnit × quantity` | PASS — BACKEND TARGETED QA |
+| PD-E2E-08 | Promotion invalid/expired | Kiosk loại khỏi candidates; POS trả lỗi và không tự thay promotion | PASS — BACKEND TARGETED QA |
+| PD-E2E-09 | POS manual/no selection | Chọn đúng requested promotion; không chọn thì discount 0 | PASS — BACKEND TARGETED QA |
+| PD-E2E-10 | Zero/negative payable | HTTP 400 `BAD_REQUEST`, không Pending/QR, kho và điểm rollback | PASS — BACKEND TARGETED QA |
+| PD-E2E-11 | Pending → Paid | Promotion/totals không bị tính lại | PASS — BACKEND TARGETED QA |
+| PD-E2E-12 | Receipt snapshot | Receipt/PDF khớp snapshot promotion, points và từng line | BACKEND RECEIPT PASS / FE PDF NOT RUN |
+| PD-E2E-13 | Legacy order | Fallback title/points an toàn; không sửa Paid cũ, không suy đoán ProductDiscount | PASS — BACKEND TARGETED QA |
+| PD-E2E-14 | Cancel/stock/points regression | Hủy nhả reserve; lỗi rollback điểm/kho đúng một lần | PASS — BACKEND TARGETED QA |
+| PD-E2E-15 | QR amount | QR amount bằng persisted `TotalAmount`, là số nguyên VNĐ và > 0 | PASS — BACKEND TARGETED QA |
 
-Targeted contract QA phải kiểm tra JSON camelCase, enum numeric 1/2, collection không null, nullable legacy fields và item breakdown. Runtime chỉ PASS khi BE/FE implementation cùng SQL test evidence hoàn tất.
+Backend targeted QA đã kiểm tra JSON/enum/collection/legacy/item breakdown trên SQL QA disposable và PASS ở PR #52. Full feature vẫn cần FE implementation và UI/PDF E2E riêng; không cộng Backend PASS thành FE PASS.
