@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using BookKiosk.Application.DTOs.Books;
 using BookKiosk.Application.DTOs.Common;
+using BookKiosk.Application.DTOs.Kiosk;
 using BookKiosk.Application.DTOs.Members;
 using BookKiosk.Application.DTOs.Order;
 
@@ -297,5 +298,96 @@ public class BookKioskApiClient : IBookKioskApiClient
     public async Task<ApiResponseDto<object>?> DevSimulatePaymentSuccessAsync(string orderCode)
     {
         return await SendAsync<object>(() => _httpClient.PostAsync($"api/payments/dev-simulate-success/{Uri.EscapeDataString(orderCode)}", null));
+    }
+
+    // ── ADVERTISING ─────────────────────────────────────────────────────────────
+
+    public async Task<ApiResponseDto<KioskAdvertisingDto>?> GetAdvertisingAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync("api/kiosk/advertising", cancellationToken);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                return ApiResponseDto<KioskAdvertisingDto>.Error("UNAUTHORIZED", "Kiosk chưa được xác thực truy cập máy chủ.");
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                return ApiResponseDto<KioskAdvertisingDto>.Error("FORBIDDEN", "Kiosk không có quyền truy cập dữ liệu quảng cáo.");
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+            {
+                var msg = "Nội dung quảng cáo tạm thời không khả dụng.";
+                try
+                {
+                    var errorObj = await response.Content.ReadFromJsonAsync<ApiResponseDto<KioskAdvertisingDto>>(
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }, cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(errorObj?.Message) && !errorObj.Message.TrimStart().StartsWith("<"))
+                    {
+                        msg = errorObj.Message;
+                    }
+                }
+                catch
+                {
+                    // Body không phải JSON -> giữ thông điệp an toàn
+                }
+                return ApiResponseDto<KioskAdvertisingDto>.Error("SERVICE_UNAVAILABLE", msg);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return ApiResponseDto<KioskAdvertisingDto>.Error("SERVER_ERROR", $"Lỗi máy chủ (HTTP {(int)response.StatusCode}). Vui lòng liên hệ nhân viên hỗ trợ.");
+            }
+
+            ApiResponseDto<KioskAdvertisingDto>? result = null;
+            try
+            {
+                result = await response.Content.ReadFromJsonAsync<ApiResponseDto<KioskAdvertisingDto>>(
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }, cancellationToken);
+            }
+            catch (Exception)
+            {
+                return ApiResponseDto<KioskAdvertisingDto>.Error("JSON_PARSE_ERROR", "Dữ liệu quảng cáo từ máy chủ không hợp lệ.");
+            }
+
+            if (result == null)
+            {
+                return ApiResponseDto<KioskAdvertisingDto>.Error("JSON_PARSE_ERROR", "Không thể đọc dữ liệu phản hồi quảng cáo từ máy chủ.");
+            }
+
+            // Nếu success = true: Cả "SUCCESS" và "PARTIAL_SUCCESS" đều là hợp lệ (PARTIAL_SUCCESS chứa unavailableSections)
+            if (result.Success)
+            {
+                if (result.Data == null)
+                {
+                    result.Data = new KioskAdvertisingDto();
+                }
+                return result;
+            }
+
+            // Nếu wrapper trả về success = false
+            var errCode = string.IsNullOrWhiteSpace(result.Code) ? "SERVER_ERROR" : result.Code;
+            var errMsg = string.IsNullOrWhiteSpace(result.Message) ? "Máy chủ từ chối yêu cầu quảng cáo." : result.Message;
+            return ApiResponseDto<KioskAdvertisingDto>.Error(errCode, errMsg);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return ApiResponseDto<KioskAdvertisingDto>.Error("CANCELLED", "Yêu cầu tải quảng cáo đã bị hủy.");
+        }
+        catch (TaskCanceledException)
+        {
+            return ApiResponseDto<KioskAdvertisingDto>.Error("TIMEOUT_ERROR", "Yêu cầu tải quảng cáo bị hết giờ (timeout).");
+        }
+        catch (HttpRequestException ex)
+        {
+            return ApiResponseDto<KioskAdvertisingDto>.Error("NETWORK_ERROR", $"Lỗi kết nối tới máy chủ khi tải quảng cáo: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponseDto<KioskAdvertisingDto>.Error("UNKNOWN_ERROR", $"Lỗi không xác định khi tải quảng cáo: {ex.Message}");
+        }
     }
 }
