@@ -182,6 +182,8 @@
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
                             <TextBlock Text="ĐÃ IN HÓA ĐƠN" FontSize="18" FontWeight="Bold" Foreground="#27ae60"
                                        Visibility="{Binding IsPdfNormalSuccess, Converter={StaticResource BoolToVis}}"/>
+                            <TextBlock Text="ĐANG XUẤT HÓA ĐƠN..." FontSize="18" FontWeight="Bold" Foreground="#3498db"
+                                       Visibility="{Binding IsPdfCreating, Converter={StaticResource BoolToVis}}"/>
                             <TextBlock Text="CHƯA XUẤT FILE IN" FontSize="18" FontWeight="Bold" Foreground="#e67e22"
                                        Visibility="{Binding IsPdfGenerationError, Converter={StaticResource BoolToVis}}"/>
                         </StackPanel>

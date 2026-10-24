@@ -65,6 +65,11 @@ namespace BookKiosk.Kiosk.Services
                 document.GeneratePdf(filePath);
             }
 
+            if (!File.Exists(filePath) || new FileInfo(filePath).Length == 0)
+            {
+                throw new IOException($"Không thể tạo file PDF hoặc file tạo ra rỗng (0 bytes): {filePath}");
+            }
+
             return Task.FromResult(filePath);
         }
 
