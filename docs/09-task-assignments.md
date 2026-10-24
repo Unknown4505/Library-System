@@ -86,7 +86,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 5.3 | Logic: Trừ tiền điểm (Points), tính TotalAmount | | @thien33 | | `[x]` |
 | 5.4 | Logic: Cập nhật `ReservedQuantity` & Lưu Order | | @thien33 | | `[x]` |
 | 5.5 | **[Leader]** Viết test kịch bản tính điểm và áp KM, fix bug Concurrency | @Unknown4505 | | | `[ ]` |
-| 5.6 | API: `GET /api/orders/kiosk/{orderId}/receipt` — dữ liệu hóa đơn chính thức từ Orders/OrderDetails ([Issue #28](https://github.com/Unknown4505/Library-System/issues/28)) | <br> | @thien33 | <br> | `[ ]` |
+| 5.6 | API: `GET /api/orders/kiosk/{orderId}/receipt` — dữ liệu hóa đơn chính thức từ Orders/OrderDetails ([Issue #28](https://github.com/Unknown4505/Library-System/issues/28)) | <br> | @thien33 | <br> | `[x]` — Backend merged; receipt status/auth/snapshot/legacy/read-only targeted QA PASS |
 
 ### MODULE 6: KIOSK WPF - GIỎ HÀNG & THANH TOÁN
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
@@ -145,7 +145,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 11.4 | CMS: Biểu đồ Pie Chart Trạng thái Kiosk | | | @lehuukhang | `[ ]` |
 | 11.5 | **[Leader]** Ghép nối data thống kê giữa BE & FE | @Unknown4505 | | | `[ ]` |
 
-**Leader decision — CMS-DASHBOARD-COUNT-01 (21/10/2026):** Trong phạm vi Dashboard/Report của @lehuukhang ở PR #40, Low Stock KPI phải là tổng số đầu sách tồn thấp từ toàn bộ response Backend; Low Stock Preview mới bị giới hạn tối đa 10 và sắp xếp theo `AvailableStock` tăng dần. Bản sửa tại HEAD `5a24dc136d4779dca4731715888405b44887df53` đã vượt targeted QA ngày 23/10/2026 cho KPI, preview, sorting và trạng thái API unavailable; `CMS-MANAGER-01` cũng PASS trong cùng đợt. PR chưa được coi là đã merge vào `c8`, các task tổng thể vẫn `[ ]`, và link xem tất cả còn phải truyền `lowOnly=true` để mở đúng danh sách đã lọc. Không thay đổi ownership Backend/Frontend; xem [SRS](10-srs-functional-requirements.md) và [test plan](11-end-to-end-test-plan.md).
+**Leader decision — CMS-DASHBOARD-COUNT-01 (21/10/2026):** Trong phạm vi Dashboard/Report của @lehuukhang ở PR #40, Low Stock KPI phải là tổng số đầu sách tồn thấp từ toàn bộ response Backend; Low Stock Preview mới bị giới hạn tối đa 10 và sắp xếp `AvailableStock ASC, BookId ASC`. KPI/preview/sorting/API-unavailable và `CMS-MANAGER-01` đã vượt targeted QA; PR #40 đã merge vào `main` tại `9a55b09760ad59aa2e7712e8ffbbc9016d235664`. Ca 5 items và link “Xem tất cả” truyền `lowOnly=true` vẫn **RETEST REQUIRED**; source `main` hiện chưa truyền filter nên giữ **IMPLEMENTATION GAP**. Không thay đổi ownership Backend/Frontend; xem [SRS](10-srs-functional-requirements.md) và [test plan](11-end-to-end-test-plan.md).
 
 ### MODULE 12: KIỂM THỬ, BÁO CÁO & ĐÓNG GÓI
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
@@ -171,8 +171,8 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 
 ### Handoff Receipt cập nhật 2026-10-16
 
-- **Task 5.6 / Issue #28 — @thien33:** Receipt API chỉ đọc `Orders`/`OrderDetails` đã Paid; nộp test 200/404/409, privacy và idempotent GET. Trạng thái `PLANNED`, không coi docs/diagram là code hoàn thành.
-- **Task 8.2.1 / Issue #29 — @lehuukhang:** dùng `ReceiptDto` thật cho Receipt UI, Mock Printer, QuestPDF; xử lý network/404/409; phụ thuộc #28 PASS contract.
+- **Task 5.6 / Issue #28 — @thien33:** **[x] MERGED / BACKEND QA PASS** — Receipt API ban đầu merge qua PR #35; snapshot/legacy mapping được hoàn thiện trong PR #52. Targeted QA đã xác nhận 200/404/409, privacy, snapshot/idempotent GET và legacy compatibility.
+- **Task 8.2.1 / Issue #29 — @lehuukhang:** **[x] MERGED / TARGETED QA PASS — PR #40** — Receipt UI, Mock Printer và QuestPDF dùng cùng `ReceiptDto`; network/404/409, lifecycle và PDF retry đã được targeted QA. WPF visual/UI E2E vẫn **NOT RUN**.
 - **Task 12.1.1 — @Unknown4505:** E2E trên SQL QA disposable và SePay test mode. Nếu thiếu SQL/SePay/endpoint thì ghi `BLOCKED — ENV`, không mô phỏng rồi tự báo PASS.
 - #19/#20 đã closed/completed và PR #26 đã merge; không mở lại. Chi tiết file ownership, acceptance và draft comment ở `12-workflow-handoff-and-scope.md`.
 - **Handoff PLANNED:** Auth/RBAC và Employee/Salary giao Backend `@thien33` triển khai sau contract; CMS Auth/Employee/Salary/NCC giao FE `@lehuukhang`; Leader giữ Domain/EF schema, shared contract và integration QA. Chưa tạo Issue mới; Owner/Dependencies/API-Data contract/Acceptance nằm ở docs/12.
@@ -180,13 +180,13 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 
 ### Handoff Kiosk Advertising & Navigation — flow và Contract V1 đã duyệt (2026-10-21)
 
-GitHub đã có Issue #37 (Backend) và #38 (Frontend); #29 tiếp tục giữ riêng Receipt UI/PDF. Cập nhật docs là `DOCS COMPLETED`, không đồng nghĩa feature đã implement hoặc test PASS.
+Chỉ dùng Issue #37 cho Backend Advertising và #38 cho Frontend Advertising/Navigation; #29 tiếp tục giữ riêng Receipt UI/PDF. Backend #37 đã merge; FE #38 đang ở PR #54, **IN REVIEW / PENDING TARGETED QA**.
 
 | Nhãn dự kiến | Phân loại | Owner | Dependency | Acceptance chính | Trạng thái |
 |---|---|---|---|---|---|
-| FE — Kiosk Idle Advertising ([#38](https://github.com/Unknown4505/Library-System/issues/38)) | NEW FEATURE | `@lehuukhang` | #37 bàn giao contract/API thật; UI/loading/empty/fallback có thể chuẩn bị trước | Startup vào Idle Ads; DTO/message/null/empty/partial xử lý theo docs 04; touch sang `SearchPage`; inactivity 60s; slideshow 8s configurable; cache/retry/timer cleanup; không gián đoạn giao dịch | **PLANNED / NOT RUN** |
-| FE — Receipt Navigation UX Change ([#38](https://github.com/Unknown4505/Library-System/issues/38)) | UX CHANGE, không phải regression so với thiết kế cũ | `@lehuukhang` | Receipt UI/PDF [#29](https://github.com/Unknown4505/Library-System/issues/29); tránh sửa chồng `ReceiptViewModel` | Chỉ sau `Paid` và hoàn tất Receipt; giữ mốc 5s hiện hành; giữ dữ liệu in/PDF an toàn; clear session/cart; về `SearchPage`; không cancel Paid; sau 60s mới về Idle Ads | **PLANNED / NOT RUN** |
-| BE Advertising API ([#37](https://github.com/Unknown4505/Library-System/issues/37)) | API GAP | `@thien33` | Contract V1 đã được Leader duyệt; phối hợp #38 và không mở rộng sang Checkout ProductDiscount | Endpoint/wrapper/auth/DTO đúng contract; new arrivals/best sellers đúng rule; message/error/empty/partial/503; lọc ưu đãi chưa được Checkout hỗ trợ; không thêm schema `Advertisements` | **APPROVED CONTRACT / IMPLEMENTATION PLANNED / NOT RUN** |
+| FE — Kiosk Idle Advertising ([#38](https://github.com/Unknown4505/Library-System/issues/38)) | NEW FEATURE | `@lehuukhang` | Backend #37 đã merge; FE phải dùng API thật | Startup vào Idle Ads; DTO/message/null/empty/partial xử lý theo docs 04; touch sang `SearchPage`; inactivity 60s chỉ tại Search; slideshow 8s configurable; cache/retry/timer cleanup; không gián đoạn giao dịch | **IN REVIEW / PENDING TARGETED QA — PR #54 OPEN** |
+| FE — Receipt Navigation UX Change ([#38](https://github.com/Unknown4505/Library-System/issues/38)) | UX CHANGE, không phải regression so với thiết kế cũ | `@lehuukhang` | Receipt UI/PDF #29 đã merge; tránh regression | Chỉ sau `Paid` và hoàn tất Receipt; giữ mốc 5s hiện hành; clear session/cart; về `SearchPage`; không cancel Paid; sau 60s Search inactivity mới về Idle Ads | **IN REVIEW / PENDING TARGETED QA — PR #54 OPEN** |
+| BE Advertising API ([#37](https://github.com/Unknown4505/Library-System/issues/37)) | IMPLEMENTED | `@thien33` | Contract V1 đã được Leader duyệt; phối hợp #38 | Endpoint/wrapper/auth/DTO đúng contract; new arrivals/best sellers đúng rule; message/error/empty/partial/503; không thêm schema `Advertisements` | **[x] MERGED / BACKEND TARGETED QA PASS — PR #52, merge `e537971`** |
 
 Rule QA: chỉ đánh dấu `[x]` khi toàn bộ scope tương ứng có evidence PASS, acceptance hoàn thành và dependencies đã thỏa mãn. Nếu chỉ một subtask PASS thì cập nhật subtask, không đánh dấu toàn feature. #37 chỉ sửa Backend; #38 chỉ sửa Kiosk FE; #29 giữ riêng Receipt UI/PDF và phải phối hợp file ownership với #38.
 
@@ -202,18 +202,18 @@ Rule QA: chỉ đánh dấu `[x]` khi toàn bộ scope tương ứng có evidenc
 
 ---
 
-### Handoff ProductDiscount V7.1 — LEADER FOUNDATION / IMPLEMENTATION PLANNED
+### Handoff ProductDiscount V7.1 — BACKEND MERGED / QA PASS
 
 | Workstream | Owner | Scope | Acceptance | Trạng thái |
 |---|---|---|---|---|
 | Leader domain/schema/shared DTO/docs | Leader | Snapshot properties, EF mapping, CRUD/Checkout/Receipt DTO contract, stacking rules, migration gate và QA contract | Build + serialization/schema consistency; không sửa runtime calculation | **READY FOR REVIEW / MIGRATION READY** |
-| BE-01 Promotion CRUD | `@thien33` | Persist OrderDiscount/ProductDiscount, validation, PUT replace-all, auth/message | Transactional replace, no duplicate BookId, type/detail consistency | **PLANNED / NOT RUN** |
-| BE-02 Promotion calculation & Checkout | `@thien33` | Kiosk best benefit/tie-break, POS manual, points, zero-payable rollback, snapshot persistence | SQL/contract tests cho totals, stock, points và QR amount | **PLANNED / NOT RUN** |
-| BE-03 Receipt API | `@thien33` | Snapshot-first mapping và legacy fallback | Paid-only receipt, không recalculate, regression #28 | **PLANNED / NOT RUN** |
+| BE-01 Promotion CRUD | `@thien33` | Persist OrderDiscount/ProductDiscount, validation, PUT replace-all, auth/message | Transactional replace, no duplicate BookId, type/detail consistency | **[x] MERGED / QA PASS — PR #52** |
+| BE-02 Promotion calculation & Checkout | `@thien33` | Kiosk best benefit/tie-break, POS manual, points, zero-payable rollback, snapshot persistence | SQL/contract tests cho totals, stock, points và QR amount | **[x] MERGED / QA PASS — PR #52** |
+| BE-03 Receipt API | `@thien33` | Snapshot-first mapping và legacy fallback | Paid-only receipt, không recalculate, regression #28 | **[x] MERGED / QA PASS — PR #52** |
 | FE-01 CMS Promotion Management | `@lehuukhang` | Chọn type, OrderDiscount, nhiều ProductDiscount book rows | Backend-authoritative validation/message; không hardcode | **PLANNED / NOT RUN** |
 | FE-02 Kiosk/POS Promotion Display | `@lehuukhang` | Hiển thị promotion/totals/item breakdown từ Backend | Không tự tính final price; xử lý loading/empty/error | **PLANNED / NOT RUN** |
-| FE-03 Receipt/PDF | `@lehuukhang` | Promotion metadata và line discount từ Receipt API | Không dùng cart local; regression #29 | **PLANNED / NOT RUN** |
-| Integration QA | Leader | Contract, SQL, E2E, legacy, cancel/stock/points/payment regression | Evidence thật trước khi mở quảng cáo ProductDiscount | **PLANNED / NOT RUN** |
+| FE-03 Receipt/PDF | `@lehuukhang` | Promotion metadata và line discount từ Receipt API | Không dùng cart local; regression #29 | **[x] MERGED / TARGETED QA PASS — PR #40; UI E2E NOT RUN** |
+| Integration QA | Leader | Contract, SQL, E2E, legacy, cancel/stock/points/payment regression | Evidence thật trước khi mở quảng cáo ProductDiscount | **[x] BACKEND TARGETED QA PASS — HEAD `f7634a0`, merged `e537971`** |
 
 Dependencies: BE-01 → BE-02 → BE-03; FE-01 phụ thuộc BE-01; FE-02 phụ thuộc BE-02; FE-03 phụ thuộc BE-03/#28/#29. Advertising #37/#38 chỉ được mở ProductDiscount sau Checkout E2E PASS.
 

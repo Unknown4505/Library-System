@@ -421,7 +421,7 @@ Các route dưới đây chỉ là namespace contract mục tiêu, **chưa phả
 
 ### 3.9 Kiosk Idle Advertising API — Approved Contract V1
 
-Trạng thái: **APPROVED DESIGN / CONTRACT V1 / NOT IMPLEMENTED**. Đây là source of truth đã được Leader phê duyệt cho [Issue #37](https://github.com/Unknown4505/Library-System/issues/37) và [Issue #38](https://github.com/Unknown4505/Library-System/issues/38); tài liệu không chứng minh endpoint, DTO hoặc UI đã tồn tại trong source.
+Trạng thái: **CONTRACT V1 / BACKEND IMPLEMENTED & MERGED / TARGETED QA VERIFIED**. Backend [Issue #37](https://github.com/Unknown4505/Library-System/issues/37) đã merge qua PR #52 (`e537971`); Frontend [Issue #38](https://github.com/Unknown4505/Library-System/issues/38) đang ở PR #54 và **PENDING TARGETED QA**. Chưa có full UI/E2E PASS.
 
 | Decision ID | Quyết định Contract V1 đã duyệt |
 |---|---|
@@ -443,14 +443,14 @@ Trạng thái: **APPROVED DESIGN / CONTRACT V1 / NOT IMPLEMENTED**. Đây là so
 - `ApiResponseDto<T>` có shape cố định `success`, `code`, `message`, `data`; `Ok(...)` hiện chỉ sinh code `SUCCESS`, `Error(...)` đặt `data = null`.
 - ASP.NET Core controller hiện dùng System.Text.Json web defaults; enum không có string-enum converter, nên `PromotionType` phải là JSON number: `1 = OrderDiscount`, `2 = ProductDiscount`.
 
-**IMPLEMENTATION GAP:** chưa có advertising action/service/DTO/query. Middleware auth hiện wrap lỗi nhưng message 401/403 và lỗi thiếu server API key còn tiếng Anh; lỗi thiếu cấu hình còn lộ chi tiết cấu hình. Global exception handler có `INTERNAL_ERROR` cho 500 nhưng chưa có mapping 503. `PARTIAL_SUCCESS` và `SERVICE_UNAVAILABLE` chưa tồn tại trong factory/convention thực thi.
+**IMPLEMENTED BACKEND:** `KioskController`, `KioskAdvertisingService`, repository/query, shared DTO và wrapper `PARTIAL_SUCCESS`/`SERVICE_UNAVAILABLE` đã có trên `main`. Targeted Backend QA đã xác minh route, API key, auth/error wrapper, success/empty/partial/503 và các query 30 ngày. Cache, retry, slideshow, inactivity và fallback UI vẫn thuộc FE #38, chưa được suy ra PASS từ Backend.
 
 | Dữ liệu | Source hiện có | Phân loại | Giới hạn hiện tại |
 |---|---|---|---|
-| Ảnh và thông tin sách | `GET /api/books`; `BookDto.ImageUrl`, `SellingPrice`, `AvailableStock`; static files | **AVAILABLE để reuse** | Chưa tạo nhóm quảng cáo chuyên biệt |
-| Khuyến mãi | `Promotion`, `PromotionOrderDiscount`, `PromotionProductDiscount`; CMS `GET /api/promotions` | **PARTIAL** | CMS endpoint dùng JWT và DTO thiếu loại/chi tiết giảm; không nới quyền endpoint CMS |
-| Sách mới về | `ImportReceipt.CreatedAt` + `ImportReceiptDetail.BookId`; tạo phiếu và tăng kho cùng transaction | **APPROVED DESIGN / API GAP** | Chưa có query Kiosk; Contract V1 quy định 30 ngày, distinct, active/còn hàng, limit 10 và tie-break |
-| Sách bán chạy | `Orders.CompletedAt`, `OrderStatus`, `OrderDetails.Quantity`; Admin reports query Paid-only | **APPROVED DESIGN / API GAP** | Endpoint reports Admin-only không được reuse trực tiếp; query Kiosk 30 ngày/active/còn hàng/limit 10 chưa implement |
+| Ảnh và thông tin sách | Advertising DTO/query dùng `ImageUrl`, `SellingPrice`, `AvailableStock`; static files | **IMPLEMENTED / MERGED** | FE vẫn phải dùng placeholder khi URL null/lỗi |
+| Khuyến mãi | Query riêng trong `KioskAdvertisingRepository`; không nới quyền endpoint CMS | **IMPLEMENTED / MERGED** | Chỉ quảng cáo promotion có căn cứ Checkout hỗ trợ theo Contract V1 |
+| Sách mới về | `ImportReceipt.CreatedAt` + `ImportReceiptDetail.BookId`; rolling 30 ngày UTC | **IMPLEMENTED / BACKEND QA PASS** | Distinct, active/còn hàng, limit 10 và tie-break theo contract |
+| Sách bán chạy | `Orders.CompletedAt`, `OrderStatus`, `OrderDetails.Quantity`; Paid-only rolling 30 ngày UTC | **IMPLEMENTED / BACKEND QA PASS** | Active/còn hàng, limit 10 và tie-break theo contract |
 
 #### 3.9.2 Endpoint
 
@@ -657,7 +657,7 @@ HTTP 200 không có nội dung phù hợp:
 }
 ```
 
-HTTP 200 partial success — **APPROVED CONTRACT / NOT IMPLEMENTED**:
+HTTP 200 partial success — **IMPLEMENTED / BACKEND TARGETED QA VERIFIED**:
 
 ```json
 {
@@ -693,12 +693,12 @@ Mọi response Advertising phải có `message` tiếng Việt, không rỗng, k
 |---:|:---:|---|---|---|
 | 200 | true | `SUCCESS` | `Lấy dữ liệu quảng cáo thành công.` | Code hiện có |
 | 200 empty | true | `SUCCESS` | `Hiện chưa có nội dung quảng cáo phù hợp.` | Code hiện có |
-| 200 partial | true | `PARTIAL_SUCCESS` | `Một số nội dung quảng cáo tạm thời không khả dụng.` | **APPROVED CONTRACT / IMPLEMENTATION GAP** |
+| 200 partial | true | `PARTIAL_SUCCESS` | `Một số nội dung quảng cáo tạm thời không khả dụng.` | **IMPLEMENTED / BACKEND QA PASS** |
 | 400 | false | `BAD_REQUEST` | `Thông tin yêu cầu không hợp lệ.` | Code hiện có; V1 không có body/query nên bình thường không phát sinh |
 | 401 | false | `UNAUTHORIZED` | `Thiếu thông tin xác thực Kiosk.` | Status/code hiện có; message target khác source |
 | 403 | false | `FORBIDDEN` | `Kiosk không có quyền truy cập chức năng này.` | Status/code hiện có; message target khác source |
 | 500 | false | `INTERNAL_ERROR` | `Hệ thống gặp sự cố. Vui lòng thử lại sau.` | Code hiện có; message target cần đồng bộ |
-| 503 | false | `SERVICE_UNAVAILABLE` | `Nội dung quảng cáo tạm thời không khả dụng.` | **APPROVED CONTRACT / IMPLEMENTATION GAP** |
+| 503 | false | `SERVICE_UNAVAILABLE` | `Nội dung quảng cáo tạm thời không khả dụng.` | **IMPLEMENTED / BACKEND QA PASS** |
 
 Mẫu lỗi xác thực target (401; 403 có cùng shape với code/message tương ứng):
 
@@ -722,7 +722,7 @@ Mẫu lỗi 500:
 }
 ```
 
-Mẫu lỗi 503 — **APPROVED CONTRACT / NOT IMPLEMENTED**:
+Mẫu lỗi 503 — **IMPLEMENTED / BACKEND TARGETED QA VERIFIED**:
 
 ```json
 {
@@ -742,7 +742,7 @@ Mẫu lỗi 503 — **APPROVED CONTRACT / NOT IMPLEMENTED**:
 - Dừng/dispose slideshow timer khi rời `IdlePage`; không giữ nhiều timer/request song song.
 - FE phải xét cả HTTP status và `success`/`code`/`message`/`data`; HTTP 200 không đồng nghĩa thành công nếu wrapper báo lỗi. Background refresh/slideshow/inactivity không hiện toast lặp; chỉ log an toàn và hiển thị fallback thân thiện.
 
-Owner: Backend [#37](https://github.com/Unknown4505/Library-System/issues/37) `@thien33`; Frontend [#38](https://github.com/Unknown4505/Library-System/issues/38) `@lehuukhang`. Contract đã được Leader duyệt; implementation và runtime QA vẫn **PLANNED / NOT RUN**. Không tạo bảng `Advertisements`, migration, endpoint hay DTO thật trong lượt docs này.
+Owner: Backend [#37](https://github.com/Unknown4505/Library-System/issues/37) `@thien33`; Frontend [#38](https://github.com/Unknown4505/Library-System/issues/38) `@lehuukhang`. Backend implementation đã merge qua PR #52 (`e537971`) và targeted runtime QA PASS; Frontend #38 vẫn theo trạng thái riêng. Không tạo bảng `Advertisements` hoặc migration Advertising.
 
 ---
 
@@ -791,7 +791,7 @@ Response trả lại cùng shape và thêm `promotionId`. `PromotionType` là JS
 }
 ```
 
-Shared DTO/Domain/mapping là foundation; Promotion CRUD, calculation, persistence và Receipt runtime vẫn thuộc các task Backend/Frontend tiếp theo, chưa được đánh dấu PASS.
+Shared DTO/Domain/mapping và Backend Promotion CRUD/calculation/persistence/Receipt runtime đã merge qua PR #52 (`e537971`) và targeted QA PASS. Các phần CMS/Kiosk/PDF Frontend vẫn thuộc task riêng và chưa được suy ra hoàn thành.
 
 ---
 

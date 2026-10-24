@@ -31,7 +31,7 @@ Dự án Kiosk bắt buộc tuân theo mô hình **MVVM (Model - View - ViewMode
 Ứng dụng Kiosk chạy theo cơ chế "Navigation" (chuyển trang) trong một `Frame` chính duy nhất của `MainWindow`.
 
 ### 1. Màn hình Chờ (Idle / Splash Screen)
-- **Giao diện target `[PLANNED]`:** `IdlePage` tự động trình chiếu khuyến mãi đang hiệu lực, sách mới về và sách bán chạy; nếu không có dữ liệu hợp lệ thì hiển thị “Chạm để bắt đầu”.
+- **Giao diện target `[IN REVIEW — PR #54 / PENDING TARGETED QA]`:** `IdlePage` tự động trình chiếu khuyến mãi đang hiệu lực, sách mới về và sách bán chạy; nếu không có dữ liệu hợp lệ thì hiển thị “Chạm để bắt đầu”.
 - **Logic:** App khởi động tại `IdlePage`; nếu khách chạm vào thì dừng slideshow và chuyển sang `SearchPage`.
 
 ### 2. Màn hình Tìm sách / Quét mã vạch (`SearchPage`)
@@ -76,9 +76,9 @@ Dự án Kiosk bắt buộc tuân theo mô hình **MVVM (Model - View - ViewMode
   - Receipt/PDF dùng promotion metadata và line discount từ snapshot persisted. Với đơn legacy, chỉ dùng fallback đã được API chuẩn hóa; FE không tự suy đoán ProductDiscount.
   - Gửi lệnh in (ESC/POS) xuống máy in nhiệt.
   - Mốc hiển thị Receipt hiện hành là **5 giây**. Sau khi dữ liệu Receipt/PDF đã được giữ an toàn và thao tác hiển thị/in hoàn tất, xóa giỏ cùng trạng thái giao dịch cũ rồi chuyển về `SearchPage`.
-  - Không tự hủy đơn đã `Paid`, không bỏ qua Receipt và không quay thẳng về `IdlePage`. Đây là **UX CHANGE / PLANNED**; source hiện tại vẫn còn luồng cũ cho đến khi FE triển khai.
+  - Không tự hủy đơn đã `Paid`, không bỏ qua Receipt và không quay thẳng về `IdlePage`. Receipt/PDF an toàn đã merge qua PR #40 và targeted QA PASS; điều hướng Receipt → `SearchPage` thuộc PR #54, vẫn **PENDING TARGETED QA**.
 
-### Kiosk Idle Advertising Mode & Navigation Lifecycle — NEW FEATURE / PLANNED
+### Kiosk Idle Advertising Mode & Navigation Lifecycle — BACKEND MERGED; FE IN REVIEW / PENDING QA
 
 Luồng chính thức:
 
@@ -94,17 +94,17 @@ App Startup → Idle Advertising → Touch → SearchPage
 
 | Nhóm | Quy tắc hiển thị | Tình trạng contract hiện tại |
 |---|---|---|
-| Khuyến mãi | Chỉ `IsActive=true` và thời điểm UTC hiện tại thuộc `StartDate..EndDate`; type 1 dùng `orderDiscount`. Type 2 có contract theo từng sách nhưng phải lọc khỏi nội dung Kiosk cho đến khi Checkout hỗ trợ được xác minh | **APPROVED DESIGN / API GAP** — API CMS không phù hợp Kiosk; endpoint #37 chưa implement |
-| Sách mới về | Ảnh bìa, tên, giá; lần nhập kho gần nhất trong 30 ngày UTC; distinct book; active/còn hàng; sort lần nhập giảm dần rồi `BookId ASC`; tối đa 10 | **APPROVED DESIGN / API GAP** |
-| Sách bán chạy | Chỉ order `Paid` trong 30 ngày UTC; sum quantity; active/còn hàng; sort tổng bán giảm dần rồi `BookId ASC`; tối đa 10; không dùng cart local/Pending/Cancelled | **APPROVED DESIGN / API GAP** |
+| Khuyến mãi | Chỉ `IsActive=true` và thời điểm UTC hiện tại thuộc `StartDate..EndDate`; chỉ quảng cáo loại có căn cứ Checkout hỗ trợ theo Contract V1 | **BACKEND IMPLEMENTED / TARGETED QA PASS** — PR #52 |
+| Sách mới về | Ảnh bìa, tên, giá; lần nhập kho gần nhất trong 30 ngày UTC; distinct book; active/còn hàng; sort lần nhập giảm dần rồi `BookId ASC`; tối đa 10 | **BACKEND IMPLEMENTED / TARGETED QA PASS** |
+| Sách bán chạy | Chỉ order `Paid` trong 30 ngày UTC; sum quantity; active/còn hàng; sort tổng bán giảm dần rồi `BookId ASC`; tối đa 10; không dùng cart local/Pending/Cancelled | **BACKEND IMPLEMENTED / TARGETED QA PASS** |
 | Ảnh bìa | Ghép URL tương đối với API base URL; ảnh lỗi dùng placeholder UI đã duyệt | **AVAILABLE** — `BookDto.ImageUrl`, top-books `imageUrl` và static files hiện hữu |
 
-Contract V1, DTO/nullability, enum `promotionType=1/2`, JSON mẫu và error semantics nằm tại [`docs/04-api-reference.md` mục 3.9](04-api-reference.md). Contract là **APPROVED DESIGN / CONTRACT V1 / NOT IMPLEMENTED**; FE không tự định nghĩa response khác hoặc hardcode dữ liệu giả thành quảng cáo thật.
+Contract V1, DTO/nullability, enum `promotionType=1/2`, JSON mẫu và error semantics nằm tại [`docs/04-api-reference.md` mục 3.9](04-api-reference.md). Backend #37 đã **IMPLEMENTED / MERGED / TARGETED QA VERIFIED**; FE #38 ở PR #54 vẫn **PENDING TARGETED QA** và không được hardcode dữ liệu giả thành quảng cáo thật.
 
 #### Timer, tương tác và cleanup
 
 - **Slideshow timer:** mặc định đề xuất **8 giây/slide**, phải cấu hình được; chỉ một timer sống trên `IdlePage`, dừng/dispose khi rời trang và không reload API liên tục ở mỗi tick.
-- **Inactivity timer:** **60 giây** không tương tác tại `SearchPage` thì dọn trạng thái UI an toàn và về `IdlePage`. Mọi thao tác hợp lệ trên Search phải reset timer.
+- **Inactivity timer:** **60 giây** không tương tác chỉ tại `SearchPage` thì dọn trạng thái UI an toàn và về `IdlePage`. `BookDetailPage` không phải trang eligible cho timeout này; khi quay lại `SearchPage`, timer áp dụng theo phiên Search. Mọi thao tác hợp lệ trên Search phải reset timer.
 - **Receipt timer:** giữ **5 giây** hiện hành trước khi về `SearchPage`, nhưng không được đóng/cắt ngang thao tác hiển thị, tải PDF hoặc in chưa hoàn tất.
 - Ba timer độc lập về trách nhiệm, không dùng chung và không được kích hoạt chồng chéo.
 - Không kích hoạt Idle Advertising khi đang nhập thành viên/chọn điểm, tạo hoặc xác nhận checkout, chờ QR `Pending`, đã `Paid` nhưng đang tải Receipt, hoặc đang xem/in Receipt. Các màn hình giao dịch dùng timeout/cancel hiện hữu.
@@ -172,11 +172,11 @@ Máy Kiosk đặt nơi công cộng cần tránh việc khách hàng thoát ra n
 - Không gọi `sepay-webhook` bằng payload giả. Khi API trả lỗi/404, UI báo Development simulation không khả dụng và giữ nguyên order; không tự chuyển Paid.
 - Release không đăng ký phím F3 và Backend Production không map endpoint.
 
-## 5. Handoff Receipt #29 — PLANNED, phụ thuộc #28
+## 5. Receipt #29 — IMPLEMENTED / MERGED / TARGETED QA VERIFIED
 
 - Sau khi polling trả `Paid`, Kiosk dùng `OrderId` thật gọi `GET /api/orders/kiosk/{orderId}/receipt` với `X-Api-Key`.
 - `ReceiptPage`, `ReceiptViewModel`, Mock Printer và QuestPDF dùng cùng `ReceiptDto` từ Backend; không dựng tổng tiền từ cart local.
 - `404`, `409`, timeout và network error phải hiển thị trạng thái có thể retry; không tự coi order Paid/Cancelled và không in payload chưa xác minh.
 - Pending/Cancelled không có hóa đơn Paid. Chỉ xóa cart sau khi luồng thành công đã giữ đủ dữ liệu hiển thị/in.
 
-Owner: `@lehuukhang`, Issue #29; acceptance runtime chỉ bắt đầu sau khi Issue #28 có endpoint và contract test PASS.
+Owner: `@lehuukhang`, Issue #29. Backend #28 đã merge qua PR #35; Kiosk Receipt đã merge qua PR #40 (`9a55b09`) và targeted tests PASS. WPF visual/UI E2E vẫn **NOT RUN**, không được suy ra từ targeted ViewModel/PDF tests.

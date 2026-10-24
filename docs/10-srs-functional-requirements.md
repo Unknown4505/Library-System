@@ -48,7 +48,7 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
   * **Input:** Tín hiệu từ Backend (SignalR/Polling) thông báo đơn hàng đã Paid.
   * **Output:** Giao diện hiển thị "Thanh toán thành công", hiển thị điểm vừa được cộng thêm, sinh file hóa đơn PDF để hiển thị; hoàn tất Receipt rồi dọn phiên và về `SearchPage`.
 
-### 1.4. Idle Advertising và vòng đời điều hướng — PLANNED
+### 1.4. Idle Advertising và vòng đời điều hướng — BACKEND MERGED; FE IN REVIEW
 
 * **1.4.1. Auto Ads khi Idle**
   * **Input:** App vừa khởi động hoặc Kiosk chuyển về `IdlePage`.
@@ -67,7 +67,7 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
   * **Output:** Dừng/dispose slideshow timer và điều hướng tới `SearchPage`.
 * **1.4.6. Inactivity to Idle**
   * **Input:** Không có tương tác hợp lệ trong 60 giây tại `SearchPage`.
-  * **Output:** Chuyển về Idle Advertising; không áp dụng khi phiên member/checkout/payment/receipt đang hoạt động.
+  * **Output:** Chuyển về Idle Advertising; không áp dụng tại `BookDetailPage` hoặc khi phiên member/checkout/payment/receipt đang hoạt động.
 * **1.4.7. Paid Receipt to Search**
   * **Input:** Backend xác nhận `Paid`, Receipt đã tải/hiển thị/in an toàn và hết mốc 5 giây hiện hành.
   * **Output:** Xóa cart và state giao dịch đã hoàn tất, không gọi cancel, điều hướng `SearchPage`; sau đó inactivity timer mới bắt đầu phiên mới.
@@ -131,7 +131,7 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
   * Liên kết xem tất cả phải dẫn đến danh sách tồn kho với bộ lọc tương ứng, theo route hiện có `/Inventory/Stock?lowOnly=true`.
   * **LOW-STOCK-ERROR-01:** Khi không tải được dữ liệu Backend, Dashboard phải hiển thị trạng thái không khả dụng; không được diễn giải lỗi thành KPI 0 hoặc tự tạo số lượng giả.
   * Staff Workspace chỉ dùng preview tối đa 10 mục và không công bố KPI tổng, nên không mở rộng ý nghĩa KPI Admin sang widget này.
-  * **Trạng thái triển khai:** PR #40 tại HEAD `5a24dc136d4779dca4731715888405b44887df53` đã tách tổng KPI khỏi preview và vượt targeted QA ngày 23/10/2026. Trạng thái này không đồng nghĩa PR đã merge vào nhánh `c8` hiện tại; link xem tất cả trên PR HEAD vẫn cần truyền `lowOnly=true` để khớp yêu cầu điều hướng ở trên.
+  * **Trạng thái triển khai:** PR #40 đã merge vào `main` tại `9a55b09760ad59aa2e7712e8ffbbc9016d235664`. KPI tổng, preview, sorting và trạng thái API unavailable đã vượt targeted QA; ca 5 items và link “Xem tất cả” truyền `lowOnly=true` vẫn **RETEST REQUIRED**. Source `main` hiện chưa truyền bộ lọc trên link nên đây là **IMPLEMENTATION GAP**, không thay đổi contract.
 
 ---
 
@@ -178,10 +178,11 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
 - Lưu snapshot lương cơ bản, phụ cấp, khấu trừ, lương thực nhận, người/thời điểm chốt; tiền không âm.
 - Không bao gồm thuế, bảo hiểm, payroll phức tạp hoặc chuyển tiền ngân hàng.
 
-### 4.3 Hóa đơn Kiosk — PLANNED #28/#29
+### 4.3 Hóa đơn Kiosk — IMPLEMENTED / MERGED / TARGETED QA VERIFIED #28/#29
 
 - Chỉ đơn `Paid` có `CompletedAt` hợp lệ được lấy hóa đơn; dữ liệu từ `Orders`/`OrderDetails`, không có bảng `Invoices`.
 - Kiosk hiển thị/in/PDF từ `ReceiptDto`; không dùng giá/tổng local cart; không lộ giá vốn hoặc PII.
+- Backend #28 đã merge qua PR #35; Frontend Receipt #29 đã merge qua PR #40. Targeted API/ViewModel/PDF tests PASS; WPF visual/UI E2E vẫn **NOT RUN**.
 
 ### 4.4 Ngoài phạm vi
 
