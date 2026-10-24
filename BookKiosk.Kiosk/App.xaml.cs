@@ -48,6 +48,7 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<CartViewModel>();
                 services.AddSingleton<HeartbeatWorker>();
                 services.AddSingleton<IReceiptService, ReceiptPdfService>();
+                services.AddSingleton<AdvertisingService>();
 
                 // Đăng ký Windows/Pages
                 services.AddSingleton<MainWindow>();
