@@ -1,5 +1,6 @@
 using BookKiosk.Application.DTOs.Books;
 using BookKiosk.Application.DTOs.Common;
+using BookKiosk.Application.DTOs.Kiosk;
 using BookKiosk.Application.DTOs.Members;
 using BookKiosk.Application.DTOs.Order;
 using BookKiosk.Domain.Enums;
@@ -192,5 +193,151 @@ public class MockBookKioskApiClient : IBookKioskApiClient
     {
         return Task.FromResult<ApiResponseDto<object>?>(
             ApiResponseDto<object>.Ok(new object(), "Đã mô phỏng thanh toán thành công (DEV Mock)"));
+    }
+
+    // ── ADVERTISING MOCK ────────────────────────────────────────────────────────
+    public bool MockAdvertisingShouldFail { get; set; } = false;
+    public bool MockAdvertisingShouldPartial { get; set; } = false;
+    public bool MockAdvertisingShouldEmpty { get; set; } = false;
+    public bool MockAdvertisingShould503 { get; set; } = false;
+    public bool MockAdvertisingShouldTimeout { get; set; } = false;
+
+    public async Task<ApiResponseDto<KioskAdvertisingDto>?> GetAdvertisingAsync(CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(100, cancellationToken);
+
+        if (MockAdvertisingShouldTimeout)
+        {
+            throw new TaskCanceledException("Mô phỏng timeout kết nối quảng cáo");
+        }
+
+        if (MockAdvertisingShould503)
+        {
+            return ApiResponseDto<KioskAdvertisingDto>.Error("SERVICE_UNAVAILABLE", "Nội dung quảng cáo tạm thời không khả dụng.");
+        }
+
+        if (MockAdvertisingShouldFail)
+        {
+            return ApiResponseDto<KioskAdvertisingDto>.Error("NETWORK_ERROR", "Lỗi kết nối máy chủ mô phỏng.");
+        }
+
+        if (MockAdvertisingShouldEmpty)
+        {
+            return ApiResponseDto<KioskAdvertisingDto>.Ok(new KioskAdvertisingDto(), "Không có dữ liệu quảng cáo.");
+        }
+
+        var dto = new KioskAdvertisingDto
+        {
+            ActivePromotions = new List<AdvertisingPromotionDto>
+            {
+                new AdvertisingPromotionDto
+                {
+                    PromotionId = 1,
+                    Name = "Ưu Đãi Đặc Biệt Tháng Này",
+                    Description = "Giảm ngay 50.000đ cho đơn hàng thanh toán tại Kiosk từ 200.000đ",
+                    PromotionType = PromotionType.OrderDiscount,
+                    OrderDiscount = new AdvertisingOrderDiscountDto
+                    {
+                        MinOrderValue = 200000m,
+                        DiscountAmount = 50000m
+                    },
+                    StartDate = DateTime.UtcNow.AddDays(-7),
+                    EndDate = DateTime.UtcNow.AddDays(14)
+                }
+            },
+            NewArrivals = new List<AdvertisingNewArrivalDto>
+            {
+                new AdvertisingNewArrivalDto
+                {
+                    BookId = 1,
+                    Title = "Cây Cam Ngọt Của Tôi",
+                    ImageUrl = "/uploads/books/cay-cam.jpg",
+                    SellingPrice = 105000m,
+                    AvailableStock = 15,
+                    LastImportedAt = DateTime.UtcNow.AddDays(-2)
+                },
+                new AdvertisingNewArrivalDto
+                {
+                    BookId = 2,
+                    Title = "Nhà Giả Kim",
+                    ImageUrl = "/uploads/books/nha-gia-kim.jpg",
+                    SellingPrice = 79000m,
+                    AvailableStock = 10,
+                    LastImportedAt = DateTime.UtcNow.AddDays(-5)
+                },
+                new AdvertisingNewArrivalDto
+                {
+                    BookId = 3,
+                    Title = "Clean Code: A Handbook of Agile Software Craftsmanship",
+                    ImageUrl = "/uploads/books/clean-code.jpg",
+                    SellingPrice = 300000m,
+                    AvailableStock = 5,
+                    LastImportedAt = DateTime.UtcNow.AddDays(-8)
+                },
+                new AdvertisingNewArrivalDto
+                {
+                    BookId = 4,
+                    Title = "Đắc Nhân Tâm",
+                    ImageUrl = "/uploads/books/dac-nhan-tam.jpg",
+                    SellingPrice = 86000m,
+                    AvailableStock = 20,
+                    LastImportedAt = DateTime.UtcNow.AddDays(-12)
+                }
+            },
+            BestSellers = new List<AdvertisingBestSellerDto>
+            {
+                new AdvertisingBestSellerDto
+                {
+                    BookId = 2,
+                    Title = "Nhà Giả Kim",
+                    ImageUrl = "/uploads/books/nha-gia-kim.jpg",
+                    SellingPrice = 79000m,
+                    AvailableStock = 10,
+                    TotalSold = 152
+                },
+                new AdvertisingBestSellerDto
+                {
+                    BookId = 1,
+                    Title = "Cây Cam Ngọt Của Tôi",
+                    ImageUrl = "/uploads/books/cay-cam.jpg",
+                    SellingPrice = 105000m,
+                    AvailableStock = 15,
+                    TotalSold = 98
+                },
+                new AdvertisingBestSellerDto
+                {
+                    BookId = 4,
+                    Title = "Đắc Nhân Tâm",
+                    ImageUrl = "/uploads/books/dac-nhan-tam.jpg",
+                    SellingPrice = 86000m,
+                    AvailableStock = 20,
+                    TotalSold = 85
+                },
+                new AdvertisingBestSellerDto
+                {
+                    BookId = 3,
+                    Title = "Clean Code",
+                    ImageUrl = "/uploads/books/clean-code.jpg",
+                    SellingPrice = 300000m,
+                    AvailableStock = 5,
+                    TotalSold = 42
+                }
+            }
+        };
+
+        if (MockAdvertisingShouldPartial)
+        {
+            dto.ActivePromotions.Clear();
+            dto.UnavailableSections.Add("activePromotions");
+            return new ApiResponseDto<KioskAdvertisingDto>
+            {
+                Success = true,
+                Code = "PARTIAL_SUCCESS",
+                Message = "Một số nội dung quảng cáo tạm thời không khả dụng.",
+                Data = dto
+            };
+        }
+
+        return ApiResponseDto<KioskAdvertisingDto>.Ok(dto, "Lấy dữ liệu quảng cáo thành công (Mock)");
     }
 }

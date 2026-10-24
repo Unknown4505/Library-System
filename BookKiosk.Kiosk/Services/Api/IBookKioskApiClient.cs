@@ -1,5 +1,6 @@
 using BookKiosk.Application.DTOs.Books;
 using BookKiosk.Application.DTOs.Common;
+using BookKiosk.Application.DTOs.Kiosk;
 using BookKiosk.Application.DTOs.Members;
 using BookKiosk.Application.DTOs.Order;
 
@@ -84,4 +85,12 @@ public interface IBookKioskApiClient
     /// Giả lập thanh toán thành công an toàn dành riêng cho môi trường DEV (endpoint nội bộ do BE cung cấp)
     /// </summary>
     Task<ApiResponseDto<object>?> DevSimulatePaymentSuccessAsync(string orderCode);
+
+    // ── ADVERTISING ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Lấy danh sách nội dung quảng cáo khi Kiosk ở trạng thái Idle (Task 8.2 / Issue #38).
+    /// Gồm 3 nhóm: Khuyến mãi hợp lệ, Sách mới về, Sách bán chạy.
+    /// </summary>
+    Task<ApiResponseDto<KioskAdvertisingDto>?> GetAdvertisingAsync(CancellationToken cancellationToken = default);
 }
