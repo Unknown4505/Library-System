@@ -32,12 +32,12 @@ namespace BookKiosk.Kiosk.Services
         }
 
         /// <summary>
-        /// [GIẢ ĐỊNH - CHỜ LEADER XÁC NHẬN]: Đếm 60s khi ở SearchPage hoặc BookDetailPage.
-        /// Tuyệt đối tạm dừng khi ở IdlePage, MemberPage, CheckoutPage, ReceiptPage.
+        /// Theo quyết định Leader: Inactivity timer 60s CHỈ đếm tại SearchPage.
+        /// Tuyệt đối tạm dừng khi ở BookDetailPage, IdlePage, MemberPage, CheckoutPage, ReceiptPage.
         /// </summary>
         private static bool IsEligiblePage(Type? pageType)
         {
-            return pageType == typeof(SearchPage) || pageType == typeof(BookDetailPage);
+            return pageType == typeof(SearchPage);
         }
 
         public void Start()
