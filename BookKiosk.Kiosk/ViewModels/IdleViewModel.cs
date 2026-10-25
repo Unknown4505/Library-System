@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Microsoft.Extensions.Configuration;
@@ -56,6 +57,7 @@ namespace BookKiosk.Kiosk.ViewModels
         private CancellationTokenSource? _cts;
         private int _slideshowIntervalSeconds = 8;
         private readonly string _apiBaseUrl = "";
+        private bool _isInitialized = false;
 
         private readonly List<IdleSlideGroup> _activeGroups = new();
         private int _currentGroupIndex = 0;
@@ -142,13 +144,16 @@ namespace BookKiosk.Kiosk.ViewModels
 
         public override void Initialize(object? parameter = null)
         {
+            if (_isInitialized) return;
+            _isInitialized = true;
+
             base.Initialize(parameter ?? string.Empty);
 
             // Bắt đầu một phiên Idle mới
             _advertisingService.StartNewIdleSession();
 
             // Dọn dẹp session cũ nếu có
-            Cleanup();
+            CleanupSession();
 
             _cts = new CancellationTokenSource();
             _ = LoadAdvertisingAsync(_cts.Token);
@@ -227,6 +232,7 @@ namespace BookKiosk.Kiosk.ViewModels
                 IsFallback = false;
                 _currentGroupIndex = 0;
                 CurrentGroup = _activeGroups[0];
+                RaiseSlideStateChanged();
 
                 StartSlideshowTimer();
             }
@@ -237,6 +243,28 @@ namespace BookKiosk.Kiosk.ViewModels
             catch
             {
                 ApplyFallbackState();
+            }
+        }
+
+        private void RaiseSlideStateChanged()
+        {
+            Action notify = () =>
+            {
+                OnPropertyChanged(nameof(HasContent));
+                OnPropertyChanged(nameof(CurrentGroup));
+                OnPropertyChanged(nameof(IsShowingPromotions));
+                OnPropertyChanged(nameof(IsShowingNewArrivals));
+                OnPropertyChanged(nameof(IsShowingBestSellers));
+                OnPropertyChanged(nameof(GroupBadgeText));
+            };
+
+            if (System.Windows.Application.Current?.Dispatcher != null && !System.Windows.Application.Current.Dispatcher.CheckAccess())
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(notify);
+            }
+            else
+            {
+                notify();
             }
         }
 
@@ -266,7 +294,7 @@ namespace BookKiosk.Kiosk.ViewModels
             _bestSellers.Clear();
             _activeGroups.Clear();
             IsFallback = true;
-            OnPropertyChanged(nameof(HasContent));
+            RaiseSlideStateChanged();
         }
 
         private void StartSlideshowTimer()
@@ -290,6 +318,7 @@ namespace BookKiosk.Kiosk.ViewModels
 
             _currentGroupIndex = (_currentGroupIndex + 1) % _activeGroups.Count;
             CurrentGroup = _activeGroups[_currentGroupIndex];
+            RaiseSlideStateChanged();
         }
 
         private void StopSlideshowTimer()
@@ -304,11 +333,24 @@ namespace BookKiosk.Kiosk.ViewModels
 
         public void Cleanup()
         {
+            _isInitialized = false;
+            CleanupSession();
+        }
+
+        private void CleanupSession()
+        {
             StopSlideshowTimer();
 
             if (_cts != null)
             {
-                _cts.Cancel();
+                try
+                {
+                    if (!_cts.IsCancellationRequested)
+                    {
+                        _cts.Cancel();
+                    }
+                }
+                catch (ObjectDisposedException) { }
                 _cts.Dispose();
                 _cts = null;
             }
