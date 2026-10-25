@@ -58,6 +58,8 @@ namespace BookKiosk.Kiosk.ViewModels
         private int _slideshowIntervalSeconds = 8;
         private readonly string _apiBaseUrl = "";
         private bool _isInitialized = false;
+        private bool _hasScheduledRetryInSession = false;
+        public Func<TimeSpan, CancellationToken, Task>? DelayProvider { get; set; }
 
         private readonly List<IdleSlideGroup> _activeGroups = new();
         private int _currentGroupIndex = 0;
@@ -146,6 +148,7 @@ namespace BookKiosk.Kiosk.ViewModels
         {
             if (_isInitialized) return;
             _isInitialized = true;
+            _hasScheduledRetryInSession = false;
 
             base.Initialize(parameter ?? string.Empty);
 
@@ -165,76 +168,22 @@ namespace BookKiosk.Kiosk.ViewModels
             {
                 var result = await _advertisingService.GetAdvertisingDataAsync(cancellationToken);
 
-                if (cancellationToken.IsCancellationRequested) return;
+                if (cancellationToken.IsCancellationRequested || !_isInitialized) return;
 
                 if (result.IsFallback || !result.HasContent)
                 {
                     ApplyFallbackState();
+
+                    // Lập lịch auto-retry 1 lần nếu là lỗi tạm thời (timeout, network, 503, 5xx)
+                    // Tuyệt đối KHÔNG retry với 401/403, empty-success, partial
+                    if (result.IsTransientError && !_hasScheduledRetryInSession)
+                    {
+                        ScheduleAutoRetry(cancellationToken);
+                    }
                     return;
                 }
 
-                // Cập nhật danh sách hiển thị
-                _promotions.Clear();
-                foreach (var p in result.ValidPromotions)
-                {
-                    _promotions.Add(new AdvertisingPromotionDisplayModel
-                    {
-                        PromotionId = p.PromotionId,
-                        Name = p.Name,
-                        Description = p.Description,
-                        MinOrderValue = p.OrderDiscount?.MinOrderValue ?? 0,
-                        DiscountAmount = p.OrderDiscount?.DiscountAmount ?? 0,
-                        StartDate = p.StartDate,
-                        EndDate = p.EndDate
-                    });
-                }
-
-                _newArrivals.Clear();
-                foreach (var b in result.NewArrivals.Take(6))
-                {
-                    _newArrivals.Add(new AdvertisingBookDisplayModel
-                    {
-                        BookId = b.BookId,
-                        Title = b.Title,
-                        ImageUrl = FormatImageUrl(b.ImageUrl),
-                        SellingPrice = b.SellingPrice,
-                        AvailableStock = b.AvailableStock,
-                        Subtitle = $"Nhập ngày {b.LastImportedAt:dd/MM/yyyy}"
-                    });
-                }
-
-                _bestSellers.Clear();
-                foreach (var b in result.BestSellers.Take(6))
-                {
-                    _bestSellers.Add(new AdvertisingBookDisplayModel
-                    {
-                        BookId = b.BookId,
-                        Title = b.Title,
-                        ImageUrl = FormatImageUrl(b.ImageUrl),
-                        SellingPrice = b.SellingPrice,
-                        AvailableStock = b.AvailableStock,
-                        Subtitle = $"Đã bán: {b.TotalSold} cuốn"
-                    });
-                }
-
-                // Xác định các nhóm có dữ liệu
-                _activeGroups.Clear();
-                if (_promotions.Count > 0) _activeGroups.Add(IdleSlideGroup.Promotions);
-                if (_newArrivals.Count > 0) _activeGroups.Add(IdleSlideGroup.NewArrivals);
-                if (_bestSellers.Count > 0) _activeGroups.Add(IdleSlideGroup.BestSellers);
-
-                if (_activeGroups.Count == 0)
-                {
-                    ApplyFallbackState();
-                    return;
-                }
-
-                IsFallback = false;
-                _currentGroupIndex = 0;
-                CurrentGroup = _activeGroups[0];
-                RaiseSlideStateChanged();
-
-                StartSlideshowTimer();
+                ApplySuccessfulAdvertisingResult(result);
             }
             catch (OperationCanceledException)
             {
@@ -243,7 +192,127 @@ namespace BookKiosk.Kiosk.ViewModels
             catch
             {
                 ApplyFallbackState();
+                if (!_hasScheduledRetryInSession && !cancellationToken.IsCancellationRequested && _isInitialized)
+                {
+                    ScheduleAutoRetry(cancellationToken);
+                }
             }
+        }
+
+        private void ApplySuccessfulAdvertisingResult(AdvertisingResult result)
+        {
+            // Cập nhật danh sách hiển thị
+            _promotions.Clear();
+            foreach (var p in result.ValidPromotions)
+            {
+                _promotions.Add(new AdvertisingPromotionDisplayModel
+                {
+                    PromotionId = p.PromotionId,
+                    Name = p.Name,
+                    Description = p.Description,
+                    MinOrderValue = p.OrderDiscount?.MinOrderValue ?? 0,
+                    DiscountAmount = p.OrderDiscount?.DiscountAmount ?? 0,
+                    StartDate = p.StartDate,
+                    EndDate = p.EndDate
+                });
+            }
+
+            _newArrivals.Clear();
+            foreach (var b in result.NewArrivals.Take(6))
+            {
+                _newArrivals.Add(new AdvertisingBookDisplayModel
+                {
+                    BookId = b.BookId,
+                    Title = b.Title,
+                    ImageUrl = FormatImageUrl(b.ImageUrl),
+                    SellingPrice = b.SellingPrice,
+                    AvailableStock = b.AvailableStock,
+                    Subtitle = $"Nhập ngày {b.LastImportedAt:dd/MM/yyyy}"
+                });
+            }
+
+            _bestSellers.Clear();
+            foreach (var b in result.BestSellers.Take(6))
+            {
+                _bestSellers.Add(new AdvertisingBookDisplayModel
+                {
+                    BookId = b.BookId,
+                    Title = b.Title,
+                    ImageUrl = FormatImageUrl(b.ImageUrl),
+                    SellingPrice = b.SellingPrice,
+                    AvailableStock = b.AvailableStock,
+                    Subtitle = $"Đã bán: {b.TotalSold} cuốn"
+                });
+            }
+
+            // Xác định các nhóm có dữ liệu
+            _activeGroups.Clear();
+            if (_promotions.Count > 0) _activeGroups.Add(IdleSlideGroup.Promotions);
+            if (_newArrivals.Count > 0) _activeGroups.Add(IdleSlideGroup.NewArrivals);
+            if (_bestSellers.Count > 0) _activeGroups.Add(IdleSlideGroup.BestSellers);
+
+            if (_activeGroups.Count == 0)
+            {
+                ApplyFallbackState();
+                return;
+            }
+
+            IsFallback = false;
+            _currentGroupIndex = 0;
+            CurrentGroup = _activeGroups[0];
+            RaiseSlideStateChanged();
+
+            StartSlideshowTimer();
+        }
+
+        private void ScheduleAutoRetry(CancellationToken cancellationToken)
+        {
+            if (_hasScheduledRetryInSession) return;
+            _hasScheduledRetryInSession = true;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var delayTask = DelayProvider != null
+                        ? DelayProvider(TimeSpan.FromSeconds(30), cancellationToken)
+                        : Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+
+                    await delayTask;
+
+                    if (cancellationToken.IsCancellationRequested || !_isInitialized) return;
+
+                    var retryResult = await _advertisingService.GetAdvertisingDataAsync(cancellationToken);
+
+                    if (cancellationToken.IsCancellationRequested || !_isInitialized) return;
+
+                    if (retryResult.IsSuccess && retryResult.HasContent)
+                    {
+                        Action updateUi = () =>
+                        {
+                            if (cancellationToken.IsCancellationRequested || !_isInitialized) return;
+                            ApplySuccessfulAdvertisingResult(retryResult);
+                        };
+
+                        if (System.Windows.Application.Current?.Dispatcher != null && !System.Windows.Application.Current.Dispatcher.CheckAccess())
+                        {
+                            System.Windows.Application.Current.Dispatcher.Invoke(updateUi);
+                        }
+                        else
+                        {
+                            updateUi();
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    // Bị hủy khi người dùng chạm màn hình hoặc rời trang -> nuốt im lặng
+                }
+                catch
+                {
+                    // Lỗi khi retry -> giữ nguyên fallback state
+                }
+            }, cancellationToken);
         }
 
         private void RaiseSlideStateChanged()
@@ -340,6 +409,7 @@ namespace BookKiosk.Kiosk.ViewModels
         private void CleanupSession()
         {
             StopSlideshowTimer();
+            _hasScheduledRetryInSession = false;
 
             if (_cts != null)
             {

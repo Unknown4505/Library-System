@@ -14,6 +14,7 @@ namespace BookKiosk.Kiosk.Services
     {
         public bool IsSuccess { get; set; }
         public bool IsFallback { get; set; }
+        public string? ErrorCode { get; set; }
         public string? ErrorMessage { get; set; }
         public List<AdvertisingPromotionDto> ValidPromotions { get; set; } = new();
         public List<AdvertisingNewArrivalDto> NewArrivals { get; set; } = new();
@@ -24,6 +25,8 @@ namespace BookKiosk.Kiosk.Services
         public bool HasNewArrivals => NewArrivals.Count > 0;
         public bool HasBestSellers => BestSellers.Count > 0;
         public bool HasContent => HasPromotions || HasNewArrivals || HasBestSellers;
+
+        public bool IsTransientError => !IsSuccess && (ErrorCode == "TIMEOUT_ERROR" || ErrorCode == "NETWORK_ERROR" || ErrorCode == "SERVICE_UNAVAILABLE" || ErrorCode == "SERVER_ERROR");
     }
 
     /// <summary>
@@ -70,14 +73,10 @@ namespace BookKiosk.Kiosk.Services
             await _lock.WaitAsync(cancellationToken);
             try
             {
-                // 1. Kiểm tra cache còn hạn hay không
+                // 1. Kiểm tra cache còn hạn hay không (Success có data hoặc rỗng đều là cache hit hợp lệ)
                 if (_cachedDto != null && now < _cacheExpiresAtUtc)
                 {
-                    var cachedResult = BuildResultFromDto(_cachedDto, now);
-                    if (cachedResult.HasContent)
-                    {
-                        return cachedResult;
-                    }
+                    return BuildResultFromDto(_cachedDto, now);
                 }
 
                 // 2. Kiểm tra quy tắc retry / cooldown nếu lần trước bị lỗi
@@ -92,6 +91,7 @@ namespace BookKiosk.Kiosk.Services
                         {
                             IsSuccess = false,
                             IsFallback = true,
+                            ErrorCode = "COOLDOWN_ACTIVE",
                             ErrorMessage = "Đang trong thời gian chờ phục hồi dữ liệu quảng cáo."
                         };
                     }
@@ -115,10 +115,13 @@ namespace BookKiosk.Kiosk.Services
                 catch (Exception ex)
                 {
                     _lastFetchWasError = true;
+                    _cachedDto = null;
+                    _cacheExpiresAtUtc = DateTime.MinValue;
                     return new AdvertisingResult
                     {
                         IsSuccess = false,
                         IsFallback = true,
+                        ErrorCode = "NETWORK_ERROR",
                         ErrorMessage = $"Lỗi kết nối khi tải quảng cáo: {ex.Message}"
                     };
                 }
@@ -127,42 +130,58 @@ namespace BookKiosk.Kiosk.Services
                 if (response == null || !response.Success || response.Data == null)
                 {
                     _lastFetchWasError = true;
+                    _cachedDto = null;
+                    _cacheExpiresAtUtc = DateTime.MinValue;
                     return new AdvertisingResult
                     {
                         IsSuccess = false,
                         IsFallback = true,
+                        ErrorCode = response?.Code ?? "SERVER_ERROR",
                         ErrorMessage = response?.Message ?? "Không thể lấy dữ liệu quảng cáo từ máy chủ."
                     };
                 }
 
-                // Thành công (bao gồm cả SUCCESS và PARTIAL_SUCCESS)
-                _lastFetchWasError = false;
-                _cachedDto = response.Data;
+                // Quyết định bắt buộc: PARTIAL_SUCCESS KHÔNG cache vì các nhóm lỗi có thể hồi phục nhanh
+                bool isPartial = string.Equals(response.Code, "PARTIAL_SUCCESS", StringComparison.OrdinalIgnoreCase)
+                    || (response.Data.UnavailableSections != null && response.Data.UnavailableSections.Count > 0);
 
-                // Tính toán thời gian hết hạn cache: Mặc định tối đa 5 phút
-                DateTime defaultExpiry = now.AddMinutes(5);
-                DateTime calculatedExpiry = defaultExpiry;
-
-                // Kiểm tra promotion: Hết hạn sớm theo promotion có EndDate gần nhất
-                if (_cachedDto.ActivePromotions != null && _cachedDto.ActivePromotions.Count > 0)
+                if (!isPartial)
                 {
-                    var validPromos = _cachedDto.ActivePromotions
-                        .Where(p => p.PromotionType == PromotionType.OrderDiscount && p.EndDate > now)
-                        .ToList();
+                    _lastFetchWasError = false;
+                    _cachedDto = response.Data;
 
-                    if (validPromos.Count > 0)
+                    // Tính toán thời gian hết hạn cache: Mặc định tối đa 5 phút
+                    DateTime defaultExpiry = now.AddMinutes(5);
+                    DateTime calculatedExpiry = defaultExpiry;
+
+                    // Hết hạn sớm theo promotion có EndDate gần nhất (chỉ áp dụng khi có promotion hợp lệ)
+                    if (_cachedDto.ActivePromotions != null && _cachedDto.ActivePromotions.Count > 0)
                     {
-                        DateTime earliestPromoEnd = validPromos.Min(p => p.EndDate);
-                        if (earliestPromoEnd < calculatedExpiry)
+                        var validPromos = _cachedDto.ActivePromotions
+                            .Where(p => p.PromotionType == PromotionType.OrderDiscount && p.EndDate > now)
+                            .ToList();
+
+                        if (validPromos.Count > 0)
                         {
-                            calculatedExpiry = earliestPromoEnd;
+                            DateTime earliestPromoEnd = validPromos.Min(p => p.EndDate);
+                            if (earliestPromoEnd < calculatedExpiry)
+                            {
+                                calculatedExpiry = earliestPromoEnd;
+                            }
                         }
                     }
+
+                    _cacheExpiresAtUtc = calculatedExpiry;
+                }
+                else
+                {
+                    // PARTIAL_SUCCESS: thành công nhưng có nhóm lỗi -> KHÔNG cache
+                    _lastFetchWasError = false;
+                    _cachedDto = null;
+                    _cacheExpiresAtUtc = DateTime.MinValue;
                 }
 
-                _cacheExpiresAtUtc = calculatedExpiry;
-
-                var result = BuildResultFromDto(_cachedDto, now);
+                var result = BuildResultFromDto(response.Data, now);
                 result.UnavailableSections = response.Data.UnavailableSections ?? new List<string>();
                 return result;
             }
