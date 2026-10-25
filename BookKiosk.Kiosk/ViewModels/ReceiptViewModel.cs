@@ -587,11 +587,18 @@ namespace BookKiosk.Kiosk.ViewModels
                 StopTimer();
                 CloseMockDialog();
 
+                // Dọn giỏ hàng trước khi điều hướng về SearchPage để trang đích luôn nhận giỏ sạch theo Issue #38 (NAV-CLEAN-01)
+                try
+                {
+                    _cartService.ClearCart();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ReceiptViewModel] Lỗi khi dọn giỏ hàng: {ex.Message}");
+                }
+
                 // Điều hướng về SearchPage thay vì IdlePage theo Issue #38
                 _navigationService.Navigate<SearchPage>();
-
-                // Dọn giỏ hàng sau khi đã hoàn tất toàn bộ luồng hóa đơn thành công
-                _cartService.ClearCart();
             }
         }
 
