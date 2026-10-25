@@ -59,6 +59,8 @@ namespace BookKiosk.Kiosk.ViewModels
         private int _slideshowIntervalSeconds = 8;
         private readonly string _apiBaseUrl = "";
         private bool _isInitialized = false;
+        private bool _isCleanedUp = false;
+        private DateTime _lastGroupReplacedUtc = DateTime.MinValue;
         private bool _hasScheduledRetryInSession = false;
         public Func<TimeSpan, CancellationToken, Task>? DelayProvider { get; set; }
 
@@ -149,6 +151,8 @@ namespace BookKiosk.Kiosk.ViewModels
         {
             if (_isInitialized) return;
             _isInitialized = true;
+            _isCleanedUp = false;
+            _lastGroupReplacedUtc = DateTime.MinValue;
             _hasScheduledRetryInSession = false;
 
             base.Initialize(parameter ?? string.Empty);
@@ -322,12 +326,19 @@ namespace BookKiosk.Kiosk.ViewModels
         /// <summary>
         /// Loại bỏ các khuyến mãi đã quá hạn khỏi bộ sưu tập hiển thị mà không cần gọi lại API.
         /// Tự động cập nhật lại activeGroups và trạng thái Fallback nếu tất cả nhóm đều trống.
+        /// Trả về true nếu chính nhóm đang hiển thị vừa bị thay thế bởi nhóm kế tiếp.
         /// </summary>
-        private void PurgeExpiredPromotions()
+        private bool PurgeExpiredPromotions(DateTime? referenceNow = null)
         {
+            if (_isCleanedUp || !_isInitialized) return false;
+
+            bool currentGroupReplaced = false;
+
             Action purgeAction = () =>
             {
-                DateTime now = _advertisingService.UtcNowProvider();
+                if (_isCleanedUp || !_isInitialized) return;
+
+                DateTime now = referenceNow ?? _advertisingService.UtcNowProvider();
 
                 // Lọc bỏ promotion hết hạn (EndDate <= now hoặc StartDate > now)
                 var expiredPromos = _promotions.Where(p => p.EndDate <= now || p.StartDate > now).ToList();
@@ -342,11 +353,11 @@ namespace BookKiosk.Kiosk.ViewModels
                 // Cập nhật lại activeGroups an toàn nếu nhóm Promotions không còn phần tử nào
                 if (_promotions.Count == 0 && _activeGroups.Contains(IdleSlideGroup.Promotions))
                 {
-                    RemoveActiveGroupSafely(IdleSlideGroup.Promotions);
+                    currentGroupReplaced = RemoveActiveGroupSafely(IdleSlideGroup.Promotions);
                 }
 
-                // Lập lịch cho đợt hết hạn tiếp theo của promotion còn lại (nếu có)
-                ScheduleNextPromotionExpiryTimer();
+                // Lập lịch cho đợt hết hạn tiếp theo của promotion còn lại (nếu có), dùng chung giá trị now
+                ScheduleNextPromotionExpiryTimer(now);
 
                 RaiseSlideStateChanged();
             };
@@ -359,15 +370,20 @@ namespace BookKiosk.Kiosk.ViewModels
             {
                 purgeAction();
             }
+
+            return currentGroupReplaced;
         }
 
         /// <summary>
         /// Xóa an toàn một nhóm khỏi _activeGroups và đồng bộ lại _currentGroupIndex để tránh lặp hoặc nhảy cóc slide.
+        /// Trả về true nếu chính nhóm đang hiển thị bị gỡ bỏ và được thay thế bằng nhóm kế tiếp.
         /// </summary>
-        private void RemoveActiveGroupSafely(IdleSlideGroup groupToRemove)
+        private bool RemoveActiveGroupSafely(IdleSlideGroup groupToRemove)
         {
             int removedIndex = _activeGroups.IndexOf(groupToRemove);
-            if (removedIndex == -1) return;
+            if (removedIndex == -1) return false;
+
+            bool wasCurrentlyShowing = (removedIndex == _currentGroupIndex);
 
             _activeGroups.RemoveAt(removedIndex);
 
@@ -375,7 +391,7 @@ namespace BookKiosk.Kiosk.ViewModels
             if (_activeGroups.Count == 0)
             {
                 ApplyFallbackState();
-                return;
+                return wasCurrentlyShowing;
             }
 
             // Kịch bản B: Nhóm bị xóa nằm TRƯỚC nhóm đang hiển thị
@@ -385,13 +401,14 @@ namespace BookKiosk.Kiosk.ViewModels
                 _currentGroupIndex--;
             }
             // Kịch bản C: Chính nhóm đang hiển thị bị gỡ bỏ
-            else if (removedIndex == _currentGroupIndex)
+            else if (wasCurrentlyShowing)
             {
                 if (_currentGroupIndex >= _activeGroups.Count)
                 {
                     _currentGroupIndex = 0;
                 }
                 CurrentGroup = _activeGroups[_currentGroupIndex];
+                _lastGroupReplacedUtc = _advertisingService.UtcNowProvider();
             }
             // Kịch bản D: removedIndex > _currentGroupIndex -> giữ nguyên _currentGroupIndex
 
@@ -402,23 +419,35 @@ namespace BookKiosk.Kiosk.ViewModels
                 CurrentGroup = _activeGroups[0];
             }
 
+            // Nếu nhóm đang hiển thị vừa bị thay thế và còn từ 2 nhóm trở lên,
+            // khởi động lại slideshow timer để nhóm mới hiển thị trọn vẹn 1 chu kỳ (8s)
+            if (wasCurrentlyShowing && _activeGroups.Count > 1)
+            {
+                StartSlideshowTimer();
+            }
             // Nếu chỉ còn 1 nhóm duy nhất không phải Promotions thì dừng timer luân chuyển
-            if (_activeGroups.Count <= 1 && !_activeGroups.Contains(IdleSlideGroup.Promotions))
+            else if (_activeGroups.Count <= 1 && !_activeGroups.Contains(IdleSlideGroup.Promotions))
             {
                 StopSlideshowTimer();
             }
+
+            return wasCurrentlyShowing;
         }
 
         /// <summary>
         /// Lên lịch cho Timer độc lập kích hoạt chính xác tại thời điểm EndDate gần nhất của khuyến mãi.
+        /// Dùng giá trị now được truyền vào để đồng nhất thời gian với PurgeExpiredPromotions.
+        /// Tuyệt đối không gọi đệ quy PurgeExpiredPromotions khi delay <= 0.
         /// </summary>
-        private void ScheduleNextPromotionExpiryTimer()
+        private void ScheduleNextPromotionExpiryTimer(DateTime? referenceNow = null)
         {
+            if (_isCleanedUp || !_isInitialized) return;
+
             StopPromotionExpiryTimer();
 
             if (_promotions.Count == 0) return;
 
-            DateTime now = _advertisingService.UtcNowProvider();
+            DateTime now = referenceNow ?? _advertisingService.UtcNowProvider();
 
             // Tìm thời điểm hết hạn sớm nhất của các promotion còn hiệu lực
             var activePromos = _promotions.Where(p => p.EndDate > now && p.StartDate <= now).ToList();
@@ -432,17 +461,19 @@ namespace BookKiosk.Kiosk.ViewModels
 
             if (delay <= TimeSpan.Zero)
             {
-                PurgeExpiredPromotions();
-                return;
+                // Không gọi đệ quy PurgeExpiredPromotions để tránh mất trạng thái / tràn stack.
+                // Thiết lập timer tối thiểu (10ms) để nhịp Dispatcher tiếp theo thanh lọc an toàn.
+                delay = TimeSpan.FromMilliseconds(10);
             }
-
-            if (delay.TotalDays > 1)
+            else if (delay.TotalDays > 1)
             {
                 delay = TimeSpan.FromHours(24);
             }
 
             Action startTimer = () =>
             {
+                if (_isCleanedUp || !_isInitialized) return;
+
                 StopPromotionExpiryTimer();
 
                 _promotionExpiryTimer = new DispatcherTimer
@@ -465,6 +496,8 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private void PromotionExpiryTimer_Tick(object? sender, EventArgs e)
         {
+            if (_isCleanedUp || !_isInitialized) return;
+
             StopPromotionExpiryTimer();
             PurgeExpiredPromotions();
         }
@@ -533,6 +566,8 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private void StartSlideshowTimer()
         {
+            if (_isCleanedUp || !_isInitialized) return;
+
             StopSlideshowTimer();
 
             // Nếu không có nhóm nào hoặc chỉ có 1 nhóm tĩnh (không có Promotions cần theo dõi hết hạn) thì không cần timer
@@ -551,11 +586,33 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private void SlideshowTimer_Tick(object? sender, EventArgs e)
         {
+            if (_isCleanedUp || !_isInitialized) return;
+
+            DateTime now = _advertisingService.UtcNowProvider();
+
             // 1. Luôn thanh lọc khuyến mãi hết hạn trước khi luân chuyển slide
-            PurgeExpiredPromotions();
+            bool currentGroupReplaced = PurgeExpiredPromotions(now);
 
             // Nếu sau khi lọc không còn nhóm nào (đã chuyển sang Fallback) thì không tiếp tục
             if (_activeGroups.Count == 0) return;
+
+            // Bảo vệ Tick-First: Nếu nhóm đang hiển thị vừa bị thay thế trong nhịp tick này,
+            // nhóm mới (NewArrivals) đã được gán và timer đã được khởi động lại cho trọn 8s.
+            // Return ngay lập tức để tránh double-advance sang BestSellers.
+            if (currentGroupReplaced)
+            {
+                return;
+            }
+
+            // Bảo vệ Expiry-First (bảo vệ giới hạn theo thời gian):
+            // Nếu nhóm đang hiển thị vừa bị thay thế bởi ExpiryTimer ngay trước lượt tick này (< ngưỡng),
+            // bỏ qua việc cộng index để không nuốt mất slide thay thế.
+            TimeSpan threshold = TimeSpan.FromSeconds(Math.Min(2.0, _slideshowIntervalSeconds / 2.0));
+            if (_lastGroupReplacedUtc != DateTime.MinValue && (now - _lastGroupReplacedUtc) >= TimeSpan.Zero && (now - _lastGroupReplacedUtc) < threshold)
+            {
+                RaiseSlideStateChanged();
+                return;
+            }
 
             // 2. Luân chuyển sang nhóm kế tiếp nếu có từ 2 nhóm trở lên
             if (_activeGroups.Count > 1)
@@ -584,6 +641,7 @@ namespace BookKiosk.Kiosk.ViewModels
 
         public void Cleanup()
         {
+            _isCleanedUp = true;
             _isInitialized = false;
             CleanupSession();
         }
@@ -593,6 +651,7 @@ namespace BookKiosk.Kiosk.ViewModels
             StopSlideshowTimer();
             StopPromotionExpiryTimer();
             _hasScheduledRetryInSession = false;
+            _lastGroupReplacedUtc = DateTime.MinValue;
 
             if (_cts != null)
             {
