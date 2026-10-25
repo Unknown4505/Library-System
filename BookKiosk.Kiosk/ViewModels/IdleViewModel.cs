@@ -54,6 +54,7 @@ namespace BookKiosk.Kiosk.ViewModels
         private readonly IConfiguration? _configuration;
 
         private DispatcherTimer? _slideshowTimer;
+        private DispatcherTimer? _promotionExpiryTimer;
         private CancellationTokenSource? _cts;
         private int _slideshowIntervalSeconds = 8;
         private readonly string _apiBaseUrl = "";
@@ -338,36 +339,14 @@ namespace BookKiosk.Kiosk.ViewModels
                     }
                 }
 
-                // Cập nhật lại activeGroups nếu nhóm Promotions không còn phần tử nào
+                // Cập nhật lại activeGroups an toàn nếu nhóm Promotions không còn phần tử nào
                 if (_promotions.Count == 0 && _activeGroups.Contains(IdleSlideGroup.Promotions))
                 {
-                    _activeGroups.Remove(IdleSlideGroup.Promotions);
+                    RemoveActiveGroupSafely(IdleSlideGroup.Promotions);
                 }
 
-                // Nếu không còn nhóm nào có dữ liệu -> Chuyển sang Fallback 'Chạm để bắt đầu'
-                if (_activeGroups.Count == 0)
-                {
-                    ApplyFallbackState();
-                    return;
-                }
-
-                // Nếu chỉ còn 1 nhóm duy nhất không phải Promotions thì dừng timer vì không còn gì để luân chuyển/hết hạn
-                if (_activeGroups.Count <= 1 && !_activeGroups.Contains(IdleSlideGroup.Promotions))
-                {
-                    StopSlideshowTimer();
-                }
-
-                // Nếu nhóm hiện tại vừa bị xóa hoặc index bị vượt quá -> chuẩn hóa lại index an toàn
-                if (_currentGroupIndex >= _activeGroups.Count)
-                {
-                    _currentGroupIndex = 0;
-                    CurrentGroup = _activeGroups[0];
-                }
-                else if (CurrentGroup == IdleSlideGroup.Promotions && _promotions.Count == 0)
-                {
-                    _currentGroupIndex = _currentGroupIndex % _activeGroups.Count;
-                    CurrentGroup = _activeGroups[_currentGroupIndex];
-                }
+                // Lập lịch cho đợt hết hạn tiếp theo của promotion còn lại (nếu có)
+                ScheduleNextPromotionExpiryTimer();
 
                 RaiseSlideStateChanged();
             };
@@ -379,6 +358,124 @@ namespace BookKiosk.Kiosk.ViewModels
             else
             {
                 purgeAction();
+            }
+        }
+
+        /// <summary>
+        /// Xóa an toàn một nhóm khỏi _activeGroups và đồng bộ lại _currentGroupIndex để tránh lặp hoặc nhảy cóc slide.
+        /// </summary>
+        private void RemoveActiveGroupSafely(IdleSlideGroup groupToRemove)
+        {
+            int removedIndex = _activeGroups.IndexOf(groupToRemove);
+            if (removedIndex == -1) return;
+
+            _activeGroups.RemoveAt(removedIndex);
+
+            // Kịch bản A: Nếu không còn nhóm nào có dữ liệu -> Chuyển sang Fallback 'Chạm để bắt đầu'
+            if (_activeGroups.Count == 0)
+            {
+                ApplyFallbackState();
+                return;
+            }
+
+            // Kịch bản B: Nhóm bị xóa nằm TRƯỚC nhóm đang hiển thị
+            // Do các nhóm phía sau dồn lên trước 1 vị trí, cần giảm _currentGroupIndex để giữ nguyên slide hiện tại
+            if (removedIndex < _currentGroupIndex)
+            {
+                _currentGroupIndex--;
+            }
+            // Kịch bản C: Chính nhóm đang hiển thị bị gỡ bỏ
+            else if (removedIndex == _currentGroupIndex)
+            {
+                if (_currentGroupIndex >= _activeGroups.Count)
+                {
+                    _currentGroupIndex = 0;
+                }
+                CurrentGroup = _activeGroups[_currentGroupIndex];
+            }
+            // Kịch bản D: removedIndex > _currentGroupIndex -> giữ nguyên _currentGroupIndex
+
+            // Chuẩn hóa index an toàn phòng ngừa biên
+            if (_currentGroupIndex >= _activeGroups.Count)
+            {
+                _currentGroupIndex = 0;
+                CurrentGroup = _activeGroups[0];
+            }
+
+            // Nếu chỉ còn 1 nhóm duy nhất không phải Promotions thì dừng timer luân chuyển
+            if (_activeGroups.Count <= 1 && !_activeGroups.Contains(IdleSlideGroup.Promotions))
+            {
+                StopSlideshowTimer();
+            }
+        }
+
+        /// <summary>
+        /// Lên lịch cho Timer độc lập kích hoạt chính xác tại thời điểm EndDate gần nhất của khuyến mãi.
+        /// </summary>
+        private void ScheduleNextPromotionExpiryTimer()
+        {
+            StopPromotionExpiryTimer();
+
+            if (_promotions.Count == 0) return;
+
+            DateTime now = _advertisingService.UtcNowProvider();
+
+            // Tìm thời điểm hết hạn sớm nhất của các promotion còn hiệu lực
+            var activePromos = _promotions.Where(p => p.EndDate > now && p.StartDate <= now).ToList();
+            if (activePromos.Count == 0)
+            {
+                return;
+            }
+
+            DateTime earliestExpiry = activePromos.Min(p => p.EndDate);
+            TimeSpan delay = earliestExpiry - now;
+
+            if (delay <= TimeSpan.Zero)
+            {
+                PurgeExpiredPromotions();
+                return;
+            }
+
+            if (delay.TotalDays > 1)
+            {
+                delay = TimeSpan.FromHours(24);
+            }
+
+            Action startTimer = () =>
+            {
+                StopPromotionExpiryTimer();
+
+                _promotionExpiryTimer = new DispatcherTimer
+                {
+                    Interval = delay
+                };
+                _promotionExpiryTimer.Tick += PromotionExpiryTimer_Tick;
+                _promotionExpiryTimer.Start();
+            };
+
+            if (System.Windows.Application.Current?.Dispatcher != null && !System.Windows.Application.Current.Dispatcher.CheckAccess())
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(startTimer);
+            }
+            else
+            {
+                startTimer();
+            }
+        }
+
+        private void PromotionExpiryTimer_Tick(object? sender, EventArgs e)
+        {
+            StopPromotionExpiryTimer();
+            PurgeExpiredPromotions();
+        }
+
+        private void StopPromotionExpiryTimer()
+        {
+            if (_promotionExpiryTimer != null)
+            {
+                _promotionExpiryTimer.Stop();
+                _promotionExpiryTimer.Tick -= PromotionExpiryTimer_Tick;
+                _promotionExpiryTimer = null;
             }
         }
 
@@ -425,6 +522,7 @@ namespace BookKiosk.Kiosk.ViewModels
         private void ApplyFallbackState()
         {
             StopSlideshowTimer();
+            StopPromotionExpiryTimer();
             _promotions.Clear();
             _newArrivals.Clear();
             _bestSellers.Clear();
@@ -493,6 +591,7 @@ namespace BookKiosk.Kiosk.ViewModels
         private void CleanupSession()
         {
             StopSlideshowTimer();
+            StopPromotionExpiryTimer();
             _hasScheduledRetryInSession = false;
 
             if (_cts != null)
