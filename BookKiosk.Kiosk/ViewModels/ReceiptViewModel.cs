@@ -401,7 +401,7 @@ namespace BookKiosk.Kiosk.ViewModels
 
             // Đơn hàng đã Paid nên việc quay về trang chủ chủ động bởi khách sẽ xóa giỏ hàng
             _cartService.ClearCart();
-            _navigationService.Navigate<IdlePage>();
+            _navigationService.Navigate<SearchPage>();
         }
 
         /// <summary>
@@ -587,11 +587,18 @@ namespace BookKiosk.Kiosk.ViewModels
                 StopTimer();
                 CloseMockDialog();
 
-                // Điều hướng về IdlePage trước
-                _navigationService.Navigate<IdlePage>();
+                // Dọn giỏ hàng trước khi điều hướng về SearchPage để trang đích luôn nhận giỏ sạch theo Issue #38 (NAV-CLEAN-01)
+                try
+                {
+                    _cartService.ClearCart();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ReceiptViewModel] Lỗi khi dọn giỏ hàng: {ex.Message}");
+                }
 
-                // Dọn giỏ hàng sau khi đã hoàn tất toàn bộ luồng hóa đơn thành công
-                _cartService.ClearCart();
+                // Điều hướng về SearchPage thay vì IdlePage theo Issue #38
+                _navigationService.Navigate<SearchPage>();
             }
         }
 

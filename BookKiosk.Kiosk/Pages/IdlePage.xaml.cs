@@ -16,6 +16,14 @@ namespace BookKiosk.Kiosk.Pages
         {
             InitializeComponent();
             this.DataContext = viewModel;
+
+            this.Unloaded += (s, e) =>
+            {
+                if (this.DataContext is IdleViewModel vm)
+                {
+                    vm.Cleanup();
+                }
+            };
         }
     }
 }

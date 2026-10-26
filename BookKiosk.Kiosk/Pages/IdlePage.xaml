@@ -8,23 +8,318 @@
       d:DesignHeight="1080" d:DesignWidth="1920"
       Title="IdlePage">
 
-    <Grid Background="#2c3e50">
-        <!-- Chỗ chứa video hoặc ảnh nền (cập nhật sau nếu có tài nguyên) -->
-        
-        <TextBlock Text="CHẠM VÀO MÀN HÌNH ĐỂ BẮT ĐẦU" 
-                   Foreground="White" 
-                   FontSize="60" 
-                   FontWeight="Bold" 
-                   HorizontalAlignment="Center" 
-                   VerticalAlignment="Center" 
-                   IsHitTestVisible="False" />
-                   
-        <!-- Nút bấm vô hình bao trùm toàn bộ màn hình để bắt sự kiện -->
+    <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Page.Resources>
+
+    <Grid>
+        <!-- NỀN TRÌNH CHIẾU VỚI HIỆU ỨNG GRADIENT SANG TRỌNG -->
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#1e272e" Offset="0.0"/>
+                <GradientStop Color="#2c3e50" Offset="0.5"/>
+                <GradientStop Color="#0abde3" Offset="1.4"/>
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <Grid Margin="60,40,60,40">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 1. HEADER: LOGO VÀ BADGE NHÓM QUẢNG CÁO -->
+            <Grid Grid.Row="0" Margin="0,0,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Logo & Thương hiệu -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="50" Height="50" Background="#f39c12" CornerRadius="12" Margin="0,0,16,0">
+                        <TextBlock Text="📚" FontSize="28" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="BOOKKIOSK" Foreground="White" FontSize="26" FontWeight="ExtraBold"/>
+                        <TextBlock Text="HỆ THỐNG MUA SÁCH TỰ ĐỘNG" Foreground="#a4b0be" FontSize="13" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Badge tiêu đề nhóm slide hiện tại -->
+                <Border Grid.Column="2" 
+                        Background="#e67e22" 
+                        CornerRadius="20" 
+                        Padding="24,10,24,10"
+                        Visibility="{Binding HasContent, Converter={StaticResource BoolToVis}}"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="{Binding GroupBadgeText}" 
+                               Foreground="White" 
+                               FontSize="18" 
+                               FontWeight="Bold"/>
+                </Border>
+            </Grid>
+
+            <!-- 2. BODY TRÌNH CHIẾU LUÂN PHIÊN 3 NHÓM -->
+            <Grid Grid.Row="1" Margin="0,10,0,20">
+
+                <!-- NHÓM A: KHUYẾN MÃI (ORDER DISCOUNT) -->
+                <Grid Visibility="{Binding IsShowingPromotions, Converter={StaticResource BoolToVis}}">
+                    <ItemsControl ItemsSource="{Binding Promotions}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#1b2631" 
+                                        BorderBrush="#e67e22" 
+                                        BorderThickness="3" 
+                                        CornerRadius="24" 
+                                        Padding="60,40,60,40"
+                                        HorizontalAlignment="Center" 
+                                        VerticalAlignment="Center" 
+                                        MaxWidth="1300">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#000000" BlurRadius="40" ShadowDepth="10" Opacity="0.5"/>
+                                    </Border.Effect>
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <Border Background="#f39c12" CornerRadius="14" Padding="20,6" HorizontalAlignment="Center" Margin="0,0,0,20">
+                                            <TextBlock Text="🎁 CHƯƠNG TRÌNH KHUYẾN MÃI ĐẶC BIỆT" Foreground="White" FontWeight="Bold" FontSize="18"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding Name}" 
+                                                   Foreground="White" 
+                                                   FontSize="42" 
+                                                   FontWeight="ExtraBold" 
+                                                   TextAlignment="Center" 
+                                                   TextWrapping="Wrap" 
+                                                   Margin="0,0,0,16"/>
+                                        <TextBlock Text="{Binding Description}" 
+                                                   Foreground="#bdc3c7" 
+                                                   FontSize="22" 
+                                                   TextAlignment="Center" 
+                                                   TextWrapping="Wrap" 
+                                                   Margin="0,0,0,30" 
+                                                   MaxWidth="900"/>
+
+                                        <Border Background="#2c3e50" CornerRadius="18" Padding="40,24" Margin="0,0,0,24" BorderBrush="#f39c12" BorderThickness="1">
+                                            <TextBlock Text="{Binding DiscountText}" 
+                                                       Foreground="#f1c40f" 
+                                                       FontSize="36" 
+                                                       FontWeight="Black" 
+                                                       TextAlignment="Center"/>
+                                        </Border>
+
+                                        <TextBlock Text="{Binding PeriodText}" 
+                                                   Foreground="#7f8c8d" 
+                                                   FontSize="16" 
+                                                   FontWeight="SemiBold" 
+                                                   TextAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+
+                <!-- NHÓM B: SÁCH MỚI VỀ (LƯỚI 4–6 CUỐN) -->
+                <Grid Visibility="{Binding IsShowingNewArrivals, Converter={StaticResource BoolToVis}}">
+                    <ItemsControl ItemsSource="{Binding NewArrivals}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="3" Rows="2" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#1b2631" 
+                                        BorderBrush="#34495e" 
+                                        BorderThickness="1.5" 
+                                        CornerRadius="18" 
+                                        Margin="16" 
+                                        Padding="16"
+                                        Width="380" 
+                                        Height="320">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="4" Opacity="0.3"/>
+                                    </Border.Effect>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="150"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Khung ảnh bìa sách -->
+                                        <Border Grid.Column="0" Background="#2c3e50" CornerRadius="12" ClipToBounds="True">
+                                            <Grid>
+                                                <!-- Placeholder vector mặc định khi ảnh null hoặc lỗi -->
+                                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Text="📖" FontSize="44" HorizontalAlignment="Center"/>
+                                                    <TextBlock Text="BOOK" Foreground="#7f8c8d" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                                </StackPanel>
+                                                
+                                                <!-- Ảnh bìa thật nếu có URL -->
+                                                <Image Source="{Binding ImageUrl}" 
+                                                       Stretch="UniformToFill" 
+                                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Thông tin chi tiết sách -->
+                                        <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                                            <Border Background="#2980b9" CornerRadius="8" Padding="10,4" HorizontalAlignment="Left" Margin="0,0,0,10">
+                                                <TextBlock Text="MỚI VỀ" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                            </Border>
+
+                                            <TextBlock Text="{Binding Title}" 
+                                                       Foreground="White" 
+                                                       FontSize="18" 
+                                                       FontWeight="Bold" 
+                                                       TextWrapping="Wrap" 
+                                                       MaxHeight="70" 
+                                                       TextTrimming="CharacterEllipsis" 
+                                                       Margin="0,0,0,10"/>
+
+                                            <TextBlock Text="{Binding PriceText}" 
+                                                       Foreground="#2ecc71" 
+                                                       FontSize="24" 
+                                                       FontWeight="ExtraBold" 
+                                                       Margin="0,0,0,10"/>
+
+                                            <TextBlock Text="{Binding Subtitle}" 
+                                                       Foreground="#95a5a6" 
+                                                       FontSize="13" 
+                                                       FontWeight="Medium"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+
+                <!-- NHÓM C: SÁCH BÁN CHẠY (LƯỚI 4–6 CUỐN) -->
+                <Grid Visibility="{Binding IsShowingBestSellers, Converter={StaticResource BoolToVis}}">
+                    <ItemsControl ItemsSource="{Binding BestSellers}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="3" Rows="2" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#1b2631" 
+                                        BorderBrush="#f39c12" 
+                                        BorderThickness="1.5" 
+                                        CornerRadius="18" 
+                                        Margin="16" 
+                                        Padding="16"
+                                        Width="380" 
+                                        Height="320">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="4" Opacity="0.3"/>
+                                    </Border.Effect>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="150"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Khung ảnh bìa sách -->
+                                        <Border Grid.Column="0" Background="#2c3e50" CornerRadius="12" ClipToBounds="True">
+                                            <Grid>
+                                                <!-- Placeholder vector mặc định khi ảnh null hoặc lỗi -->
+                                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Text="🔥" FontSize="44" HorizontalAlignment="Center"/>
+                                                    <TextBlock Text="TOP 10" Foreground="#f39c12" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                                </StackPanel>
+                                                
+                                                <!-- Ảnh bìa thật nếu có URL -->
+                                                <Image Source="{Binding ImageUrl}" 
+                                                       Stretch="UniformToFill" 
+                                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Thông tin chi tiết sách -->
+                                        <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                                            <Border Background="#d35400" CornerRadius="8" Padding="10,4" HorizontalAlignment="Left" Margin="0,0,0,10">
+                                                <TextBlock Text="BÁN CHẠY" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                            </Border>
+
+                                            <TextBlock Text="{Binding Title}" 
+                                                       Foreground="White" 
+                                                       FontSize="18" 
+                                                       FontWeight="Bold" 
+                                                       TextWrapping="Wrap" 
+                                                       MaxHeight="70" 
+                                                       TextTrimming="CharacterEllipsis" 
+                                                       Margin="0,0,0,10"/>
+
+                                            <TextBlock Text="{Binding PriceText}" 
+                                                       Foreground="#f1c40f" 
+                                                       FontSize="24" 
+                                                       FontWeight="ExtraBold" 
+                                                       Margin="0,0,0,10"/>
+
+                                            <TextBlock Text="{Binding Subtitle}" 
+                                                       Foreground="#f39c12" 
+                                                       FontSize="14" 
+                                                       FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+
+                <!-- FALLBACK: KHI LỖI / RỖNG / ĐANG TẢI -->
+                <Grid Visibility="{Binding IsFallback, Converter={StaticResource BoolToVis}}" 
+                      HorizontalAlignment="Center" 
+                      VerticalAlignment="Center">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Width="120" Height="120" Background="#2c3e50" CornerRadius="60" Margin="0,0,0,30" HorizontalAlignment="Center">
+                            <TextBlock Text="📖" FontSize="64" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="CHÀO MỪNG QUÝ KHÁCH ĐẾN VỚI BOOKKIOSK" 
+                                   Foreground="White" 
+                                   FontSize="36" 
+                                   FontWeight="ExtraBold" 
+                                   TextAlignment="Center" 
+                                   Margin="0,0,0,16"/>
+                        <TextBlock Text="Tra cứu vị trí và mua sách nhanh chóng tại trạm tự phục vụ" 
+                                   Foreground="#bdc3c7" 
+                                   FontSize="20" 
+                                   TextAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- 3. FOOTER: LỜI NHẮC CẢM ỨNG CỐ ĐỊNH -->
+            <Border Grid.Row="2" 
+                    Background="#2c3e50" 
+                    CornerRadius="20" 
+                    Padding="40,16" 
+                    HorizontalAlignment="Center"
+                    BorderBrush="#f39c12" 
+                    BorderThickness="1.5">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="👆" FontSize="32" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                    <TextBlock Text="CHẠM VÀO MÀN HÌNH ĐỂ BẮT ĐẦU" 
+                               Foreground="#f1c40f" 
+                               FontSize="32" 
+                               FontWeight="Black" 
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- NÚT VÔ HÌNH TOÀN MÀN HÌNH: CHẠM BẤT KỲ ĐÂU ĐỀU CHUYỂN SANG SEARCHPAGE -->
         <Button Command="{Binding StartCommand}"
                 Background="Transparent" 
                 BorderBrush="Transparent"
                 Foreground="Transparent"
                 Cursor="Hand"
-                Focusable="False"/>
+                Focusable="False"
+                Panel.ZIndex="99"/>
     </Grid>
 </Page>

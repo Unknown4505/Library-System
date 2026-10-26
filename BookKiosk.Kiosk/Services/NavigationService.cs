@@ -1,5 +1,6 @@
 using System;
 using System.Windows.Controls;
+using System.Windows.Navigation;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BookKiosk.Kiosk.Services
@@ -7,7 +8,10 @@ namespace BookKiosk.Kiosk.Services
     public class NavigationService
     {
         private readonly IServiceProvider _serviceProvider;
-        private Frame _mainFrame;
+        private Frame? _mainFrame;
+
+        public Type? CurrentPageType { get; private set; }
+        public event Action<Type?>? Navigated;
 
         public NavigationService(IServiceProvider serviceProvider)
         {
@@ -17,9 +21,18 @@ namespace BookKiosk.Kiosk.Services
         public void Initialize(Frame mainFrame)
         {
             _mainFrame = mainFrame ?? throw new ArgumentNullException(nameof(mainFrame));
+            _mainFrame.Navigated -= MainFrame_Navigated;
+            _mainFrame.Navigated += MainFrame_Navigated;
+            CurrentPageType = _mainFrame.Content?.GetType();
         }
 
-        public void Navigate<T>(object parameter = null) where T : Page
+        private void MainFrame_Navigated(object sender, NavigationEventArgs e)
+        {
+            CurrentPageType = e.Content?.GetType();
+            Navigated?.Invoke(CurrentPageType);
+        }
+
+        public void Navigate<T>(object? parameter = null) where T : Page
         {
             if (_mainFrame == null)
             {
@@ -47,3 +60,4 @@ namespace BookKiosk.Kiosk.Services
         }
     }
 }
+
