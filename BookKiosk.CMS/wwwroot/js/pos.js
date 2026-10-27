@@ -1728,6 +1728,13 @@
                     const tdTitle = document.createElement('td');
                     tdTitle.textContent = item.title || `Sách #${item.bookId}`;
 
+                    if (item.lineDiscountAmount && item.lineDiscountAmount > 0) {
+                        const discountBadge = document.createElement('div');
+                        discountBadge.className = 'small text-success';
+                        discountBadge.textContent = `(-${formatMoneyVnd(item.discountPerUnit || 0)}/cuốn)`;
+                        tdTitle.appendChild(discountBadge);
+                    }
+
                     const tdQty = document.createElement('td');
                     tdQty.className = 'text-center';
                     tdQty.textContent = (item.quantity || 1).toString();
@@ -1737,8 +1744,20 @@
                     tdPrice.textContent = formatMoneyVnd(item.unitPrice || 0);
 
                     const tdTotal = document.createElement('td');
-                    tdTotal.className = 'text-end fw-bold';
-                    tdTotal.textContent = formatMoneyVnd(item.lineTotal || (item.unitPrice * item.quantity));
+                    if (item.lineDiscountAmount && item.lineDiscountAmount > 0) {
+                        tdTotal.className = 'text-end';
+                        const delEl = document.createElement('del');
+                        delEl.className = 'text-muted small d-block';
+                        delEl.textContent = formatMoneyVnd(item.lineTotal || (item.unitPrice * item.quantity));
+                        const netEl = document.createElement('span');
+                        netEl.className = 'fw-bold text-success';
+                        netEl.textContent = formatMoneyVnd(item.netLineTotal);
+                        tdTotal.appendChild(delEl);
+                        tdTotal.appendChild(netEl);
+                    } else {
+                        tdTotal.className = 'text-end fw-bold';
+                        tdTotal.textContent = formatMoneyVnd(item.lineTotal || (item.unitPrice * item.quantity));
+                    }
 
                     tr.appendChild(tdTitle);
                     tr.appendChild(tdQty);
@@ -1747,13 +1766,36 @@
                     tbody.appendChild(tr);
                 });
 
+                const unassignedNotice = document.getElementById('receiptUnassignedNotice');
+                if (unassignedNotice) {
+                    const isProductDiscount = receipt.promotionType === 2 || receipt.promotionType === 'ProductDiscount';
+                    const hasAnyLineDiscount = (receipt.items || []).some(i => i.lineDiscountAmount && i.lineDiscountAmount > 0);
+                    if (isProductDiscount && !hasAnyLineDiscount && receipt.discountAmount > 0) {
+                        unassignedNotice.classList.remove('d-none');
+                    } else {
+                        unassignedNotice.classList.add('d-none');
+                    }
+                }
+
                 // Totals
                 document.getElementById('receiptSubTotal').textContent = formatMoneyVnd(receipt.subTotal);
 
                 const discountRow = document.getElementById('receiptDiscountRow');
                 const discountSpan = document.getElementById('receiptDiscountAmount');
+                const discountLabel = document.getElementById('receiptDiscountLabel');
                 if (receipt.discountAmount > 0) {
                     discountSpan.textContent = '-' + formatMoneyVnd(receipt.discountAmount);
+                    let labelText = 'Giảm khuyến mãi:';
+                    if (receipt.promotionName) {
+                        let promoTypeStr = '';
+                        if (receipt.promotionType === 1 || receipt.promotionType === 'OrderDiscount') {
+                            promoTypeStr = ' (Hóa đơn)';
+                        } else if (receipt.promotionType === 2 || receipt.promotionType === 'ProductDiscount') {
+                            promoTypeStr = ' (Từng sách)';
+                        }
+                        labelText = `KM - ${receipt.promotionName}${promoTypeStr}:`;
+                    }
+                    if (discountLabel) discountLabel.textContent = labelText;
                     discountRow.classList.remove('d-none');
                 } else {
                     discountRow.classList.add('d-none');

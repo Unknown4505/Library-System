@@ -166,6 +166,12 @@ namespace BookKiosk.CMS.Models.Api.Pos
         public int? PointsEarned { get; set; }
         public List<PosReceiptItemDto> Items { get; set; } = new();
         public decimal SubTotal { get; set; }
+        public int? PromotionId { get; set; }
+        public string? PromotionName { get; set; }
+
+        [JsonConverter(typeof(BookKiosk.CMS.Models.Common.FlexibleNullableEnumConverter<BookKiosk.Domain.Enums.PromotionType>))]
+        public BookKiosk.Domain.Enums.PromotionType? PromotionType { get; set; }
+
         public decimal DiscountAmount { get; set; }
         public int PointsUsed { get; set; }
         public decimal PointsUsedAmount { get; set; }
@@ -185,6 +191,9 @@ namespace BookKiosk.CMS.Models.Api.Pos
         public string Title { get; set; } = string.Empty;
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
+        public decimal DiscountPerUnit { get; set; }
         public decimal LineTotal { get; set; }
+        public decimal LineDiscountAmount { get; set; }
+        public decimal NetLineTotal { get; set; }
     }
 }
