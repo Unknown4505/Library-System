@@ -172,6 +172,17 @@ namespace BookKiosk.CMS.Services
                     StartDate = DateTime.UtcNow.AddDays(-1),
                     EndDate = DateTime.UtcNow.AddDays(15),
                     IsActive = true
+                },
+                new PosPromotionDto
+                {
+                    PromotionId = 9204,
+                    Name = "KM V7.1 Chiết khấu theo đầu sách",
+                    Description = "Giảm giá đặc biệt theo từng cuốn sách (Dế Mèn 10K, Đất Rừng 15K, Đắc Nhân Tâm 20K)",
+                    MinOrderValue = null,
+                    DiscountAmount = 0,
+                    StartDate = DateTime.UtcNow.AddDays(-2),
+                    EndDate = DateTime.UtcNow.AddDays(20),
+                    IsActive = true
                 }
             });
 
@@ -349,20 +360,50 @@ namespace BookKiosk.CMS.Services
                     Title = book.Title,
                     Quantity = item.Quantity,
                     UnitPriceAtTime = book.SellingPrice,
-                    LineTotal = lineTotal
+                    DiscountPerUnit = 0m,
+                    LineTotal = lineTotal,
+                    LineDiscountAmount = 0m,
+                    NetLineTotal = lineTotal
                 });
             }
 
             // Tính toán Khuyến mãi (Backend tính)
             decimal discountAmount = 0;
+            PosPromotionDto? appliedPromo = null;
+            BookKiosk.Domain.Enums.PromotionType? appliedPromoType = null;
             if (dto.PromotionId.HasValue && dto.PromotionId.Value > 0)
             {
                 var promo = _promotions.FirstOrDefault(p => p.PromotionId == dto.PromotionId.Value);
                 if (promo != null && promo.IsActive)
                 {
-                    if (!promo.MinOrderValue.HasValue || subTotal >= promo.MinOrderValue.Value)
+                    appliedPromo = promo;
+                    if (promo.PromotionId == 9204)
                     {
-                        discountAmount = promo.DiscountAmount;
+                        // Kịch bản V7.1 ProductDiscount nhiều sách để thử tay POS
+                        appliedPromoType = BookKiosk.Domain.Enums.PromotionType.ProductDiscount;
+                        foreach (var item in orderItems)
+                        {
+                            decimal discPerUnit = item.BookId switch
+                            {
+                                9301 => 10000m, // Dế Mèn: giảm 10k/cuốn
+                                9302 => 15000m, // Đất Rừng: giảm 15k/cuốn
+                                9304 => 20000m, // Đắc Nhân Tâm: giảm 20k/cuốn
+                                _ => 0m
+                            };
+                            item.DiscountPerUnit = discPerUnit;
+                            item.LineDiscountAmount = discPerUnit * item.Quantity;
+                            item.NetLineTotal = item.LineTotal - item.LineDiscountAmount;
+                        }
+                        discountAmount = orderItems.Sum(i => i.LineDiscountAmount);
+                    }
+                    else
+                    {
+                        // Kịch bản mặc định OrderDiscount
+                        appliedPromoType = BookKiosk.Domain.Enums.PromotionType.OrderDiscount;
+                        if (!promo.MinOrderValue.HasValue || subTotal >= promo.MinOrderValue.Value)
+                        {
+                            discountAmount = promo.DiscountAmount;
+                        }
                     }
                 }
             }
@@ -397,6 +438,9 @@ namespace BookKiosk.CMS.Services
             var expiresAt = now.AddMinutes(4);
             var orderCode = $"ORD-{now:yyMMdd}-{orderId}";
 
+            // Backend thật luôn sort items tăng dần theo BookId
+            var sortedOrderItems = orderItems.OrderBy(i => i.BookId).ToList();
+
             var orderEntity = new MockOrderEntity
             {
                 OrderId = orderId,
@@ -409,9 +453,12 @@ namespace BookKiosk.CMS.Services
                 TotalAmount = totalAmount,
                 PaymentMethod = dto.PaymentMethod,
                 MemberId = dto.MemberId,
+                PromotionId = appliedPromo?.PromotionId,
+                PromotionName = appliedPromo?.Name,
+                PromotionType = appliedPromoType,
                 CreatedAt = now,
                 ExpiresAt = expiresAt,
-                Items = orderItems,
+                Items = sortedOrderItems,
                 PollCount = 0
             };
 
@@ -423,6 +470,9 @@ namespace BookKiosk.CMS.Services
                 OrderCode = orderCode,
                 OrderStatus = BookKiosk.CMS.Models.Api.Orders.OrderStatus.Pending,
                 SubTotal = subTotal,
+                PromotionId = appliedPromo?.PromotionId,
+                PromotionName = appliedPromo?.Name,
+                PromotionType = appliedPromoType,
                 DiscountAmount = discountAmount,
                 PointsUsed = pointsUsed,
                 PointsUsedAmount = pointsUsedAmount,
@@ -431,7 +481,7 @@ namespace BookKiosk.CMS.Services
                 CreatedAt = now,
                 RemainingSeconds = 240,
                 SepayQrCodeUrl = "/images/mock-qr.svg",
-                Items = orderItems
+                Items = sortedOrderItems
             };
 
             return ApiResult<CounterCheckoutResponseDto>.Ok(response);
@@ -599,6 +649,9 @@ namespace BookKiosk.CMS.Services
             public decimal TotalAmount { get; set; }
             public string PaymentMethod { get; set; } = "Cash";
             public int? MemberId { get; set; }
+            public int? PromotionId { get; set; }
+            public string? PromotionName { get; set; }
+            public BookKiosk.Domain.Enums.PromotionType? PromotionType { get; set; }
             public DateTime CreatedAt { get; set; }
             public DateTime ExpiresAt { get; set; }
             public DateTime? CompletedAt { get; set; }

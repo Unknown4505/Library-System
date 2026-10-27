@@ -369,7 +369,12 @@ namespace BookKiosk.Kiosk.ViewModels
                         MemberId = this.MemberId,
                         OrderId = response.Data.OrderId,
                         OrderCode = response.Data.OrderCode,
-                        SepayQrCodeUrl = response.Data.SepayQrCodeUrl
+                        SepayQrCodeUrl = response.Data.SepayQrCodeUrl,
+                        SubTotal = response.Data.SubTotal,
+                        PromotionId = response.Data.PromotionId,
+                        PromotionName = response.Data.PromotionName,
+                        PromotionType = response.Data.PromotionType,
+                        Items = response.Data.Items ?? new()
                     });
                 }
                 else
@@ -379,7 +384,8 @@ namespace BookKiosk.Kiosk.ViewModels
             }
             catch (Exception ex)
             {
-                ErrorMessage = "Có lỗi xảy ra khi tạo đơn hàng: " + ex.Message;
+                ErrorMessage = "Không thể kết nối đến máy chủ thanh toán. Vui lòng thử lại sau giây lát.";
+                System.Diagnostics.Debug.WriteLine($"[Checkout Error] {ex}");
             }
             finally
             {
@@ -426,5 +432,10 @@ namespace BookKiosk.Kiosk.ViewModels
         public int OrderId { get; set; }
         public string OrderCode { get; set; } = string.Empty;
         public string SepayQrCodeUrl { get; set; } = string.Empty;
+        public decimal SubTotal { get; set; }
+        public int? PromotionId { get; set; }
+        public string? PromotionName { get; set; }
+        public BookKiosk.Domain.Enums.PromotionType? PromotionType { get; set; }
+        public List<CheckoutItemDiscountDto> Items { get; set; } = new();
     }
 }
