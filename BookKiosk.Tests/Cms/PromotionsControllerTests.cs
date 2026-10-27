@@ -568,6 +568,22 @@ namespace BookKiosk.Tests.Cms
             json.Should().Contain("\"bookId\":12");
         }
 
+        [Theory]
+        [InlineData("Staff")]
+        [InlineData("Manager")]
+        public async Task SearchBooks_WhenStaffOrManager_ReturnsForbiddenJson(string role)
+        {
+            var controller = CreateController(role);
+
+            var result = await controller.SearchBooks("C#", 1, 5) as JsonResult;
+
+            result.Should().NotBeNull();
+            var json = JsonSerializer.Serialize(result!.Value, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+            json.Should().Contain("\"success\":false");
+            json.Should().Contain("Bạn không có quyền thực hiện chức năng này.");
+            _apiClientMock.Verify(a => a.GetBooksAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<int?>()), Times.Never);
+        }
+
         #endregion
     }
 }

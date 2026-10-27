@@ -387,6 +387,11 @@ namespace BookKiosk.CMS.Controllers
         [HttpGet]
         public async Task<IActionResult> SearchBooks(string? keyword, int page = 1, int pageSize = 8)
         {
+            if (!IsAdmin)
+            {
+                return Json(new { success = false, message = "Bạn không có quyền thực hiện chức năng này." });
+            }
+
             try
             {
                 var result = await _apiClient.GetBooksAsync(page: Math.Max(1, page), pageSize: Math.Clamp(pageSize, 1, 50), keyword: keyword?.Trim());
@@ -428,7 +433,7 @@ namespace BookKiosk.CMS.Controllers
         {
             if (!IsAdmin)
             {
-                return Json(new { success = false, message = "Bạn không có quyền thực hiện thao tác này." });
+                return Json(new { success = false, message = "Bạn không có quyền thực hiện chức năng này." });
             }
 
             var result = await _apiClient.TogglePromotionActiveAsync(id, isActive);
