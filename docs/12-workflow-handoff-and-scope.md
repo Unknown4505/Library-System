@@ -13,8 +13,8 @@ Ngày đối chiếu integration/schema: 2026-10-16, baseline `origin/main@efcd3
 | Schema | Main baseline 17 bảng | 19 bảng sau migration: thêm Employees/SalaryPayments | Model + migration scaffold/static review PASS; runtime SQL chưa chạy |
 | Lương | Chưa có | Sổ tháng Draft/Paid đơn giản | PLANNED API/UI |
 | Device incidents | Kiosks/KioskIncidents là bảng thật | Không là process BFD/DFD chính | PASS design |
-| Idle Advertising | Backend #37 đã merge; FE #38 đang ở PR #54 | Slideshow 3 nhóm, touch-to-start, 60s Search inactivity và fallback | BACKEND MERGED / TARGETED QA VERIFIED; FE IN REVIEW / PENDING TARGETED QA |
-| Post-payment navigation | Receipt UI/PDF #29 đã merge; điều hướng mới thuộc FE #38 | `ReceiptPage → SearchPage`; giữ Receipt 5s và clear completed session | IN REVIEW / PENDING TARGETED QA — PR #54 |
+| Idle Advertising | Backend #37 đã merge; FE #38 ở PR #54 HEAD `9431b33` | Slideshow 3 nhóm, touch-to-start, 60s Search inactivity và fallback | IMPLEMENTED / TARGETED QA VERIFIED; FINAL WPF/E2E BLOCKED |
+| Post-payment navigation | Receipt UI/PDF #29 đã merge; điều hướng mới thuộc FE #38 | `ReceiptPage → SearchPage`; giữ Receipt 5s và clear completed session | IMPLEMENTED / TARGETED QA VERIFIED; REAL PAID E2E BLOCKED |
 
 Nguồn ưu tiên: Entity/EF config/migration snapshot → `docs/init.sql` và drift → Service/Controller/DTO/docs → quyết định Leader. BFD không phải nguồn schema chuẩn.
 
@@ -165,13 +165,13 @@ Mỗi handoff cần issue/task riêng sau khi Leader duyệt, kèm file ownershi
 - Migration HR đã scaffold an toàn qua design-time factory và static-review chỉ có additive HR operations. Apply/rollback/runtime SQL vẫn `BLOCKED — ENV` vì chưa có connection QA disposable được xác minh; không chạy API hay `database update` trên DB hiện hữu.
 - Merge readiness chỉ đạt khi build PASS, diagram XML PASS, PNG được Leader visual-review/xuất lại, migration review + SQL QA PASS và các test Receipt/E2E theo dependency hoàn thành. Docs/model riêng không đủ để claim feature complete.
 
-## 9. Handoff Kiosk Advertising & Navigation — BACKEND MERGED; FE IN REVIEW / PENDING QA
+## 9. Handoff Kiosk Advertising & Navigation — IMPLEMENTED / TARGETED QA VERIFIED; FINAL INTEGRATION BLOCKED
 
 **Khang — Frontend (`@lehuukhang`)**
 
 - Issue [#38](https://github.com/Unknown4505/Library-System/issues/38). Ownership: `IdlePage` slideshow/loading/empty/error, API client/cache/message handling, touch → `SearchPage`, Receipt → `SearchPage`, inactivity/slideshow/Receipt timer lifecycle, interaction reset và offline fallback.
 - Acceptance: deserialize đúng Contract V1; xử lý enum 1/2, null/empty/partial/error, placeholder ảnh và message không spam; slideshow 8s configurable; Search inactivity 60s; không duplicate timer/request; sau Receipt giữ dữ liệu in/PDF an toàn, clear completed session/cart và không cancel Paid.
-- Trạng thái: PR #54 đang **OPEN / PENDING TARGETED QA**. Backend #37 và Receipt #29 đã merge; không suy ra UI/E2E PASS. Search inactivity chỉ eligible tại `SearchPage`, không áp dụng tại `BookDetailPage` hoặc màn giao dịch active.
+- Trạng thái: PR #54 HEAD `9431b33` đã **IMPLEMENTED / TARGETED QA VERIFIED**; final double-advance QA đạt 7/7, Debug/Release PASS. Backend #37 và Receipt #29 đã merge. Final WPF visual/real-API integration bị dừng trước khi có UI evidence; Search inactivity chỉ eligible tại `SearchPage`, không áp dụng tại `BookDetailPage` hoặc màn giao dịch active.
 
 **Thiện — Backend (`@thien33`)**
 
@@ -183,7 +183,7 @@ Mỗi handoff cần issue/task riêng sau khi Leader duyệt, kèm file ownershi
 
 - Đã chốt endpoint/DTO, new arrivals 30 ngày/10, best sellers 30 ngày/10, partial success/503, cache/retry, ProductDiscount safety và response messages; tiếp tục review `X-Api-Key`, contract consistency, E2E/timer lifecycle/fallback và regression payment/Receipt.
 
-- Backend #37 và Receipt #29 đã đủ source + targeted evidence và đã merge; #38 vẫn **IN REVIEW / PENDING TARGETED QA** ở PR #54.
+- Backend #37 và Receipt #29 đã đủ source + targeted evidence và đã merge; #38 đã đủ **implementation + targeted QA evidence** ở PR #54 HEAD `9431b33`, nhưng chưa đủ WPF visual/real Paid E2E evidence để đánh dấu toàn feature `[x]` hoặc gọi là E2E PASS.
 
 Issue bodies trên GitHub xác nhận phạm vi: #37 Backend `@thien33`, #38 Frontend `@lehuukhang`, #29 Receipt UI/PDF `@lehuukhang`. Lượt docs này không tạo/comment/update issue. GitHub connector không trả metadata assignee chính thức, nên ownership ở đây dựa trên nội dung issue và vẫn cần Leader quản trị assignment nếu UI GitHub khác.
 

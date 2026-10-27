@@ -48,7 +48,9 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
   * **Input:** Tín hiệu từ Backend (SignalR/Polling) thông báo đơn hàng đã Paid.
   * **Output:** Giao diện hiển thị "Thanh toán thành công", hiển thị điểm vừa được cộng thêm, sinh file hóa đơn PDF để hiển thị; hoàn tất Receipt rồi dọn phiên và về `SearchPage`.
 
-### 1.4. Idle Advertising và vòng đời điều hướng — BACKEND MERGED; FE IN REVIEW
+### 1.4. Idle Advertising và vòng đời điều hướng — IMPLEMENTED / TARGETED QA VERIFIED; FINAL UI/E2E BLOCKED
+
+> Trạng thái triển khai: Backend #37 đã merge; FE #38 tại PR #54 HEAD `9431b33` đã PASS targeted implementation QA. WPF visual, real three-group rendering, Search inactivity 60 giây và Paid → Receipt/PDF → Search E2E chưa có đủ integration evidence nên không được coi là full E2E PASS.
 
 * **1.4.1. Auto Ads khi Idle**
   * **Input:** App vừa khởi động hoặc Kiosk chuyển về `IdlePage`.

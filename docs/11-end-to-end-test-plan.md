@@ -119,29 +119,29 @@ Các ca dưới đây là acceptance plan cho HR-DEC-01/02/03. Salary Service/AP
 
 ## 7. Acceptance — Kiosk Idle Advertising & Navigation
 
-Backend Advertising #37 đã merge qua PR #52 và có targeted runtime evidence. Frontend Advertising/Navigation #38 đang ở PR #54, **IN REVIEW / PENDING TARGETED QA**; các ca UI/timer bên dưới chưa được coi là E2E PASS.
+Backend Advertising #37 đã merge qua PR #52 và có targeted runtime evidence. Frontend Advertising/Navigation #38 tại PR #54 HEAD `9431b33` đã **IMPLEMENTED / TARGETED QA VERIFIED**; các ca có evidence test-double/contract được ghi rõ bên dưới, còn WPF visual/real-time/E2E vẫn **BLOCKED** và không được suy thành full E2E PASS.
 
 | ID | Kịch bản | Expected | Trạng thái |
 |---|---|---|---|
-| ADS-01 | Khởi động Kiosk | Vào `IdlePage`, slideshow quảng cáo bắt đầu; không yêu cầu login | IN REVIEW / PENDING TARGETED QA — PR #54 |
-| ADS-02 | Không tương tác 60 giây tại `SearchPage` | Chuyển về Idle Advertising đúng một lần | IN REVIEW / PENDING TARGETED QA — PR #54 |
-| ADS-03 | Chạm màn hình quảng cáo | Dừng/dispose slideshow timer và vào `SearchPage` có search + danh sách sách | IN REVIEW / PENDING TARGETED QA — PR #54 |
-| ADS-04 | Backend trả đủ ba nhóm | Promotion/new arrivals/best sellers map đúng field và ảnh; không dùng dữ liệu local giả | BACKEND PASS / FE PENDING TARGETED QA |
-| ADS-05 | Không có promotion active | Bỏ slide promotion; các nhóm hợp lệ khác vẫn chạy | BACKEND PASS / FE PENDING TARGETED QA |
-| ADS-06 | Promotion inactive/chưa tới ngày/hết hạn | Không hiển thị | BACKEND PASS / FE PENDING TARGETED QA |
-| ADS-07 | API advertising lỗi/timeout | Không crash; hiện fallback “Chạm để bắt đầu”; touch vẫn hoạt động khi Search API khả dụng | IN REVIEW / PENDING TARGETED QA — PR #54 |
-| ADS-08 | Rời/quay lại `IdlePage` nhiều lần | Không còn timer cũ, không nhân đôi timer/request; slide interval cấu hình mặc định 8s | IN REVIEW / PENDING TARGETED QA — PR #54 |
-| ADS-09 | Đang Member/chọn điểm/checkout/Pending/đang tải hoặc xem Receipt | Inactivity không đưa về Idle; payment polling/timeout/cancel hiện hữu không bị thay đổi | IN REVIEW / PENDING TARGETED QA — PR #54 |
-| ADS-10 | Đang ở `BookDetailPage` đủ 60 giây | Không kích hoạt Search inactivity và không tự điều hướng về Idle; timer chỉ eligible tại `SearchPage` | IN REVIEW / PENDING TARGETED QA — PR #54 |
+| ADS-01 | Khởi động Kiosk | Vào `IdlePage`, slideshow quảng cáo bắt đầu; không yêu cầu login | IMPLEMENTED / TARGETED QA PASS; WPF VISUAL BLOCKED |
+| ADS-02 | Không tương tác 60 giây tại `SearchPage` | Chuyển về Idle Advertising đúng một lần | TARGETED CONTRACT PASS; REAL 60S UI BLOCKED |
+| ADS-03 | Chạm màn hình quảng cáo | Dừng/dispose slideshow timer và vào `SearchPage` có search + danh sách sách | TARGETED QA PASS; WPF VISUAL BLOCKED |
+| ADS-04 | Backend trả đủ ba nhóm | Promotion/new arrivals/best sellers map đúng field và ảnh; không dùng dữ liệu local giả | BACKEND/TARGETED FE PASS; REAL THREE-GROUP UI BLOCKED — test data chỉ có Promotion |
+| ADS-05 | Không có promotion active | Bỏ slide promotion; các nhóm hợp lệ khác vẫn chạy | PASS — TARGETED QA; UI E2E NOT RUN |
+| ADS-06 | Promotion inactive/chưa tới ngày/hết hạn | Không hiển thị | PASS — TARGETED QA, gồm expiry boundary/double-advance tại `9431b33` |
+| ADS-07 | API advertising lỗi/timeout | Không crash; hiện fallback “Chạm để bắt đầu”; touch vẫn hoạt động khi Search API khả dụng | PASS — TARGETED QA; NEGATIVE WPF SMOKE NOT RUN |
+| ADS-08 | Rời/quay lại `IdlePage` nhiều lần | Không còn timer cũ, không nhân đôi timer/request; slide interval cấu hình mặc định 8s | PASS — TARGETED QA; STABILITY UI LOOP BLOCKED |
+| ADS-09 | Đang Member/chọn điểm/checkout/Pending/đang tải hoặc xem Receipt | Inactivity không đưa về Idle; payment polling/timeout/cancel hiện hữu không bị thay đổi | TARGETED CONTRACT PASS; PAYMENT E2E BLOCKED |
+| ADS-10 | Đang ở `BookDetailPage` đủ 60 giây | Không kích hoạt Search inactivity và không tự điều hướng về Idle; timer chỉ eligible tại `SearchPage` | PASS — TARGETED/STATIC CONTRACT; REAL 60S UI BLOCKED |
 | NAV-01 | Polling trả `Paid` | Vào Receipt; không gọi cancel và không bỏ qua hiển thị/in | PASS — RECEIPT TARGETED QA; UI E2E NOT RUN |
-| NAV-02 | Receipt hoàn tất/hết 5s hợp lệ | Giữ dữ liệu UI/PDF/in an toàn, clear cart/session rồi về `SearchPage`, không về Idle ngay | IN REVIEW / PENDING TARGETED QA — PR #54 |
-| NAV-03 | Search sau Receipt | Không còn item, điểm dùng, OrderId hoặc state giao dịch cũ | IN REVIEW / PENDING TARGETED QA — PR #54 |
-| NAV-04 | Sau Receipt về Search rồi không tương tác 60s | Chuyển sang Idle Advertising | IN REVIEW / PENDING TARGETED QA — PR #54 |
+| NAV-02 | Receipt hoàn tất/hết 5s hợp lệ | Giữ dữ liệu UI/PDF/in an toàn, clear cart/session rồi về `SearchPage`, không về Idle ngay | PASS — TARGETED QA; REAL PAID E2E BLOCKED |
+| NAV-03 | Search sau Receipt | Không còn item, điểm dùng, OrderId hoặc state giao dịch cũ | PASS — TARGETED QA; REAL PAID E2E BLOCKED |
+| NAV-04 | Sau Receipt về Search rồi không tương tác 60s | Chuyển sang Idle Advertising | IMPLEMENTED / COMPONENT TARGETED PASS; COMBINED E2E BLOCKED |
 | NAV-05 | Receipt API/PDF lỗi hoặc in chưa hoàn tất | Retry/error state; không dựng receipt giả và timer không cắt ngang thao tác | PASS — RECEIPT TARGETED QA; UI E2E NOT RUN |
 
 ### Advertising API Contract V1 — targeted acceptance
 
-Các rule 30 ngày/limit 10 và partial success đã có Backend implementation trong PR #52 (merge `e537971`) cùng targeted runtime evidence. Chỉ các case Backend đã chạy mới được chuyển PASS; cache/retry/timer/navigation thuộc Frontend #38 vẫn giữ `PLANNED / NOT RUN`.
+Các rule 30 ngày/limit 10 và partial success đã có Backend implementation trong PR #52 (merge `e537971`) cùng targeted runtime evidence. Cache/retry/timer/navigation thuộc Frontend #38 đã PASS targeted implementation QA tại PR #54 HEAD `9431b33`; các ca yêu cầu WPF visual/real-time/real Paid vẫn giữ `BLOCKED` hoặc `NOT RUN`.
 
 | ID | Kịch bản | Expected | Trạng thái |
 |---|---|---|---|
@@ -156,13 +156,13 @@ Các rule 30 ngày/limit 10 và partial success đã có Backend implementation 
 | ADS-API-09 | Cả ba data source lỗi hoặc lỗi hệ thống ngoài dự kiến | Toàn bộ nguồn lỗi → 503 `SERVICE_UNAVAILABLE`; lỗi ngoài dự kiến → 500 `INTERNAL_ERROR`; wrapper/message an toàn | PASS — BACKEND TARGETED QA |
 | ADS-API-10 | New arrivals | Rolling 30 ngày UTC theo lần nhập gần nhất, distinct book, active/còn hàng, tối đa 10, sort time DESC rồi BookId ASC | PASS — BACKEND TARGETED QA |
 | ADS-API-11 | Best sellers | Rolling 30 ngày UTC; chỉ Paid/CompletedAt; sum Quantity; loại Pending/Cancelled; active/còn hàng; tối đa 10; sort totalSold DESC rồi BookId ASC | PASS — BACKEND TARGETED QA |
-| ADS-API-12 | Cache hết 5 phút hoặc promotion hết hạn sớm | Reload đúng lúc, không dùng promotion hết hạn và không request theo slide | PLANNED / NOT RUN |
-| ADS-API-13 | Message mọi nhánh | Success/empty/partial/error đều message tiếng Việt không rỗng; FE không hiển thị lỗi kỹ thuật thô | PLANNED / NOT RUN |
-| ADS-API-14 | Background refresh/timer | Không có toast trùng khi slide đổi, inactivity chạy, refresh hoặc retry nền | PLANNED / NOT RUN |
-| ADS-NAV-REG-01 | Paid → Receipt → Search → 60s Idle Ads | Không regression receipt/PDF/cart cleanup/payment; chỉ Idle sau 60s Search inactivity | PLANNED / NOT RUN |
+| ADS-API-12 | Cache hết 5 phút hoặc promotion hết hạn sớm | Reload đúng lúc, không dùng promotion hết hạn và không request theo slide | PASS — FE TARGETED QA; REAL UI CACHE TTL NOT RUN |
+| ADS-API-13 | Message mọi nhánh | Success/empty/partial/error đều message tiếng Việt không rỗng; FE không hiển thị lỗi kỹ thuật thô | PASS — TARGETED CONTRACT; WPF VISUAL NOT RUN |
+| ADS-API-14 | Background refresh/timer | Không có toast trùng khi slide đổi, inactivity chạy, refresh hoặc retry nền | PASS — TARGETED QA; UI STABILITY BLOCKED |
+| ADS-NAV-REG-01 | Paid → Receipt → Search → 60s Idle Ads | Không regression receipt/PDF/cart cleanup/payment; chỉ Idle sau 60s Search inactivity | COMPONENT TARGETED PASS; REAL PAID + 60S E2E BLOCKED |
 | ADS-PROMO-01 | Promotion enum/branch | JSON number `1/2`; order/product branch đúng nullability; collections không null | PLANNED / NOT RUN |
 | ADS-PROMO-02 | ProductDiscount chưa được Advertising V1 công bố | Advertising không đưa type 2 vào nội dung Kiosk; Checkout ProductDiscount được triển khai và QA riêng trong cùng PR #52 | PASS — BACKEND TARGETED QA |
-| ADS-RETRY-01 | Advertising API lỗi trong một lượt Idle | Tối đa một retry sau ít nhất 30 giây; retry lỗi thì fallback/cooldown; không request storm | PLANNED / NOT RUN |
+| ADS-RETRY-01 | Advertising API lỗi trong một lượt Idle | Tối đa một retry sau ít nhất 30 giây; retry lỗi thì fallback/cooldown; không request storm | PASS — FE TARGETED QA; REAL OFFLINE WPF SMOKE NOT RUN |
 
 Acceptance cần evidence UI/timer lifecycle, request log, trạng thái cart/session và regression payment/Receipt API/PDF. Không đánh dấu PASS chỉ từ docs hoặc mock.
 

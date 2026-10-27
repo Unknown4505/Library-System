@@ -421,7 +421,7 @@ Các route dưới đây chỉ là namespace contract mục tiêu, **chưa phả
 
 ### 3.9 Kiosk Idle Advertising API — Approved Contract V1
 
-Trạng thái: **CONTRACT V1 / BACKEND IMPLEMENTED & MERGED / TARGETED QA VERIFIED**. Backend [Issue #37](https://github.com/Unknown4505/Library-System/issues/37) đã merge qua PR #52 (`e537971`); Frontend [Issue #38](https://github.com/Unknown4505/Library-System/issues/38) đang ở PR #54 và **PENDING TARGETED QA**. Chưa có full UI/E2E PASS.
+Trạng thái: **CONTRACT V1 / BACKEND IMPLEMENTED & MERGED / TARGETED QA VERIFIED**. Backend [Issue #37](https://github.com/Unknown4505/Library-System/issues/37) đã merge qua PR #52 (`e537971`); Frontend [Issue #38](https://github.com/Unknown4505/Library-System/issues/38) tại PR #54 HEAD `9431b33` đã **IMPLEMENTED / TARGETED QA VERIFIED**. Final WPF visual/real-API/real Paid E2E vẫn **BLOCKED**; chưa có full UI/E2E PASS.
 
 | Decision ID | Quyết định Contract V1 đã duyệt |
 |---|---|
