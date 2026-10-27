@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using BookKiosk.Application.DTOs.Order;
+using BookKiosk.Domain.Enums;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -118,15 +119,37 @@ namespace BookKiosk.Kiosk.Services
                 {
                     foreach (var item in receipt.Items)
                     {
-                        var titleText = item.BookTitle;
-                        if (item.DiscountPerUnit > 0)
-                        {
-                            titleText += $" (-{item.DiscountPerUnit:N0}đ/c)";
-                        }
+                        var hasLineDiscount = item.LineDiscountAmount > 0;
 
-                        table.Cell().Text(titleText).FontSize(9);
+                        // Cột 1: Tên sách + dòng phụ đơn giá gốc & chiết khấu nếu có
+                        table.Cell().Column(col =>
+                        {
+                            col.Item().Text(item.BookTitle).FontSize(9);
+                            if (hasLineDiscount && item.DiscountPerUnit > 0)
+                            {
+                                col.Item().Text($"Đơn giá: {item.UnitPriceAtTime:N0} đ (Giảm {item.DiscountPerUnit:N0} đ/c)")
+                                    .FontSize(8).Italic().FontColor(Colors.Grey.Darken1);
+                            }
+                        });
+
+                        // Cột 2: SL
                         table.Cell().AlignRight().Text(item.Quantity.ToString()).FontSize(9);
-                        table.Cell().AlignRight().Text($"{item.NetLineTotal:N0} đ").FontSize(9);
+
+                        // Cột 3: Thành tiền theo QUY TẮC CHỌN TRƯỜNG Q1
+                        if (hasLineDiscount)
+                        {
+                            table.Cell().AlignRight().Column(col =>
+                            {
+                                col.Item().Text($"{item.LineTotal:N0} đ")
+                                    .FontSize(8).Strikethrough().FontColor(Colors.Grey.Medium);
+                                col.Item().Text($"{item.NetLineTotal:N0} đ")
+                                    .Bold().FontSize(9);
+                            });
+                        }
+                        else
+                        {
+                            table.Cell().AlignRight().Text($"{item.LineTotal:N0} đ").FontSize(9);
+                        }
                     }
                 }
             });
@@ -145,7 +168,15 @@ namespace BookKiosk.Kiosk.Services
                     var promoLabel = !string.IsNullOrWhiteSpace(receipt.PromotionName)
                         ? receipt.PromotionName
                         : "Khuyến mãi";
-                    column.Item().AlignRight().Text($"{promoLabel}: -{receipt.DiscountAmount:N0} đ").FontSize(9);
+
+                    string typeSuffix = receipt.PromotionType switch
+                    {
+                        PromotionType.OrderDiscount => " (Hóa đơn)",
+                        PromotionType.ProductDiscount => " (Từng cuốn)",
+                        _ => string.Empty
+                    };
+
+                    column.Item().AlignRight().Text($"{promoLabel}{typeSuffix}: -{receipt.DiscountAmount:N0} đ").FontSize(9);
                 }
 
                 if (receipt.PointsUsedAmount > 0)

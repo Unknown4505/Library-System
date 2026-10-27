@@ -1,8 +1,23 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 
 namespace BookKiosk.CMS.Models.Promotions
 {
+    public class PromotionOrderDiscountDto
+    {
+        public decimal MinOrderValue { get; set; }
+        public decimal DiscountAmount { get; set; }
+    }
+
+    public class PromotionProductDiscountDto
+    {
+        public int BookId { get; set; }
+        public string? BookTitle { get; set; }
+        public decimal DiscountAmount { get; set; }
+    }
+
     public class PromotionDto
     {
         public int PromotionId { get; set; }
@@ -13,26 +28,30 @@ namespace BookKiosk.CMS.Models.Promotions
         public DateTime EndDate { get; set; } = DateTime.Today.AddMonths(1);
         public bool IsActive { get; set; } = true;
 
-        // Chi tiết điều kiện giảm giá (Số tiền cố định VNĐ)
-        public decimal? MinOrderValue { get; set; }
-        public decimal DiscountAmount { get; set; }
-        public int? BookId { get; set; }
-        public string? BookTitle { get; set; }
+        public PromotionOrderDiscountDto? OrderDiscount { get; set; }
+        public List<PromotionProductDiscountDto> ProductDiscounts { get; set; } = new();
 
-        // Helper getters phục vụ UI
+        // Helper getters phục vụ tương thích hiển thị UI
+        public decimal? MinOrderValue => OrderDiscount?.MinOrderValue;
+        public decimal DiscountAmount => PromotionType == 2
+            ? (ProductDiscounts.Count > 0 ? ProductDiscounts[0].DiscountAmount : 0)
+            : (OrderDiscount?.DiscountAmount ?? 0);
+        public int? BookId => ProductDiscounts.Count > 0 ? ProductDiscounts[0].BookId : null;
+        public string? BookTitle => ProductDiscounts.Count > 0 ? ProductDiscounts[0].BookTitle : null;
+
         public string TypeName => PromotionType == 2 
             ? "Giảm giá từng cuốn sách (ProductDiscount)" 
             : "Giảm giá trên hóa đơn (OrderDiscount)";
 
-        public bool IsEffectiveNow => IsActive && DateTime.Now >= StartDate && DateTime.Now <= EndDate;
+        public bool IsEffectiveNow => IsActive && DateTime.UtcNow >= StartDate && DateTime.UtcNow <= EndDate;
 
         public string DisplayStatus
         {
             get
             {
                 if (!IsActive) return "Đã tạm ngưng";
-                if (DateTime.Now < StartDate) return "Sắp diễn ra";
-                if (DateTime.Now > EndDate) return "Đã hết hạn";
+                if (DateTime.UtcNow < StartDate) return "Sắp diễn ra";
+                if (DateTime.UtcNow > EndDate) return "Đã hết hạn";
                 return "Đang hiệu lực";
             }
         }
@@ -42,8 +61,8 @@ namespace BookKiosk.CMS.Models.Promotions
             get
             {
                 if (!IsActive) return "bg-secondary-subtle text-secondary border border-secondary-subtle";
-                if (DateTime.Now < StartDate) return "bg-info-subtle text-info border border-info-subtle";
-                if (DateTime.Now > EndDate) return "bg-dark-subtle text-muted border";
+                if (DateTime.UtcNow < StartDate) return "bg-info-subtle text-info border border-info-subtle";
+                if (DateTime.UtcNow > EndDate) return "bg-dark-subtle text-muted border";
                 return "bg-success-subtle text-success border border-success-subtle";
             }
         }
@@ -55,9 +74,20 @@ namespace BookKiosk.CMS.Models.Promotions
                 if (!string.IsNullOrWhiteSpace(Description)) return Description;
                 if (PromotionType == 2)
                 {
-                    return $"Giảm {DiscountAmount:N0} ₫ trực tiếp cho ấn phẩm {(string.IsNullOrWhiteSpace(BookTitle) ? $"#{BookId}" : BookTitle)}";
+                    if (ProductDiscounts != null && ProductDiscounts.Count > 0)
+                    {
+                        var count = ProductDiscounts.Count;
+                        var sample = ProductDiscounts[0];
+                        var name = !string.IsNullOrWhiteSpace(sample.BookTitle) ? sample.BookTitle : $"#{sample.BookId}";
+                        return count == 1
+                            ? $"Giảm {sample.DiscountAmount:N0} ₫ cho ấn phẩm {name}"
+                            : $"Giảm giá cho {count} ấn phẩm sách trong chương trình";
+                    }
+                    return "Giảm giá theo từng cuốn sách";
                 }
-                return $"Giảm {DiscountAmount:N0} ₫ cho đơn hàng từ {(MinOrderValue ?? 0):N0} ₫";
+                var minVal = OrderDiscount?.MinOrderValue ?? 0;
+                var discount = OrderDiscount?.DiscountAmount ?? 0;
+                return $"Giảm {discount:N0} ₫ cho đơn hàng từ {minVal:N0} ₫";
             }
         }
     }
@@ -88,20 +118,8 @@ namespace BookKiosk.CMS.Models.Promotions
         [Display(Name = "Kích hoạt hiệu lực")]
         public bool IsActive { get; set; } = true;
 
-        // Loại 1: OrderDiscount
-        [Range(0, double.MaxValue, ErrorMessage = "Giá trị đơn tối thiểu phải lớn hơn hoặc bằng 0")]
-        [Display(Name = "Giá trị đơn hàng tối thiểu (VNĐ)")]
-        public decimal? MinOrderValue { get; set; } = 0;
-
-        // Mức giảm cố định VNĐ (chung cho cả 2 loại)
-        [Required(ErrorMessage = "Số tiền giảm giá không được để trống")]
-        [Range(1000, double.MaxValue, ErrorMessage = "Số tiền giảm tối thiểu phải từ 1.000 ₫")]
-        [Display(Name = "Số tiền giảm giá cố định (VNĐ)")]
-        public decimal DiscountAmount { get; set; } = 10000;
-
-        // Loại 2: ProductDiscount
-        [Display(Name = "Ấn phẩm sách áp dụng")]
-        public int? BookId { get; set; }
+        public PromotionOrderDiscountDto? OrderDiscount { get; set; }
+        public List<PromotionProductDiscountDto> ProductDiscounts { get; set; } = new();
     }
 
     public class UpdatePromotionDto
@@ -130,19 +148,7 @@ namespace BookKiosk.CMS.Models.Promotions
         [Display(Name = "Kích hoạt hiệu lực")]
         public bool IsActive { get; set; }
 
-        // Loại 1: OrderDiscount
-        [Range(0, double.MaxValue, ErrorMessage = "Giá trị đơn tối thiểu phải lớn hơn hoặc bằng 0")]
-        [Display(Name = "Giá trị đơn hàng tối thiểu (VNĐ)")]
-        public decimal? MinOrderValue { get; set; }
-
-        // Mức giảm cố định VNĐ
-        [Required(ErrorMessage = "Số tiền giảm giá không được để trống")]
-        [Range(1000, double.MaxValue, ErrorMessage = "Số tiền giảm tối thiểu phải từ 1.000 ₫")]
-        [Display(Name = "Số tiền giảm giá cố định (VNĐ)")]
-        public decimal DiscountAmount { get; set; }
-
-        // Loại 2: ProductDiscount
-        [Display(Name = "Ấn phẩm sách áp dụng")]
-        public int? BookId { get; set; }
+        public PromotionOrderDiscountDto? OrderDiscount { get; set; }
+        public List<PromotionProductDiscountDto> ProductDiscounts { get; set; } = new();
     }
 }
