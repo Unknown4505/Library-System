@@ -31,7 +31,7 @@ Dự án Kiosk bắt buộc tuân theo mô hình **MVVM (Model - View - ViewMode
 Ứng dụng Kiosk chạy theo cơ chế "Navigation" (chuyển trang) trong một `Frame` chính duy nhất của `MainWindow`.
 
 ### 1. Màn hình Chờ (Idle / Splash Screen)
-- **Giao diện target `[IN REVIEW — PR #54 / PENDING TARGETED QA]`:** `IdlePage` tự động trình chiếu khuyến mãi đang hiệu lực, sách mới về và sách bán chạy; nếu không có dữ liệu hợp lệ thì hiển thị “Chạm để bắt đầu”.
+- **Giao diện `[IMPLEMENTED — PR #54 HEAD 9431b33 / TARGETED QA PASS]`:** `IdlePage` tự động trình chiếu khuyến mãi đang hiệu lực, sách mới về và sách bán chạy; nếu không có dữ liệu hợp lệ thì hiển thị “Chạm để bắt đầu”. Final WPF visual/real-API E2E vẫn **BLOCKED — INTEGRATION EVIDENCE INCOMPLETE**.
 - **Logic:** App khởi động tại `IdlePage`; nếu khách chạm vào thì dừng slideshow và chuyển sang `SearchPage`.
 
 ### 2. Màn hình Tìm sách / Quét mã vạch (`SearchPage`)
@@ -76,9 +76,9 @@ Dự án Kiosk bắt buộc tuân theo mô hình **MVVM (Model - View - ViewMode
   - Receipt/PDF dùng promotion metadata và line discount từ snapshot persisted. Với đơn legacy, chỉ dùng fallback đã được API chuẩn hóa; FE không tự suy đoán ProductDiscount.
   - Gửi lệnh in (ESC/POS) xuống máy in nhiệt.
   - Mốc hiển thị Receipt hiện hành là **5 giây**. Sau khi dữ liệu Receipt/PDF đã được giữ an toàn và thao tác hiển thị/in hoàn tất, xóa giỏ cùng trạng thái giao dịch cũ rồi chuyển về `SearchPage`.
-  - Không tự hủy đơn đã `Paid`, không bỏ qua Receipt và không quay thẳng về `IdlePage`. Receipt/PDF an toàn đã merge qua PR #40 và targeted QA PASS; điều hướng Receipt → `SearchPage` thuộc PR #54, vẫn **PENDING TARGETED QA**.
+  - Không tự hủy đơn đã `Paid`, không bỏ qua Receipt và không quay thẳng về `IdlePage`. Receipt/PDF an toàn đã merge qua PR #40 và targeted QA PASS; điều hướng Receipt → `SearchPage` thuộc PR #54 đã **IMPLEMENTED / TARGETED QA PASS**. Real Paid/Receipt/PDF E2E vẫn **BLOCKED** do chưa có payment sandbox evidence.
 
-### Kiosk Idle Advertising Mode & Navigation Lifecycle — BACKEND MERGED; FE IN REVIEW / PENDING QA
+### Kiosk Idle Advertising Mode & Navigation Lifecycle — IMPLEMENTED / TARGETED QA VERIFIED; FINAL UI/E2E BLOCKED
 
 Luồng chính thức:
 
@@ -99,7 +99,7 @@ App Startup → Idle Advertising → Touch → SearchPage
 | Sách bán chạy | Chỉ order `Paid` trong 30 ngày UTC; sum quantity; active/còn hàng; sort tổng bán giảm dần rồi `BookId ASC`; tối đa 10; không dùng cart local/Pending/Cancelled | **BACKEND IMPLEMENTED / TARGETED QA PASS** |
 | Ảnh bìa | Ghép URL tương đối với API base URL; ảnh lỗi dùng placeholder UI đã duyệt | **AVAILABLE** — `BookDto.ImageUrl`, top-books `imageUrl` và static files hiện hữu |
 
-Contract V1, DTO/nullability, enum `promotionType=1/2`, JSON mẫu và error semantics nằm tại [`docs/04-api-reference.md` mục 3.9](04-api-reference.md). Backend #37 đã **IMPLEMENTED / MERGED / TARGETED QA VERIFIED**; FE #38 ở PR #54 vẫn **PENDING TARGETED QA** và không được hardcode dữ liệu giả thành quảng cáo thật.
+Contract V1, DTO/nullability, enum `promotionType=1/2`, JSON mẫu và error semantics nằm tại [`docs/04-api-reference.md` mục 3.9](04-api-reference.md). Backend #37 đã **IMPLEMENTED / MERGED / TARGETED QA VERIFIED**; FE #38 ở PR #54 HEAD `9431b33` đã **IMPLEMENTED / TARGETED QA VERIFIED** và không được hardcode dữ liệu giả thành quảng cáo thật. Final WPF visual, Search inactivity 60 giây và Paid E2E chưa đủ evidence để gọi là E2E PASS.
 
 #### Timer, tương tác và cleanup
 

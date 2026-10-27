@@ -180,15 +180,20 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 
 ### Handoff Kiosk Advertising & Navigation — flow và Contract V1 đã duyệt (2026-10-21)
 
-Chỉ dùng Issue #37 cho Backend Advertising và #38 cho Frontend Advertising/Navigation; #29 tiếp tục giữ riêng Receipt UI/PDF. Backend #37 đã merge; FE #38 đang ở PR #54, **IN REVIEW / PENDING TARGETED QA**.
+Chỉ dùng Issue #37 cho Backend Advertising và #38 cho Frontend Advertising/Navigation; #29 tiếp tục giữ riêng Receipt UI/PDF. Backend #37 đã merge; FE #38 tại PR #54 HEAD `9431b33` đã **IMPLEMENTED / TARGETED QA VERIFIED**. Final WPF visual/real-API integration smoke vẫn **BLOCKED — INTEGRATION EVIDENCE INCOMPLETE**.
 
 | Nhãn dự kiến | Phân loại | Owner | Dependency | Acceptance chính | Trạng thái |
 |---|---|---|---|---|---|
-| FE — Kiosk Idle Advertising ([#38](https://github.com/Unknown4505/Library-System/issues/38)) | NEW FEATURE | `@lehuukhang` | Backend #37 đã merge; FE phải dùng API thật | Startup vào Idle Ads; DTO/message/null/empty/partial xử lý theo docs 04; touch sang `SearchPage`; inactivity 60s chỉ tại Search; slideshow 8s configurable; cache/retry/timer cleanup; không gián đoạn giao dịch | **IN REVIEW / PENDING TARGETED QA — PR #54 OPEN** |
-| FE — Receipt Navigation UX Change ([#38](https://github.com/Unknown4505/Library-System/issues/38)) | UX CHANGE, không phải regression so với thiết kế cũ | `@lehuukhang` | Receipt UI/PDF #29 đã merge; tránh regression | Chỉ sau `Paid` và hoàn tất Receipt; giữ mốc 5s hiện hành; clear session/cart; về `SearchPage`; không cancel Paid; sau 60s Search inactivity mới về Idle Ads | **IN REVIEW / PENDING TARGETED QA — PR #54 OPEN** |
+| FE — Kiosk Idle Advertising ([#38](https://github.com/Unknown4505/Library-System/issues/38)) | NEW FEATURE | `@lehuukhang` | Backend #37 đã merge; FE phải dùng API thật | Startup vào Idle Ads; DTO/message/null/empty/partial xử lý theo docs 04; touch sang `SearchPage`; inactivity 60s chỉ tại Search; slideshow 8s configurable; cache/retry/timer cleanup; không gián đoạn giao dịch | **IMPLEMENTED / TARGETED QA PASS — PR #54 HEAD `9431b33`; FINAL UI/E2E BLOCKED** |
+| FE — Receipt Navigation UX Change ([#38](https://github.com/Unknown4505/Library-System/issues/38)) | UX CHANGE, không phải regression so với thiết kế cũ | `@lehuukhang` | Receipt UI/PDF #29 đã merge; tránh regression | Chỉ sau `Paid` và hoàn tất Receipt; giữ mốc 5s hiện hành; clear session/cart; về `SearchPage`; không cancel Paid; sau 60s Search inactivity mới về Idle Ads | **IMPLEMENTED / TARGETED QA PASS — PR #54 HEAD `9431b33`; PAID E2E BLOCKED** |
 | BE Advertising API ([#37](https://github.com/Unknown4505/Library-System/issues/37)) | IMPLEMENTED | `@thien33` | Contract V1 đã được Leader duyệt; phối hợp #38 | Endpoint/wrapper/auth/DTO đúng contract; new arrivals/best sellers đúng rule; message/error/empty/partial/503; không thêm schema `Advertisements` | **[x] MERGED / BACKEND TARGETED QA PASS — PR #52, merge `e537971`** |
 
 Rule QA: chỉ đánh dấu `[x]` khi toàn bộ scope tương ứng có evidence PASS, acceptance hoàn thành và dependencies đã thỏa mãn. Nếu chỉ một subtask PASS thì cập nhật subtask, không đánh dấu toàn feature. #37 chỉ sửa Backend; #38 chỉ sửa Kiosk FE; #29 giữ riêng Receipt UI/PDF và phải phối hợp file ownership với #38.
+
+- [x] **PR #54 implementation + targeted QA:** initialization/binding, cache/empty response, retry, Search-only inactivity eligibility, promotion expiry, rotation/double-advance, timer cleanup/re-entry và Receipt → Search cleanup đã PASS tại HEAD `9431b33` (final delta 7/7 PASS; Debug/Release PASS).
+- [x] **Real Advertising API connectivity:** Backend `main` có #37; smoke read-only trả HTTP 200 `SUCCESS` với key hợp lệ và 401/403 khi thiếu/sai key. Test data tại thời điểm smoke chỉ có một OrderDiscount, chưa đủ evidence UI ba nhóm.
+- [ ] **Final WPF visual/real-API integration:** BLOCKED do Computer Use bị dừng trước khi thu screenshot/timeline; chưa nghiệm thu slideshow thật, Search inactivity 60 giây và stability loop.
+- [ ] **Paid → Receipt/PDF → Search E2E:** BLOCKED do chưa có payment sandbox/real Paid evidence; không dùng targeted mock để đánh dấu E2E PASS.
 
 - **4.5 giữ chưa hoàn thành:** HTTP smoke trên merge không commit `main@fbc15a2` + `Khang@d9de651` đã PASS pagination, keyword, category, detail, barcode hợp lệ/404 và dữ liệu out-of-stock. WPF chưa chạy tương tác; FE-13 còn race pagination và Backend vẫn trả sách inactive qua detail/barcode.
 - **5.5 giữ chưa hoàn thành:** Đã chạy bộ test trên SQL Server Express local bằng database cô lập. Constraints, rollback, concurrent last-copy, cancel và promotion+100 điểm PASS; duplicate webhook, 4 validation điểm và OrderCode uniqueness FAIL. Checkout idempotency/cleanup race vẫn BLOCKED bởi Issue #19/#20.
