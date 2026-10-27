@@ -9,19 +9,26 @@ namespace BookKiosk.Kiosk.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
+            bool isGreater = false;
             if (value is decimal d && d > 0)
             {
-                return Visibility.Visible;
+                isGreater = true;
             }
-            if (value is int i && i > 0)
+            else if (value is int i && i > 0)
             {
-                return Visibility.Visible;
+                isGreater = true;
             }
-            if (value is double db && db > 0)
+            else if (value is double db && db > 0)
             {
-                return Visibility.Visible;
+                isGreater = true;
             }
-            return Visibility.Collapsed;
+
+            if (parameter is string paramStr && string.Equals(paramStr, "Invert", StringComparison.OrdinalIgnoreCase))
+            {
+                isGreater = !isGreater;
+            }
+
+            return isGreater ? Visibility.Visible : Visibility.Collapsed;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
