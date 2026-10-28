@@ -261,10 +261,11 @@
                             <option value="">-- Không áp dụng khuyến mãi --</option>
                             @foreach (var promo in Model.ActivePromotions)
                             {
-                                <option value="@promo.PromotionId" 
-                                        data-min-value="@(promo.MinOrderValue ?? 0)" 
-                                        data-discount="@promo.DiscountAmount">
-                                    @promo.Name (@promo.SummaryText)
+                                <option value="@promo.PromotionId"
+                                        data-promo-type="@((int)promo.PromotionType)"
+                                        data-min-value="@(promo.EffectiveMinOrderValue ?? 0)"
+                                        data-discount="@promo.EffectiveDiscountAmount">
+                                    @(string.IsNullOrWhiteSpace(promo.SummaryText) ? promo.Name : $"{promo.Name} ({promo.SummaryText})")
                                 </option>
                             }
                         </select>

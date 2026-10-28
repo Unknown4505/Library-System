@@ -811,6 +811,10 @@
 
             Array.from(selectEl.options).forEach(opt => {
                 if (!opt.value) return;
+                const promoType = parseInt(opt.getAttribute('data-promo-type'), 10) || 1;
+                // Chỉ gợi ý khuyến mãi Type 1 (OrderDiscount), không tự tính gợi ý cho Type 2
+                if (promoType !== 1) return;
+
                 const minVal = parseFloat(opt.getAttribute('data-min-value')) || 0;
                 const discount = parseFloat(opt.getAttribute('data-discount')) || 0;
 

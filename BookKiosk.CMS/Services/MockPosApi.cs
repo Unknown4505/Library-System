@@ -145,6 +145,8 @@ namespace BookKiosk.CMS.Services
                     PromotionId = 9201,
                     Name = "KM Giảm 30K đơn từ 200K",
                     Description = "Giảm trực tiếp 30.000 ₫ cho hóa đơn từ 200.000 ₫",
+                    PromotionType = BookKiosk.Domain.Enums.PromotionType.OrderDiscount,
+                    OrderDiscount = new PosPromotionOrderDiscountDto { MinOrderValue = 200000, DiscountAmount = 30000 },
                     MinOrderValue = 200000,
                     DiscountAmount = 30000,
                     StartDate = DateTime.UtcNow.AddDays(-10),
@@ -156,6 +158,8 @@ namespace BookKiosk.CMS.Services
                     PromotionId = 9202,
                     Name = "KM Khủng Giảm 50K đơn từ 350K",
                     Description = "Giảm trực tiếp 50.000 ₫ cho hóa đơn từ 350.000 ₫",
+                    PromotionType = BookKiosk.Domain.Enums.PromotionType.OrderDiscount,
+                    OrderDiscount = new PosPromotionOrderDiscountDto { MinOrderValue = 350000, DiscountAmount = 50000 },
                     MinOrderValue = 350000,
                     DiscountAmount = 50000,
                     StartDate = DateTime.UtcNow.AddDays(-5),
@@ -167,6 +171,8 @@ namespace BookKiosk.CMS.Services
                     PromotionId = 9203,
                     Name = "Ưu đãi Khách hàng Thân thiết",
                     Description = "Giảm trực tiếp 15.000 ₫ cho mọi đơn hàng từ 100.000 ₫",
+                    PromotionType = BookKiosk.Domain.Enums.PromotionType.OrderDiscount,
+                    OrderDiscount = new PosPromotionOrderDiscountDto { MinOrderValue = 100000, DiscountAmount = 15000 },
                     MinOrderValue = 100000,
                     DiscountAmount = 15000,
                     StartDate = DateTime.UtcNow.AddDays(-1),
@@ -178,6 +184,13 @@ namespace BookKiosk.CMS.Services
                     PromotionId = 9204,
                     Name = "KM V7.1 Chiết khấu theo đầu sách",
                     Description = "Giảm giá đặc biệt theo từng cuốn sách (Dế Mèn 10K, Đất Rừng 15K, Đắc Nhân Tâm 20K)",
+                    PromotionType = BookKiosk.Domain.Enums.PromotionType.ProductDiscount,
+                    ProductDiscounts = new List<PosPromotionProductDiscountDto>
+                    {
+                        new() { BookId = 9301, DiscountAmount = 10000 },
+                        new() { BookId = 9302, DiscountAmount = 15000 },
+                        new() { BookId = 9304, DiscountAmount = 20000 }
+                    },
                     MinOrderValue = null,
                     DiscountAmount = 0,
                     StartDate = DateTime.UtcNow.AddDays(-2),
@@ -400,9 +413,9 @@ namespace BookKiosk.CMS.Services
                     {
                         // Kịch bản mặc định OrderDiscount
                         appliedPromoType = BookKiosk.Domain.Enums.PromotionType.OrderDiscount;
-                        if (!promo.MinOrderValue.HasValue || subTotal >= promo.MinOrderValue.Value)
+                        if (!promo.EffectiveMinOrderValue.HasValue || subTotal >= promo.EffectiveMinOrderValue.Value)
                         {
-                            discountAmount = promo.DiscountAmount;
+                            discountAmount = promo.EffectiveDiscountAmount;
                         }
                     }
                 }
