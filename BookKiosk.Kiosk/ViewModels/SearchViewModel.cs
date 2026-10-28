@@ -8,11 +8,14 @@ using BookKiosk.Kiosk.Services.Hardware;
 using System.Windows.Threading;
 using System;
 using System.Linq;
+using System.Threading;
 
 namespace BookKiosk.Kiosk.ViewModels
 {
     public class SearchViewModel : BaseViewModel, IDisposable
     {
+        private record SearchQuerySnapshot(string? Keyword, int? CategoryId, int Page);
+
         private readonly NavigationService _navigationService;
         private readonly IBarcodeScanner _scanner;
         private readonly IBookKioskApiClient _apiClient;
@@ -23,6 +26,11 @@ namespace BookKiosk.Kiosk.ViewModels
         private const int Take = 10;
         private DispatcherTimer? _debounceTimer;
         private int _searchVersion = 0;
+        private CancellationTokenSource? _searchCts;
+        private SearchQuerySnapshot? _currentSnapshot;
+        private bool _isActive = false;
+        private bool _wasSearchPendingWhenDeactivated = false;
+        private bool _suppressCategorySearch = false;
 
         private bool _hasNextPage = false;
         public bool HasNextPage
@@ -65,11 +73,11 @@ namespace BookKiosk.Kiosk.ViewModels
                 {
                     _selectedCategory = value; 
                     OnPropertyChanged(); 
-                    if (_debounceTimer != null)
-                    {
-                        _debounceTimer.Stop();
-                        _debounceTimer.Start();
-                    }
+                    if (_suppressCategorySearch) return;
+
+                    // BUG-01: Đổi Category hủy debounce keyword đang chờ và tìm ngay lập tức
+                    _debounceTimer?.Stop();
+                    ExecuteSearch(true);
                 }
             }
         }
@@ -126,7 +134,8 @@ namespace BookKiosk.Kiosk.ViewModels
         {
             if (parameter is string keyword && !string.IsNullOrWhiteSpace(keyword))
             {
-                Keyword = keyword;
+                _keyword = keyword;
+                OnPropertyChanged(nameof(Keyword));
                 ExecuteSearch(true);
             }
         }
@@ -212,19 +221,39 @@ namespace BookKiosk.Kiosk.ViewModels
         private async void LoadCategoriesAsync()
         {
             var result = await _apiClient.GetCategoriesAsync();
-            Categories.Clear();
-            Categories.Add(new CategoryModel { Id = 0, Name = "Tất cả" });
-            
-            if (result != null && result.Success && result.Data != null)
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            Action updateCategories = () =>
             {
-                foreach(var cat in result.Data)
+                Categories.Clear();
+                Categories.Add(new CategoryModel { Id = 0, Name = "Tất cả" });
+                
+                if (result != null && result.Success && result.Data != null)
                 {
-                    Categories.Add(new CategoryModel { Id = cat.CategoryId, Name = cat.Name });
+                    foreach(var cat in result.Data)
+                    {
+                        Categories.Add(new CategoryModel { Id = cat.CategoryId, Name = cat.Name });
+                    }
                 }
+                
+                _suppressCategorySearch = true;
+                try
+                {
+                    SelectedCategory = Categories[0];
+                }
+                finally
+                {
+                    _suppressCategorySearch = false;
+                }
+            };
+
+            if (dispatcher != null && !dispatcher.CheckAccess())
+            {
+                dispatcher.Invoke(updateCategories);
             }
-            
-            _selectedCategory = Categories[0];
-            OnPropertyChanged(nameof(SelectedCategory));
+            else
+            {
+                updateCategories();
+            }
         }
 
         private async void ExecuteSearch(bool reset)
@@ -232,53 +261,100 @@ namespace BookKiosk.Kiosk.ViewModels
             // FE-13: Chống Load More đồng thời và dừng khi đã hết trang
             if (!reset)
             {
-                if (IsLoading || !HasNextPage) return;
+                if (IsLoading || !HasNextPage || _currentSnapshot == null) return;
             }
 
-            int currentVersion = ++_searchVersion;
+            // BUG-01: Hủy CTS cũ và tạo CTS mới cho mỗi lần tìm
+            _searchCts?.Cancel();
+            _searchCts?.Dispose();
+            _searchCts = new CancellationTokenSource();
+            var cancellationToken = _searchCts.Token;
 
+            int currentVersion = Interlocked.Increment(ref _searchVersion);
+
+            int? categoryId = SelectedCategory?.Id == 0 ? null : SelectedCategory?.Id;
+            string? keyword = Keyword;
+
+            int targetPage;
             if (reset)
             {
                 _skip = 0;
+                targetPage = 1;
                 HasNextPage = false;
-                SearchResults.Clear();
+                ErrorMessage = "";
+                var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                if (dispatcher != null && !dispatcher.CheckAccess())
+                {
+                    dispatcher.Invoke(() => SearchResults.Clear());
+                }
+                else
+                {
+                    SearchResults.Clear();
+                }
             }
+            else
+            {
+                targetPage = (_skip / Take) + 1;
+            }
+
+            var snapshot = new SearchQuerySnapshot(keyword, categoryId, targetPage);
+            _currentSnapshot = snapshot;
 
             IsLoading = true;
             System.Windows.Input.CommandManager.InvalidateRequerySuggested();
 
             try
             {
-                int? categoryId = SelectedCategory?.Id == 0 ? null : SelectedCategory?.Id;
-                int page = (_skip / Take) + 1;
-                var result = await _apiClient.GetBooksAsync(page, Take, Keyword, categoryId);
+                if (cancellationToken.IsCancellationRequested || currentVersion != _searchVersion)
+                {
+                    return;
+                }
+
+                var result = await _apiClient.GetBooksAsync(snapshot.Page, Take, snapshot.Keyword, snapshot.CategoryId);
                 
-                // FE-13: Bỏ qua nếu có yêu cầu tìm kiếm mới hơn đã được khởi chạy
-                if (currentVersion != _searchVersion) return;
+                // BUG-01: SAU MỖI await: Bỏ qua nếu token đã hủy hoặc version không còn hiện hành
+                if (cancellationToken.IsCancellationRequested || currentVersion != _searchVersion)
+                {
+                    return;
+                }
 
                 if (result != null && result.Success && result.Data != null)
                 {
-                    HasNextPage = result.Data.HasNextPage;
-                    foreach (var b in result.Data.Items)
+                    var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                    Action populateAction = () =>
                     {
-                        // FE-13: Chống nạp trùng dữ liệu sách
-                        if (!SearchResults.Any(x => x.BookId == b.BookId))
+                        HasNextPage = result.Data.HasNextPage;
+                        foreach (var b in result.Data.Items)
                         {
-                            SearchResults.Add(new BookModel 
+                            // FE-13: Chống nạp trùng dữ liệu sách
+                            if (!SearchResults.Any(x => x.BookId == b.BookId))
                             {
-                                BookId = b.BookId,
-                                Barcode = b.Barcode,
-                                Title = b.Title,
-                                Author = b.Author,
-                                ImageUrl = b.ImageUrl,
-                                SellingPrice = b.SellingPrice,
-                                AvailableStock = b.AvailableStock,
-                                CategoryId = b.CategoryId,
-                                AreaName = b.AreaName
-                            });
+                                SearchResults.Add(new BookModel 
+                                {
+                                    BookId = b.BookId,
+                                    Barcode = b.Barcode,
+                                    Title = b.Title,
+                                    Author = b.Author,
+                                    ImageUrl = b.ImageUrl,
+                                    SellingPrice = b.SellingPrice,
+                                    AvailableStock = b.AvailableStock,
+                                    CategoryId = b.CategoryId,
+                                    AreaName = b.AreaName
+                                });
+                            }
                         }
+                    };
+
+                    if (dispatcher != null && !dispatcher.CheckAccess())
+                    {
+                        dispatcher.Invoke(populateAction);
                     }
-                    _skip += Take;
+                    else
+                    {
+                        populateAction();
+                    }
+
+                    _skip = snapshot.Page * Take;
                     ErrorMessage = "";
                 }
                 else
@@ -291,9 +367,17 @@ namespace BookKiosk.Kiosk.ViewModels
                     }
                 }
             }
+            catch (OperationCanceledException)
+            {
+                // BUG-01: Nuốt OperationCanceledException im lặng
+                return;
+            }
             catch (Exception ex)
             {
-                if (currentVersion != _searchVersion) return;
+                if (cancellationToken.IsCancellationRequested || currentVersion != _searchVersion)
+                {
+                    return;
+                }
                 ErrorMessage = "Lỗi kết nối khi tải danh sách sách: " + ex.Message;
                 if (reset)
                 {
@@ -313,8 +397,9 @@ namespace BookKiosk.Kiosk.ViewModels
         private void ExecuteFilter(CategoryModel category)
         {
             if (category == null) return;
+            // BUG-01: SelectedCategory setter đã tự động hủy debounce và gọi ExecuteSearch(true)
+            // Không gọi ExecuteSearch(true) lần hai ở đây để đếm request = đúng 1
             SelectedCategory = category;
-            ExecuteSearch(true);
         }
 
         private void ExecuteBookClick(object parameter)
@@ -331,13 +416,53 @@ namespace BookKiosk.Kiosk.ViewModels
             ExecuteSearch(true);
         }
 
+        public void Activate()
+        {
+            if (_isActive) return;
+            _isActive = true;
+
+            if (_debounceTimer == null)
+            {
+                _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+                _debounceTimer.Tick += DebounceTimer_Tick;
+            }
+
+            // BUG-02: Idempotent scanner subscription (gỡ trước rồi gán)
+            _scanner.BarcodeScanned -= Scanner_BarcodeScanned;
+            _scanner.BarcodeScanned += Scanner_BarcodeScanned;
+
+            // BUG-02: Nếu request bị Deactivate hủy giữa chừng hoặc kết quả trống bất thường, khôi phục lại
+            if (_wasSearchPendingWhenDeactivated || (SearchResults.Count == 0 && !HasError && _searchVersion > 0))
+            {
+                _wasSearchPendingWhenDeactivated = false;
+                ExecuteSearch(true);
+            }
+        }
+
+        public void Deactivate()
+        {
+            if (!_isActive) return;
+            _isActive = false;
+
+            _debounceTimer?.Stop();
+            _scanner.BarcodeScanned -= Scanner_BarcodeScanned;
+
+            if (IsLoading)
+            {
+                _wasSearchPendingWhenDeactivated = true;
+                _searchCts?.Cancel();
+                IsLoading = false;
+            }
+        }
+
         public void Dispose()
         {
-            // Giải phóng bộ nhớ, chống memory leak khi Navigate đi
-            _scanner.BarcodeScanned -= Scanner_BarcodeScanned;
+            Deactivate();
+            _searchCts?.Cancel();
+            _searchCts?.Dispose();
+            _searchCts = null;
             if (_debounceTimer != null)
             {
-                _debounceTimer.Stop();
                 _debounceTimer.Tick -= DebounceTimer_Tick;
                 _debounceTimer = null;
             }
