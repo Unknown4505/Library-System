@@ -111,7 +111,7 @@
                                     <i class="fas fa-coins text-warning me-1"></i> Giá trị đơn hàng tối thiểu (VNĐ) <span class="text-danger">*</span>
                                 </label>
                                 <div class="input-group">
-                                    <input asp-for="OrderMinOrderValue" type="number" step="1000" min="0" 
+                                    <input asp-for="OrderMinOrderValue" type="number" step="1000" min="0"
                                            class="form-control" id="minOrderInput" placeholder="0" />
                                     <span class="input-group-text">₫</span>
                                 </div>
@@ -125,7 +125,7 @@
                                 </label>
                                 <div class="input-group input-group-lg mb-2">
                                     <span class="input-group-text bg-success text-white fw-bold">-</span>
-                                    <input asp-for="OrderDiscountAmount" type="number" step="1000" min="1000" 
+                                    <input asp-for="OrderDiscountAmount" type="number" step="1000" min="1000"
                                            class="form-control fw-bold text-success fs-4" id="orderDiscountAmountInput" placeholder="10000" />
                                     <span class="input-group-text fw-bold">VNĐ</span>
                                 </div>
@@ -195,7 +195,7 @@
                                                         <div class="input-group input-group-sm">
                                                             <span class="input-group-text bg-success-subtle text-success fw-bold">-</span>
                                                             <input type="number" name="ProductDiscounts[@i].DiscountAmount" value="@item.DiscountAmount"
-                                                                   class="form-control text-success fw-bold input-discount-amount" 
+                                                                   class="form-control text-success fw-bold input-discount-amount"
                                                                    step="1000" min="1000" required />
                                                             <span class="input-group-text">₫</span>
                                                         </div>

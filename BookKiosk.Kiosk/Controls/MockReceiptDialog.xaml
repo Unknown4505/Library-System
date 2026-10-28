@@ -88,7 +88,7 @@
                         <TextBlock Text="{Binding PromotionDisplayName, StringFormat='{}{0}:'}" FontFamily="Courier New" FontSize="13"/>
                         <TextBlock Text="{Binding Receipt.DiscountAmount, StringFormat='-{0:N0} đ'}" FontFamily="Courier New" FontSize="13" HorizontalAlignment="Right"/>
                     </Grid>
-                    <TextBlock Text="{Binding Receipt.PromotionType, Converter={StaticResource PromotionTypeToStringConverter}, ConverterParameter=Parens}" 
+                    <TextBlock Text="{Binding Receipt.PromotionType, Converter={StaticResource PromotionTypeToStringConverter}, ConverterParameter=Parens}"
                                FontFamily="Courier New" FontSize="11" FontStyle="Italic" Foreground="#555" Margin="5,1,0,0"
                                Visibility="{Binding HasPromotionType, Converter={StaticResource BoolToVis}}"/>
                 </StackPanel>
