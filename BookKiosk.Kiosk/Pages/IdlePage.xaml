@@ -320,6 +320,13 @@
                 Foreground="Transparent"
                 Cursor="Hand"
                 Focusable="False"
-                Panel.ZIndex="99"/>
+                FocusVisualStyle="{x:Null}"
+                Panel.ZIndex="99">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="Transparent"/>
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
     </Grid>
 </Page>
