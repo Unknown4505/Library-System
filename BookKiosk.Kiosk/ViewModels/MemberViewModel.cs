@@ -360,6 +360,13 @@ namespace BookKiosk.Kiosk.ViewModels
 
                 if (response != null && response.Success && response.Data != null)
                 {
+                    if (response.Data.TotalAmount <= 0)
+                    {
+                        ErrorMessage = "Số tiền thanh toán không hợp lệ. Vui lòng kiểm tra lại giỏ hàng hoặc liên hệ nhân viên.";
+                        System.Diagnostics.Debug.WriteLine($"[Checkout Zero-Payable Guard] Blocked navigation. OrderId={response.Data.OrderId}, TotalAmount={response.Data.TotalAmount}");
+                        return;
+                    }
+
                     _navigationService.Navigate<CheckoutPage>(new CheckoutParameter 
                     { 
                         TotalAmount = response.Data.TotalAmount,
