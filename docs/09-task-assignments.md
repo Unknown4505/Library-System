@@ -133,8 +133,8 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 |---|---|:---:|:---:|:---:|:---:|
 | 10.1 | Admin API: CRUD Khuyến mãi, Nhập kho | | @thien33 | | `[x]` |
 | 10.2 | Trang Nhập kho (Inventory) | | | @lehuukhang | `[ ]` |
-| 10.3 | Trang Quản lý Khuyến mãi | | | @lehuukhang | `[ ]` |
-| 10.4 | Trang POS Bán tại quầy (Áp mã thủ công) | | | @lehuukhang | `[ ]` |
+| 10.3 | Trang Quản lý Khuyến mãi | | | @lehuukhang | `[x]` — PR #58 targeted QA PASS; merge pending |
+| 10.4 | Trang POS Bán tại quầy (Áp mã thủ công) | | | @lehuukhang | `[x]` — PR #58 targeted QA PASS; merge pending |
 
 ### MODULE 11: THỐNG KÊ DOANH THU
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
@@ -215,12 +215,14 @@ Rule QA: chỉ đánh dấu `[x]` khi toàn bộ scope tương ứng có evidenc
 | BE-01 Promotion CRUD | `@thien33` | Persist OrderDiscount/ProductDiscount, validation, PUT replace-all, auth/message | Transactional replace, no duplicate BookId, type/detail consistency | **[x] MERGED / QA PASS — PR #52** |
 | BE-02 Promotion calculation & Checkout | `@thien33` | Kiosk best benefit/tie-break, POS manual, points, zero-payable rollback, snapshot persistence | SQL/contract tests cho totals, stock, points và QR amount | **[x] MERGED / QA PASS — PR #52** |
 | BE-03 Receipt API | `@thien33` | Snapshot-first mapping và legacy fallback | Paid-only receipt, không recalculate, regression #28 | **[x] MERGED / QA PASS — PR #52** |
-| FE-01 CMS Promotion Management | `@lehuukhang` | Chọn type, OrderDiscount, nhiều ProductDiscount book rows | Backend-authoritative validation/message; không hardcode | **PLANNED / NOT RUN** |
-| FE-02 Kiosk/POS Promotion Display | `@lehuukhang` | Hiển thị promotion/totals/item breakdown từ Backend | Không tự tính final price; xử lý loading/empty/error | **PLANNED / NOT RUN** |
+| FE-01 CMS Promotion Management | `@lehuukhang` | Chọn type, OrderDiscount, nhiều ProductDiscount book rows | Backend-authoritative validation/message; không hardcode | **[x] IMPLEMENTED / TARGETED QA PASS — PR #58 HEAD `054d5f1`; MERGE PENDING; BROWSER UI NOT RUN** |
+| FE-02 Kiosk/POS Promotion Display | `@lehuukhang` | Hiển thị promotion/totals/item breakdown từ Backend | Không tự tính final price; xử lý loading/empty/error | **[x] IMPLEMENTED / TARGETED QA PASS — PR #58 HEAD `054d5f1`; MERGE PENDING; CROSS-LAYER E2E #48 NOT RUN** |
 | FE-03 Receipt/PDF | `@lehuukhang` | Promotion metadata và line discount từ Receipt API | Không dùng cart local; regression #29 | **[x] MERGED / TARGETED QA PASS — PR #40; UI E2E NOT RUN** |
 | Integration QA | Leader | Contract, SQL, E2E, legacy, cancel/stock/points/payment regression | Evidence thật trước khi mở quảng cáo ProductDiscount | **[x] BACKEND TARGETED QA PASS — HEAD `f7634a0`, merged `e537971`** |
 
 Dependencies: BE-01 → BE-02 → BE-03; FE-01 phụ thuộc BE-01; FE-02 phụ thuộc BE-02; FE-03 phụ thuộc BE-03/#28/#29. Advertising #37/#38 chỉ được mở ProductDiscount sau Checkout E2E PASS.
+
+**PR #58 final targeted retest (28/10/2026):** 9/9 executions PASS tại HEAD `054d5f151f96da611de046cb16f1e5c954a2fe2c`. Đã xác nhận nested OrderDiscount/ProductDiscount qua `CmsPosApi`, POS không gợi ý ProductDiscount chỉ từ subtotal, Kiosk chặn payable `<= 0`, và checkout dương giữ nguyên totals/item breakdown từ Backend. CMS/Kiosk Debug và Kiosk Release build PASS; `git diff --check` PASS. Đây không phải browser UI PASS hoặc cross-layer E2E #48; PR #58 vẫn chờ merge.
 
 ## 4. Lưu ý Phụ thuộc & Trình tự thực hiện (Dependencies)
 

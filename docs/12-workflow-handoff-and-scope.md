@@ -210,12 +210,12 @@ Backend không đổi Advertising #37 trong các task này. ProductDiscount ch�
 
 ### 10.3 Frontend handoff — `@lehuukhang`
 
-1. **FE-01 CMS Promotion:** type/detail editor, nhiều sách/mức giảm, PUT full state và hiển thị validation Backend.
-2. **FE-02 Kiosk/POS:** catalog giữ giá niêm yết; totals và item breakdown lấy từ Backend; POS không tự thay promotion.
-3. **FE-03 Receipt/PDF:** dùng Receipt API snapshot, hiển thị promotion/line discount, không dùng cart local; regression #29.
+1. [x] **FE-01 CMS Promotion:** type/detail editor, nhiều sách/mức giảm, PUT full state và hiển thị validation Backend — implemented và targeted QA PASS tại PR #58 HEAD `054d5f1`; merge pending, browser UI chưa chạy.
+2. [x] **FE-02 Kiosk/POS:** catalog giữ giá niêm yết; totals và item breakdown lấy từ Backend; POS không tự thay promotion — implemented và targeted QA PASS tại PR #58 HEAD `054d5f1`; merge pending, cross-layer E2E #48 chưa chạy.
+3. [x] **FE-03 Receipt/PDF:** dùng Receipt API snapshot, hiển thị promotion/line discount, không dùng cart local; regression #29 — đã merge qua PR #40 và targeted QA PASS; WPF visual/UI E2E chưa chạy.
 
 ### 10.4 Acceptance/dependencies
 
 - Dependency bắt buộc: foundation/migration → BE-01 → BE-02 → BE-03; FE work đi sau contract/runtime tương ứng; Leader integration QA cuối.
 - Evidence: DTO serialization, migration static review, SQL transactional tests, Kiosk/POS response, zero-payable rollback, legacy receipt, QR amount và cancel/stock/points regression.
-- Backend BE-01/02/03 đã đủ runtime evidence và merge; FE-01/02/03 cùng full UI/PDF E2E vẫn theo trạng thái riêng, không được suy ra hoàn thành từ Backend PASS.
+- Backend BE-01/02/03 đã đủ runtime evidence và merge. FE-01/02 đã có targeted evidence riêng tại PR #58 HEAD `054d5f1` (9/9 final retest PASS) nhưng PR còn chờ merge; FE-03 đã merge qua PR #40. Browser/WPF visual và cross-layer E2E #48 vẫn chưa chạy, không được suy ra từ targeted PASS.
