@@ -27,7 +27,7 @@ namespace BookKiosk.Kiosk.ViewModels
         private DispatcherTimer? _debounceTimer;
         private int _searchVersion = 0;
         private CancellationTokenSource? _searchCts;
-        private SearchQuerySnapshot? _currentSnapshot;
+        private SearchQuerySnapshot? _activeQuerySnapshot;
         private bool _isActive = false;
         private bool _wasSearchPendingWhenDeactivated = false;
         private bool _suppressCategorySearch = false;
@@ -53,12 +53,19 @@ namespace BookKiosk.Kiosk.ViewModels
             get => _keyword;
             set 
             { 
-                _keyword = value; 
-                OnPropertyChanged(); 
-                if (_debounceTimer != null)
+                if (_keyword != value)
                 {
-                    _debounceTimer.Stop();
-                    _debounceTimer.Start();
+                    _keyword = value; 
+                    OnPropertyChanged(); 
+
+                    // SEARCH-04: Invalidate con trỏ phân trang ngay khi keyword đổi
+                    HasNextPage = false;
+
+                    if (_debounceTimer != null)
+                    {
+                        _debounceTimer.Stop();
+                        _debounceTimer.Start();
+                    }
                 }
             }
         }
@@ -74,6 +81,9 @@ namespace BookKiosk.Kiosk.ViewModels
                     _selectedCategory = value; 
                     OnPropertyChanged(); 
                     if (_suppressCategorySearch) return;
+
+                    // SEARCH-04: Invalidate con trỏ phân trang ngay khi Category đổi
+                    HasNextPage = false;
 
                     // BUG-01: Đổi Category hủy debounce keyword đang chờ và tìm ngay lập tức
                     _debounceTimer?.Stop();
@@ -258,10 +268,10 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private async void ExecuteSearch(bool reset)
         {
-            // FE-13: Chống Load More đồng thời và dừng khi đã hết trang
+            // FE-13 & SEARCH-04: Chống Load More đồng thời và dừng khi đã hết trang hoặc chưa có active snapshot
             if (!reset)
             {
-                if (IsLoading || !HasNextPage || _currentSnapshot == null) return;
+                if (IsLoading || !HasNextPage || _activeQuerySnapshot == null) return;
             }
 
             // BUG-01: Hủy CTS cũ và tạo CTS mới cho mỗi lần tìm
@@ -272,16 +282,19 @@ namespace BookKiosk.Kiosk.ViewModels
 
             int currentVersion = Interlocked.Increment(ref _searchVersion);
 
-            int? categoryId = SelectedCategory?.Id == 0 ? null : SelectedCategory?.Id;
-            string? keyword = Keyword;
-
+            int? categoryId;
+            string? keyword;
             int targetPage;
+
             if (reset)
             {
                 _skip = 0;
                 targetPage = 1;
                 HasNextPage = false;
                 ErrorMessage = "";
+                categoryId = SelectedCategory?.Id == 0 ? null : SelectedCategory?.Id;
+                keyword = Keyword;
+
                 var dispatcher = System.Windows.Application.Current?.Dispatcher;
                 if (dispatcher != null && !dispatcher.CheckAccess())
                 {
@@ -294,11 +307,13 @@ namespace BookKiosk.Kiosk.ViewModels
             }
             else
             {
-                targetPage = (_skip / Take) + 1;
+                // SEARCH-04: Load More CHỈ dùng snapshot của truy vấn hiện hành đã hoàn tất
+                keyword = _activeQuerySnapshot!.Keyword;
+                categoryId = _activeQuerySnapshot.CategoryId;
+                targetPage = _activeQuerySnapshot.Page + 1;
             }
 
             var snapshot = new SearchQuerySnapshot(keyword, categoryId, targetPage);
-            _currentSnapshot = snapshot;
 
             IsLoading = true;
             System.Windows.Input.CommandManager.InvalidateRequerySuggested();
@@ -354,6 +369,7 @@ namespace BookKiosk.Kiosk.ViewModels
                         populateAction();
                     }
 
+                    _activeQuerySnapshot = snapshot;
                     _skip = snapshot.Page * Take;
                     ErrorMessage = "";
                 }
@@ -364,6 +380,7 @@ namespace BookKiosk.Kiosk.ViewModels
                     if (reset)
                     {
                         HasNextPage = false;
+                        _activeQuerySnapshot = null;
                     }
                 }
             }
@@ -382,6 +399,7 @@ namespace BookKiosk.Kiosk.ViewModels
                 if (reset)
                 {
                     HasNextPage = false;
+                    _activeQuerySnapshot = null;
                 }
             }
             finally
