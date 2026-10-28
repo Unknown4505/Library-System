@@ -14,7 +14,7 @@
         </nav>
         <div class="d-flex align-items-center justify-content-between">
             <h4 class="fw-bold mb-0 text-dark">
-                <i class="fas fa-plus-circle text-primary me-2"></i>Thiết lập Khuyến mãi mới
+                <i class="fas fa-plus-circle text-primary me-2"></i>Thiết lập Khuyến mãi mới (V7.1)
             </h4>
             <a asp-action="Index" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-1"></i> Quay lại danh sách
@@ -45,7 +45,7 @@
                                 Tên chương trình <span class="text-danger">*</span>
                             </label>
                             <input asp-for="Name" class="form-control form-control-lg fs-6" 
-                                   placeholder="Ví dụ: Giảm giá hè rộn ràng 2026, Tri ân bạn đọc..." id="promoNameInput" />
+                                   placeholder="Ví dụ: Tuần lễ sách Việt, Tri ân bạn đọc..." id="promoNameInput" />
                             <span asp-validation-for="Name" class="text-danger small"></span>
                         </div>
 
@@ -62,7 +62,7 @@
                 <div class="card border-0 shadow-sm rounded-3 mb-4">
                     <div class="card-header bg-white border-bottom py-3">
                         <h6 class="fw-bold mb-0 text-primary">
-                            <i class="fas fa-sliders-h me-2"></i>2. Hình thức & Điều kiện giảm giá
+                            <i class="fas fa-sliders-h me-2"></i>2. Hình thức & Mức giảm giá
                         </h6>
                     </div>
                     <div class="card-body p-4">
@@ -79,7 +79,7 @@
                                                id="typeOrderDiscount" value="1" />
                                         <div>
                                             <div class="fw-bold text-dark">
-                                                <i class="fas fa-receipt me-1 text-primary"></i> Theo Hóa đơn (OrderDiscount)
+                                                <i class="fas fa-receipt me-1 text-primary"></i> 1. Theo Hóa đơn (OrderDiscount)
                                             </div>
                                             <small class="text-muted d-block mt-1">Giảm trực tiếp một khoản cố định vào tổng tiền hóa đơn khi đạt giá trị tối thiểu.</small>
                                         </div>
@@ -95,9 +95,9 @@
                                                id="typeProductDiscount" value="2" />
                                         <div>
                                             <div class="fw-bold text-dark">
-                                                <i class="fas fa-book me-1 text-warning"></i> Theo Cuốn sách (ProductDiscount)
+                                                <i class="fas fa-book me-1 text-warning"></i> 2. Theo Cuốn sách (ProductDiscount)
                                             </div>
-                                            <small class="text-muted d-block mt-1">Giảm trực tiếp vào giá niêm yết của một ấn phẩm sách cụ thể.</small>
+                                            <small class="text-muted d-block mt-1">Giảm trực tiếp vào từng ấn phẩm sách được chọn trong danh sách chương trình.</small>
                                         </div>
                                     </div>
                                 </label>
@@ -106,49 +106,115 @@
 
                         <!-- Cấu hình chi tiết Loại 1: OrderDiscount -->
                         <div id="sectionOrderDiscount" class="p-3 bg-light rounded-3 mb-3 @(Model.PromotionType == 1 ? "" : "d-none")">
-                            <label asp-for="MinOrderValue" class="form-label fw-semibold">
-                                <i class="fas fa-coins text-warning me-1"></i> Giá trị đơn hàng tối thiểu (VNĐ)
-                            </label>
-                            <div class="input-group">
-                                <input asp-for="MinOrderValue" type="number" step="1000" min="0" 
-                                       class="form-control" id="minOrderInput" placeholder="0" />
-                                <span class="input-group-text">₫</span>
+                            <div class="mb-3">
+                                <label asp-for="OrderMinOrderValue" class="form-label fw-semibold">
+                                    <i class="fas fa-coins text-warning me-1"></i> Giá trị đơn hàng tối thiểu (VNĐ) <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <input asp-for="OrderMinOrderValue" type="number" step="1000" min="0"
+                                           class="form-control" id="minOrderInput" placeholder="0" />
+                                    <span class="input-group-text">₫</span>
+                                </div>
+                                <span asp-validation-for="OrderMinOrderValue" class="text-danger small"></span>
+                                <div class="form-text small">Nhập 0 ₫ nếu áp dụng cho mọi hóa đơn không giới hạn giá trị tối thiểu.</div>
                             </div>
-                            <span asp-validation-for="MinOrderValue" class="text-danger small"></span>
-                            <div class="form-text small">Nhập 0 ₫ nếu áp dụng cho mọi hóa đơn không giới hạn giá trị.</div>
+
+                            <div class="mb-3">
+                                <label asp-for="OrderDiscountAmount" class="form-label fw-semibold">
+                                    <i class="fas fa-tag text-success me-1"></i> Mức giảm giá hóa đơn (VNĐ) <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group input-group-lg mb-2">
+                                    <span class="input-group-text bg-success text-white fw-bold">-</span>
+                                    <input asp-for="OrderDiscountAmount" type="number" step="1000" min="1000"
+                                           class="form-control fw-bold text-success fs-4" id="orderDiscountAmountInput" placeholder="10000" />
+                                    <span class="input-group-text fw-bold">VNĐ</span>
+                                </div>
+                                <span asp-validation-for="OrderDiscountAmount" class="text-danger small"></span>
+
+                                <!-- Chip nút bấm chọn nhanh -->
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    <span class="small text-muted me-1 align-self-center">Chọn nhanh:</span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-order-amount" data-amount="10000">10.000 ₫</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-order-amount" data-amount="20000">20.000 ₫</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-order-amount" data-amount="50000">50.000 ₫</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-order-amount" data-amount="100000">100.000 ₫</button>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Cấu hình chi tiết Loại 2: ProductDiscount -->
+                        <!-- Cấu hình chi tiết Loại 2: ProductDiscount (Bảng động nhiều sách) -->
                         <div id="sectionProductDiscount" class="p-3 bg-light rounded-3 mb-3 @(Model.PromotionType == 2 ? "" : "d-none")">
-                            <label asp-for="BookId" class="form-label fw-semibold">
-                                <i class="fas fa-book text-warning me-1"></i> Chọn ấn phẩm sách áp dụng <span class="text-danger">*</span>
-                            </label>
-                            <select asp-for="BookId" asp-items="Model.AvailableBooks" class="form-select" id="bookSelect">
-                            </select>
-                            <span asp-validation-for="BookId" class="text-danger small"></span>
-                            <div class="form-text small">Mức giảm sẽ được khấu trừ trực tiếp khi khách chọn sách này tại Kiosk.</div>
-                        </div>
-
-                        <!-- MỨC GIẢM CỐ ĐỊNH VNĐ (BẮT BUỘC) -->
-                        <div class="mt-4 pt-3 border-top">
-                            <label asp-for="DiscountAmount" class="form-label fw-semibold fs-6">
-                                Mức giảm giá cố định (VNĐ) <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group input-group-lg mb-2">
-                                <span class="input-group-text bg-success text-white fw-bold">-</span>
-                                <input asp-for="DiscountAmount" type="number" step="1000" min="1000" 
-                                       class="form-control fw-bold text-success fs-4" id="discountAmountInput" />
-                                <span class="input-group-text fw-bold">VNĐ</span>
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-dark">
+                                        <i class="fas fa-list-check text-warning me-1"></i> Danh sách ấn phẩm sách áp dụng
+                                    </h6>
+                                    <small class="text-muted">Mỗi sách có thể có mức giảm giá cố định riêng (nguyên VNĐ &gt; 0 ₫).</small>
+                                </div>
+                                <button type="button" class="btn btn-warning btn-sm fw-semibold" id="btnOpenBookSearchModal">
+                                    <i class="fas fa-plus me-1"></i> Thêm ấn phẩm sách
+                                </button>
                             </div>
-                            <span asp-validation-for="DiscountAmount" class="text-danger small"></span>
 
-                            <!-- Chip nút bấm chọn nhanh -->
-                            <div class="d-flex flex-wrap gap-2 mt-2">
-                                <span class="small text-muted me-1 align-self-center">Chọn nhanh:</span>
-                                <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-amount" data-amount="10000">10.000 ₫</button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-amount" data-amount="20000">20.000 ₫</button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-amount" data-amount="50000">50.000 ₫</button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-amount" data-amount="100000">100.000 ₫</button>
+                            <div class="table-responsive bg-white rounded-3 border">
+                                <table class="table table-hover align-middle mb-0" id="productDiscountsTable">
+                                    <thead class="table-light small">
+                                        <tr>
+                                            <th style="width: 50px;" class="text-center">#</th>
+                                            <th>Ấn phẩm sách</th>
+                                            <th style="width: 130px;" class="text-end">Giá niêm yết</th>
+                                            <th style="width: 100px;" class="text-center">Tồn kho</th>
+                                            <th style="width: 200px;">Mức giảm (VNĐ) <span class="text-danger">*</span></th>
+                                            <th style="width: 80px;" class="text-center">Xóa</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="productDiscountsTableBody">
+                                        @if (Model.ProductDiscounts != null && Model.ProductDiscounts.Count > 0)
+                                        {
+                                            for (int i = 0; i < Model.ProductDiscounts.Count; i++)
+                                            {
+                                                var item = Model.ProductDiscounts[i];
+                                                <tr data-book-id="@item.BookId">
+                                                    <td class="text-center text-muted small row-index">@(i + 1)</td>
+                                                    <td>
+                                                        <div class="fw-bold text-dark">@item.BookTitle</div>
+                                                        <small class="text-muted">Mã sách: #@item.BookId @(!string.IsNullOrEmpty(item.Barcode) ? $"| Barcode: {item.Barcode}" : "")</small>
+                                                        <input type="hidden" name="ProductDiscounts[@i].BookId" value="@item.BookId" class="input-book-id" />
+                                                        <input type="hidden" name="ProductDiscounts[@i].BookTitle" value="@item.BookTitle" />
+                                                        <input type="hidden" name="ProductDiscounts[@i].Barcode" value="@item.Barcode" />
+                                                        <input type="hidden" name="ProductDiscounts[@i].SellingPrice" value="@item.SellingPrice" />
+                                                        <input type="hidden" name="ProductDiscounts[@i].StockQuantity" value="@item.StockQuantity" />
+                                                    </td>
+                                                    <td class="text-end">@item.SellingPrice.ToString("N0") ₫</td>
+                                                    <td class="text-center">
+                                                        <span class="badge @(item.StockQuantity > 0 ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger")">
+                                                            @item.StockQuantity
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text bg-success-subtle text-success fw-bold">-</span>
+                                                            <input type="number" name="ProductDiscounts[@i].DiscountAmount" value="@item.DiscountAmount"
+                                                                   class="form-control text-success fw-bold input-discount-amount"
+                                                                   step="1000" min="1000" required />
+                                                            <span class="input-group-text">₫</span>
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <button type="button" class="btn btn-outline-danger btn-sm btn-remove-book" title="Gỡ khỏi danh mục">
+                                                            <i class="fas fa-trash-alt"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="emptyBooksPlaceholder" class="p-4 text-center text-muted @(Model.ProductDiscounts != null && Model.ProductDiscounts.Count > 0 ? "d-none" : "")">
+                                <i class="fas fa-book-open fa-2x mb-2 text-secondary opacity-50"></i>
+                                <div class="small">Chưa có ấn phẩm sách nào được thêm vào chương trình.</div>
+                                <div class="small text-muted">Bấm nút <strong>"Thêm ấn phẩm sách"</strong> phía trên để chọn sách từ hệ thống.</div>
                             </div>
                         </div>
                     </div>
@@ -196,7 +262,7 @@
                     <a asp-action="Index" class="btn btn-outline-secondary px-4">
                         <i class="fas fa-times me-1"></i> Hủy bỏ
                     </a>
-                    <button type="submit" class="btn btn-primary px-5 py-2 fw-semibold">
+                    <button type="submit" class="btn btn-primary px-5 py-2 fw-semibold" id="btnSubmitForm">
                         <i class="fas fa-save me-1"></i> Lưu chương trình khuyến mãi
                     </button>
                 </div>
@@ -211,8 +277,8 @@
                         </h6>
                     </div>
                     <div class="card-body p-4 text-center">
-                        <div class="p-3 rounded-4 bg-primary-subtle text-primary border border-primary border-opacity-25 mb-3">
-                            <div class="small text-uppercase fw-bold opacity-75" id="previewTypeBadge">Giảm giá hóa đơn</div>
+                        <div class="p-3 rounded-4 bg-primary-subtle text-primary border border-primary border-opacity-25 mb-3" id="previewCardBox">
+                            <div class="small text-uppercase fw-bold opacity-75" id="previewTypeBadge">GIẢM THEO HÓA ĐƠN</div>
                             <h2 class="fw-bolder my-2 text-primary" id="previewDiscountText">-10,000 ₫</h2>
                             <div class="fw-bold fs-6 text-dark" id="previewTitle">Tên chương trình khuyến mãi</div>
                             <div class="small text-muted mt-1" id="previewDesc">Mô tả thể lệ chương trình...</div>
@@ -220,11 +286,11 @@
 
                         <div class="text-start bg-light p-3 rounded-3 small">
                             <div class="d-flex justify-content-between py-1 border-bottom">
-                                <span class="text-muted">Điều kiện áp dụng:</span>
+                                <span class="text-muted">Hình thức áp dụng:</span>
                                 <strong id="previewCondition" class="text-end">Đơn từ 0 ₫</strong>
                             </div>
                             <div class="d-flex justify-content-between py-1 border-bottom">
-                                <span class="text-muted">Thời gian:</span>
+                                <span class="text-muted">Thời gian hiệu lực:</span>
                                 <strong id="previewDuration" class="text-end">Hôm nay - 30 ngày</strong>
                             </div>
                             <div class="d-flex justify-content-between py-1">
@@ -235,13 +301,73 @@
 
                         <div class="mt-3 text-muted small text-start">
                             <i class="fas fa-info-circle text-primary me-1"></i> 
-                            Khi hoàn tất, chương trình sẽ tự động đồng bộ sang giao diện Kiosk của bạn đọc.
+                            Khuyến mãi tạo xong sẽ được đồng bộ ngay lập tức sang các thiết bị Kiosk và Quầy POS.
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </form>
+</div>
+
+<!-- MODAL TÌM KIẾM VÀ CHỌN SÁCH -->
+<div class="modal fade" id="bookSearchModal" tabindex="-1" aria-labelledby="bookSearchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="bookSearchModalLabel">
+                    <i class="fas fa-search text-warning me-2"></i>Tìm kiếm & Chọn ấn phẩm sách
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="input-group mb-3">
+                    <input type="text" id="modalSearchKeyword" class="form-control" placeholder="Nhập tên sách, tác giả hoặc mã vạch barcode..." />
+                    <button class="btn btn-primary" type="button" id="btnExecuteBookSearch">
+                        <i class="fas fa-search me-1"></i> Tìm kiếm
+                    </button>
+                </div>
+
+                <div id="modalSearchLoading" class="text-center py-4 d-none">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="small text-muted mt-2">Đang tải danh sách sách...</div>
+                </div>
+
+                <div id="modalSearchResultsWrapper">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0" id="modalResultsTable">
+                            <thead class="table-light small">
+                                <tr>
+                                    <th>Tên sách</th>
+                                    <th>Tác giả</th>
+                                    <th class="text-end">Giá niêm yết</th>
+                                    <th class="text-center">Tồn kho</th>
+                                    <th class="text-center" style="width: 100px;">Chọn</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modalResultsTbody">
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-3">Nhập từ khóa và bấm Tìm kiếm để tra cứu ấn phẩm.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Phân trang modal -->
+                    <div class="d-flex align-items-center justify-content-between mt-3">
+                        <small class="text-muted" id="modalPaginationInfo">Trang 1 / 1</small>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary" id="btnModalPrevPage" disabled>Trang trước</button>
+                            <button type="button" class="btn btn-outline-secondary" id="btnModalNextPage" disabled>Trang sau</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 @section Scripts {
@@ -251,8 +377,7 @@
             const promoNameInput = document.getElementById('promoNameInput');
             const promoDescInput = document.getElementById('promoDescInput');
             const minOrderInput = document.getElementById('minOrderInput');
-            const discountAmountInput = document.getElementById('discountAmountInput');
-            const bookSelect = document.getElementById('bookSelect');
+            const orderDiscountAmountInput = document.getElementById('orderDiscountAmountInput');
             const startDateInput = document.getElementById('startDateInput');
             const endDateInput = document.getElementById('endDateInput');
             const isActiveSwitch = document.getElementById('isActiveSwitch');
@@ -262,7 +387,24 @@
             const radioOrder = document.getElementById('typeOrderDiscount');
             const radioProduct = document.getElementById('typeProductDiscount');
 
+            // Table ProductDiscounts
+            const tableBody = document.getElementById('productDiscountsTableBody');
+            const emptyPlaceholder = document.getElementById('emptyBooksPlaceholder');
+
+            // Modal elements
+            const bookSearchModalEl = document.getElementById('bookSearchModal');
+            const bookSearchModal = new bootstrap.Modal(bookSearchModalEl);
+            const btnOpenBookSearchModal = document.getElementById('btnOpenBookSearchModal');
+            const modalSearchKeyword = document.getElementById('modalSearchKeyword');
+            const btnExecuteBookSearch = document.getElementById('btnExecuteBookSearch');
+            const modalSearchLoading = document.getElementById('modalSearchLoading');
+            const modalResultsTbody = document.getElementById('modalResultsTbody');
+            const modalPaginationInfo = document.getElementById('modalPaginationInfo');
+            const btnModalPrevPage = document.getElementById('btnModalPrevPage');
+            const btnModalNextPage = document.getElementById('btnModalNextPage');
+
             // Preview elements
+            const previewCardBox = document.getElementById('previewCardBox');
             const previewTypeBadge = document.getElementById('previewTypeBadge');
             const previewDiscountText = document.getElementById('previewDiscountText');
             const previewTitle = document.getElementById('previewTitle');
@@ -271,46 +413,386 @@
             const previewDuration = document.getElementById('previewDuration');
             const previewStatus = document.getElementById('previewStatus');
 
-            function updateTypeToggle() {
+            let currentModalPage = 1;
+            let totalModalPages = 1;
+
+            // Chuyển đổi loại khuyến mãi 1 <-> 2
+            function updateTypeToggle(isUserSwitch = false) {
                 if (radioOrder.checked) {
                     sectionOrder.classList.remove('d-none');
                     sectionProduct.classList.add('d-none');
                     previewTypeBadge.textContent = 'GIẢM THEO HÓA ĐƠN';
+                    previewCardBox.className = 'p-3 rounded-4 bg-primary-subtle text-primary border border-primary border-opacity-25 mb-3';
+                    previewDiscountText.className = 'fw-bolder my-2 text-primary';
+
+                    // Xóa sạch state cũ khi chuyển từ 2 -> 1
+                    if (isUserSwitch) {
+                        tableBody.innerHTML = '';
+                        emptyPlaceholder.classList.remove('d-none');
+                    }
                 } else {
                     sectionOrder.classList.add('d-none');
                     sectionProduct.classList.remove('d-none');
                     previewTypeBadge.textContent = 'GIẢM THEO SÁCH';
+                    previewCardBox.className = 'p-3 rounded-4 bg-warning-subtle text-warning-emphasis border border-warning border-opacity-25 mb-3';
+                    previewDiscountText.className = 'fw-bolder my-2 text-warning';
+
+                    // Xóa sạch state cũ khi chuyển từ 1 -> 2
+                    if (isUserSwitch) {
+                        if (minOrderInput) minOrderInput.value = '';
+                        if (orderDiscountAmountInput) orderDiscountAmountInput.value = '';
+                    }
                 }
                 updatePreview();
             }
 
-            radioOrder.addEventListener('change', updateTypeToggle);
-            radioProduct.addEventListener('change', updateTypeToggle);
+            radioOrder.addEventListener('change', () => updateTypeToggle(true));
+            radioProduct.addEventListener('change', () => updateTypeToggle(true));
 
-            // Nút chọn nhanh mức tiền
-            document.querySelectorAll('.btn-quick-amount').forEach(btn => {
+            // Nút chọn nhanh mức tiền OrderDiscount
+            document.querySelectorAll('.btn-quick-order-amount').forEach(btn => {
                 btn.addEventListener('click', function () {
                     const amount = this.getAttribute('data-amount');
-                    discountAmountInput.value = amount;
+                    orderDiscountAmountInput.value = amount;
                     updatePreview();
                 });
             });
 
+            // Re-index bảng ProductDiscounts
+            function reindexTableRows() {
+                const rows = tableBody.querySelectorAll('tr');
+                if (rows.length === 0) {
+                    emptyPlaceholder.classList.remove('d-none');
+                } else {
+                    emptyPlaceholder.classList.add('d-none');
+                }
+
+                rows.forEach((row, index) => {
+                    const indexEl = row.querySelector('.row-index');
+                    if (indexEl) indexEl.textContent = (index + 1);
+
+                    row.querySelectorAll('input').forEach(input => {
+                        const name = input.getAttribute('name');
+                        if (name) {
+                            const newName = name.replace(/ProductDiscounts\[\d+\]/, `ProductDiscounts[${index}]`);
+                            input.setAttribute('name', newName);
+                        }
+                    });
+                });
+                updatePreview();
+            }
+
+            // Xóa dòng sách
+            tableBody.addEventListener('click', function (e) {
+                const btn = e.target.closest('.btn-remove-book');
+                if (btn) {
+                    const row = btn.closest('tr');
+                    if (row) {
+                        row.remove();
+                        reindexTableRows();
+                    }
+                }
+            });
+
+            // Mở modal tìm kiếm sách
+            btnOpenBookSearchModal.addEventListener('click', function () {
+                currentModalPage = 1;
+                modalSearchKeyword.value = '';
+                executeBookSearch(1);
+                bookSearchModal.show();
+            });
+
+            btnExecuteBookSearch.addEventListener('click', function () {
+                currentModalPage = 1;
+                executeBookSearch(1);
+            });
+
+            modalSearchKeyword.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    currentModalPage = 1;
+                    executeBookSearch(1);
+                }
+            });
+
+            btnModalPrevPage.addEventListener('click', function () {
+                if (currentModalPage > 1) {
+                    executeBookSearch(currentModalPage - 1);
+                }
+            });
+
+            btnModalNextPage.addEventListener('click', function () {
+                if (currentModalPage < totalModalPages) {
+                    executeBookSearch(currentModalPage + 1);
+                }
+            });
+
+            // Gọi API SearchBooks
+            async function executeBookSearch(page) {
+                modalSearchLoading.classList.remove('d-none');
+                modalResultsTbody.innerHTML = '';
+                const keyword = encodeURIComponent(modalSearchKeyword.value.trim());
+
+                try {
+                    const res = await fetch(`/Promotions/SearchBooks?keyword=${keyword}&page=${page}&pageSize=6`);
+                    const data = await res.json();
+                    modalSearchLoading.classList.add('d-none');
+
+                    if (data.success && data.items && data.items.length > 0) {
+                        currentModalPage = data.page;
+                        totalModalPages = data.totalPages || 1;
+                        modalPaginationInfo.textContent = `Trang ${data.page} / ${totalModalPages} (${data.totalCount} sách)`;
+                        btnModalPrevPage.disabled = currentModalPage <= 1;
+                        btnModalNextPage.disabled = currentModalPage >= totalModalPages;
+
+                        data.items.forEach(book => {
+                            const tr = document.createElement('tr');
+                            const isAdded = isBookAlreadyInTable(book.bookId);
+
+                            const tdInfo = document.createElement('td');
+                            const titleDiv = document.createElement('div');
+                            titleDiv.className = 'fw-bold';
+                            titleDiv.textContent = book.title || '';
+                            tdInfo.appendChild(titleDiv);
+
+                            const metaSmall = document.createElement('small');
+                            metaSmall.className = 'text-muted';
+                            metaSmall.textContent = `Mã: #${book.bookId} ${book.barcode ? '| ' + book.barcode : ''}`;
+                            tdInfo.appendChild(metaSmall);
+                            tr.appendChild(tdInfo);
+
+                            const tdAuthor = document.createElement('td');
+                            const authorSmall = document.createElement('small');
+                            authorSmall.className = 'text-muted';
+                            authorSmall.textContent = book.author || 'N/A';
+                            tdAuthor.appendChild(authorSmall);
+                            tr.appendChild(tdAuthor);
+
+                            const tdPrice = document.createElement('td');
+                            tdPrice.className = 'text-end fw-semibold';
+                            tdPrice.textContent = (book.sellingPrice || 0).toLocaleString('vi-VN') + ' ₫';
+                            tr.appendChild(tdPrice);
+
+                            const tdStock = document.createElement('td');
+                            tdStock.className = 'text-center';
+                            const stockBadge = document.createElement('span');
+                            stockBadge.className = `badge ${book.stockQuantity > 0 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}`;
+                            stockBadge.textContent = book.stockQuantity;
+                            tdStock.appendChild(stockBadge);
+                            tr.appendChild(tdStock);
+
+                            const tdAction = document.createElement('td');
+                            tdAction.className = 'text-center';
+                            const btnSelect = document.createElement('button');
+                            btnSelect.type = 'button';
+                            btnSelect.className = `btn btn-sm ${isAdded ? 'btn-secondary' : 'btn-primary'} btn-select-book`;
+                            btnSelect.setAttribute('data-book-id', book.bookId);
+                            btnSelect.setAttribute('data-title', book.title || '');
+                            btnSelect.setAttribute('data-barcode', book.barcode || '');
+                            btnSelect.setAttribute('data-price', book.sellingPrice || 0);
+                            btnSelect.setAttribute('data-stock', book.stockQuantity || 0);
+                            if (isAdded) {
+                                btnSelect.disabled = true;
+                                btnSelect.textContent = 'Đã thêm';
+                            } else {
+                                btnSelect.textContent = '+ Chọn';
+                            }
+                            tdAction.appendChild(btnSelect);
+                            tr.appendChild(tdAction);
+                            modalResultsTbody.appendChild(tr);
+                        });
+                    } else {
+                        modalResultsTbody.innerHTML = '';
+                        const emptyTr = document.createElement('tr');
+                        const emptyTd = document.createElement('td');
+                        emptyTd.colSpan = 5;
+                        emptyTd.className = 'text-center text-muted py-3';
+                        emptyTd.textContent = data.message || 'Không tìm thấy ấn phẩm sách nào phù hợp.';
+                        emptyTr.appendChild(emptyTd);
+                        modalResultsTbody.appendChild(emptyTr);
+                        modalPaginationInfo.textContent = 'Trang 1 / 1';
+                        btnModalPrevPage.disabled = true;
+                        btnModalNextPage.disabled = true;
+                    }
+                } catch (err) {
+                    modalSearchLoading.classList.add('d-none');
+                    modalResultsTbody.innerHTML = '';
+                    const errTr = document.createElement('tr');
+                    const errTd = document.createElement('td');
+                    errTd.colSpan = 5;
+                    errTd.className = 'text-center text-danger py-3';
+                    errTd.textContent = 'Lỗi khi tra cứu danh mục sách.';
+                    errTr.appendChild(errTd);
+                    modalResultsTbody.appendChild(errTr);
+                }
+            }
+
+            function isBookAlreadyInTable(bookId) {
+                const existing = tableBody.querySelector(`input.input-book-id[value="${bookId}"]`);
+                return existing !== null;
+            }
+
+            // Chọn sách từ Modal
+            modalResultsTbody.addEventListener('click', function (e) {
+                const btn = e.target.closest('.btn-select-book');
+                if (btn && !btn.disabled) {
+                    const bookId = btn.getAttribute('data-book-id');
+                    const title = btn.getAttribute('data-title');
+                    const barcode = btn.getAttribute('data-barcode');
+                    const price = parseFloat(btn.getAttribute('data-price')) || 0;
+                    const stock = parseInt(btn.getAttribute('data-stock')) || 0;
+
+                    if (isBookAlreadyInTable(bookId)) {
+                        alert('Ấn phẩm sách này đã có trong danh sách khuyến mãi.');
+                        return;
+                    }
+
+                    addBookToTable(bookId, title, barcode, price, stock, 10000);
+                    btn.disabled = true;
+                    btn.className = 'btn btn-sm btn-secondary btn-select-book';
+                    btn.textContent = 'Đã thêm';
+                }
+            });
+
+            function addBookToTable(bookId, title, barcode, price, stock, discount) {
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-book-id', bookId);
+
+                // td 1: Index
+                const tdIndex = document.createElement('td');
+                tdIndex.className = 'text-center text-muted small row-index';
+                tdIndex.textContent = '0';
+                tr.appendChild(tdIndex);
+
+                // td 2: Title & Hidden Inputs
+                const tdBook = document.createElement('td');
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'fw-bold text-dark';
+                titleDiv.textContent = title;
+                tdBook.appendChild(titleDiv);
+
+                const subSmall = document.createElement('small');
+                subSmall.className = 'text-muted';
+                subSmall.textContent = `Mã sách: #${bookId} ${barcode ? '| Barcode: ' + barcode : ''}`;
+                tdBook.appendChild(subSmall);
+
+                const inputBookId = document.createElement('input');
+                inputBookId.type = 'hidden';
+                inputBookId.name = 'ProductDiscounts[0].BookId';
+                inputBookId.value = bookId;
+                inputBookId.className = 'input-book-id';
+                tdBook.appendChild(inputBookId);
+
+                const inputTitle = document.createElement('input');
+                inputTitle.type = 'hidden';
+                inputTitle.name = 'ProductDiscounts[0].BookTitle';
+                inputTitle.value = title;
+                tdBook.appendChild(inputTitle);
+
+                const inputBarcode = document.createElement('input');
+                inputBarcode.type = 'hidden';
+                inputBarcode.name = 'ProductDiscounts[0].Barcode';
+                inputBarcode.value = barcode || '';
+                tdBook.appendChild(inputBarcode);
+
+                const inputPrice = document.createElement('input');
+                inputPrice.type = 'hidden';
+                inputPrice.name = 'ProductDiscounts[0].SellingPrice';
+                inputPrice.value = price;
+                tdBook.appendChild(inputPrice);
+
+                const inputStock = document.createElement('input');
+                inputStock.type = 'hidden';
+                inputStock.name = 'ProductDiscounts[0].StockQuantity';
+                inputStock.value = stock;
+                tdBook.appendChild(inputStock);
+
+                tr.appendChild(tdBook);
+
+                // td 3: Selling Price
+                const tdPrice = document.createElement('td');
+                tdPrice.className = 'text-end';
+                tdPrice.textContent = Number(price).toLocaleString('vi-VN') + ' ₫';
+                tr.appendChild(tdPrice);
+
+                // td 4: Stock
+                const tdStock = document.createElement('td');
+                tdStock.className = 'text-center';
+                const badge = document.createElement('span');
+                badge.className = `badge ${stock > 0 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}`;
+                badge.textContent = stock;
+                tdStock.appendChild(badge);
+                tr.appendChild(tdStock);
+
+                // td 5: Discount input
+                const tdDiscount = document.createElement('td');
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'input-group input-group-sm';
+                const spanMinus = document.createElement('span');
+                spanMinus.className = 'input-group-text bg-success-subtle text-success fw-bold';
+                spanMinus.textContent = '-';
+                inputGroup.appendChild(spanMinus);
+
+                const inputDiscount = document.createElement('input');
+                inputDiscount.type = 'number';
+                inputDiscount.name = 'ProductDiscounts[0].DiscountAmount';
+                inputDiscount.value = discount;
+                inputDiscount.className = 'form-control text-success fw-bold input-discount-amount';
+                inputDiscount.step = '1000';
+                inputDiscount.min = '1000';
+                inputDiscount.required = true;
+                inputGroup.appendChild(inputDiscount);
+
+                const spanVnd = document.createElement('span');
+                spanVnd.className = 'input-group-text';
+                spanVnd.textContent = '₫';
+                inputGroup.appendChild(spanVnd);
+                tdDiscount.appendChild(inputGroup);
+                tr.appendChild(tdDiscount);
+
+                // td 6: Remove button
+                const tdAction = document.createElement('td');
+                tdAction.className = 'text-center';
+                const btnRemove = document.createElement('button');
+                btnRemove.type = 'button';
+                btnRemove.className = 'btn btn-outline-danger btn-sm btn-remove-book';
+                btnRemove.title = 'Gỡ khỏi danh mục';
+                const iconTrash = document.createElement('i');
+                iconTrash.className = 'fas fa-trash-alt';
+                btnRemove.appendChild(iconTrash);
+                tdAction.appendChild(btnRemove);
+                tr.appendChild(tdAction);
+
+                tableBody.appendChild(tr);
+                reindexTableRows();
+            }
+
             function updatePreview() {
                 const name = promoNameInput.value.trim() || 'Tên chương trình khuyến mãi';
                 const desc = promoDescInput.value.trim() || 'Mô tả thể lệ chương trình...';
-                const amount = parseFloat(discountAmountInput.value) || 0;
-                const minOrder = parseFloat(minOrderInput.value) || 0;
 
                 previewTitle.textContent = name;
                 previewDesc.textContent = desc;
-                previewDiscountText.textContent = '-' + amount.toLocaleString('vi-VN') + ' ₫';
 
                 if (radioOrder.checked) {
+                    const minOrder = parseFloat(minOrderInput?.value) || 0;
+                    const discount = parseFloat(orderDiscountAmountInput?.value) || 0;
+                    previewDiscountText.textContent = '-' + discount.toLocaleString('vi-VN') + ' ₫';
                     previewCondition.textContent = 'Đơn từ ' + minOrder.toLocaleString('vi-VN') + ' ₫';
                 } else {
-                    const selectedText = bookSelect.options[bookSelect.selectedIndex]?.text || '';
-                    previewCondition.textContent = selectedText ? selectedText.split('(')[0].trim() : 'Chọn sách';
+                    const rows = tableBody.querySelectorAll('tr');
+                    const count = rows.length;
+                    if (count === 0) {
+                        previewDiscountText.textContent = '0 ₫';
+                        previewCondition.textContent = 'Chưa chọn sách';
+                    } else if (count === 1) {
+                        const amount = parseFloat(rows[0].querySelector('.input-discount-amount')?.value) || 0;
+                        previewDiscountText.textContent = '-' + amount.toLocaleString('vi-VN') + ' ₫';
+                        previewCondition.textContent = '1 cuốn sách';
+                    } else {
+                        previewDiscountText.textContent = 'Theo từng cuốn';
+                        previewCondition.textContent = `${count} cuốn sách áp dụng`;
+                    }
                 }
 
                 const sDate = startDateInput.value ? new Date(startDateInput.value).toLocaleDateString('vi-VN') : '...';
@@ -326,15 +808,29 @@
                 }
             }
 
-            // Bind live preview listeners
-            [promoNameInput, promoDescInput, minOrderInput, discountAmountInput, bookSelect, startDateInput, endDateInput, isActiveSwitch].forEach(el => {
+            function escapeHtml(text) {
+                if (!text) return '';
+                return String(text).replace(/[&<>"']/g, function (m) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+                });
+            }
+
+            // Bind listeners
+            [promoNameInput, promoDescInput, minOrderInput, orderDiscountAmountInput, startDateInput, endDateInput, isActiveSwitch].forEach(el => {
                 if (el) {
                     el.addEventListener('input', updatePreview);
                     el.addEventListener('change', updatePreview);
                 }
             });
 
-            updateTypeToggle();
+            tableBody.addEventListener('input', function (e) {
+                if (e.target.classList.contains('input-discount-amount')) {
+                    updatePreview();
+                }
+            });
+
+            updateTypeToggle(false);
+            reindexTableRows();
         });
     </script>
 }

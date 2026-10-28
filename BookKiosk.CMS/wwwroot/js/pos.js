@@ -317,6 +317,7 @@
 
                 const tr = document.createElement('tr');
                 tr.className = 'cart-item-row';
+                tr.dataset.bookId = item.bookId;
 
                 // 1. STT
                 const tdStt = document.createElement('td');
@@ -326,6 +327,7 @@
 
                 // 2. Tên sách & Mã vạch
                 const tdTitle = document.createElement('td');
+                tdTitle.className = 'cart-item-title-col';
                 const titleDiv = document.createElement('div');
                 titleDiv.className = 'fw-bold text-dark text-truncate';
                 titleDiv.style.maxWidth = '250px';
@@ -390,7 +392,7 @@
 
                 // 6. Thành tiền
                 const tdLineTotal = document.createElement('td');
-                tdLineTotal.className = 'text-end fw-bold text-primary';
+                tdLineTotal.className = 'text-end fw-bold text-primary cart-item-linetotal-col';
                 tdLineTotal.textContent = formatMoneyVnd(lineTotal);
                 tr.appendChild(tdLineTotal);
 
@@ -809,6 +811,10 @@
 
             Array.from(selectEl.options).forEach(opt => {
                 if (!opt.value) return;
+                const promoType = parseInt(opt.getAttribute('data-promo-type'), 10) || 1;
+                // Chỉ gợi ý khuyến mãi Type 1 (OrderDiscount), không tự tính gợi ý cho Type 2
+                if (promoType !== 1) return;
+
                 const minVal = parseFloat(opt.getAttribute('data-min-value')) || 0;
                 const discount = parseFloat(opt.getAttribute('data-discount')) || 0;
 
@@ -1177,6 +1183,18 @@
                     body: JSON.stringify(payload)
                 });
 
+                // Kiểm tra nếu HTTP pipeline trả lỗi mạng/500/unauthorized cấp middleware
+                if (!response.ok) {
+                    let errMsg = 'Lỗi máy chủ (' + response.status + '). Vui lòng thử lại.';
+                    if (response.status === 401 || response.status === 403) {
+                        errMsg = 'Phiên làm việc đã hết hạn hoặc không có quyền thực hiện. Vui lòng đăng nhập lại.';
+                    }
+                    if (typeof showToast === 'function') {
+                        showToast(errMsg, 'danger');
+                    }
+                    return;
+                }
+
                 const result = await response.json();
 
                 if (result.isEndpointUnavailable) {
@@ -1184,12 +1202,22 @@
                     return;
                 }
 
+                // Xử lý JSON bọc từ PosController.FormatApiResponse (statusCode nằm trong JSON body)
                 if (result.success && result.data) {
                     hideEndpointWarning();
                     transitionToPending(result.data);
                 } else {
+                    const statusCode = result.statusCode || 400;
+                    let toastType = 'danger';
+
+                    if (statusCode === 401 || statusCode === 403) {
+                        toastType = 'warning';
+                    } else if (statusCode === 409) {
+                        toastType = 'warning';
+                    }
+
                     if (typeof showToast === 'function') {
-                        showToast(result.message || 'Tạo đơn hàng thất bại từ Backend.', 'danger');
+                        showToast(result.message || 'Tạo đơn hàng thất bại từ Backend.', toastType);
                     }
                 }
             } catch (err) {
@@ -1204,6 +1232,73 @@
                 if (typeof hideLoading === 'function') hideLoading();
                 PosApp.ScanModule.refocusScanner();
             }
+        }
+
+        function updateCartBreakdownFromPending(items) {
+            if (!items || !Array.isArray(items) || items.length === 0) return;
+
+            const tbody = document.getElementById('posCartTableBody');
+            if (!tbody) return;
+
+            // Kiểm tra xem đơn hàng có dữ liệu chiết khấu V7.1 hay không
+            const hasV71Discount = items.some(function (i) {
+                return (Number(i.discountPerUnit) > 0 || Number(i.lineDiscountAmount) > 0);
+            });
+
+            // Nếu đơn không có khuyến mãi V7.1, giữ nguyên hiển thị niêm yết cũ
+            if (!hasV71Discount) return;
+
+            // Xây dựng bản đồ dòng giỏ hàng theo data-book-id để ghép chính xác theo BookId (Backend OrderBy BookId)
+            const rowMap = new Map();
+            tbody.querySelectorAll('.cart-item-row[data-book-id]').forEach(function (row) {
+                rowMap.set(Number(row.dataset.bookId), row);
+            });
+
+            // Duyệt từng item từ Backend và tìm hàng theo bookId
+            items.forEach(function (serverItem) {
+                const tr = rowMap.get(Number(serverItem.bookId));
+                if (!tr) return; // Nếu không tìm thấy dòng sách trong giỏ thì bỏ qua an toàn
+
+                const discountPerUnit = Number(serverItem.discountPerUnit) || 0;
+                const lineDiscount = Number(serverItem.lineDiscountAmount) || 0;
+                const netLineTotal = Number(serverItem.netLineTotal) || (serverItem.lineTotal - lineDiscount);
+
+                // 1. Cập nhật cột Tên sách: nếu có giảm theo cuốn thì thêm badge chiết khấu
+                if (discountPerUnit > 0) {
+                    const tdTitle = tr.querySelector('.cart-item-title-col') || tr.children[1];
+                    if (tdTitle && !tdTitle.querySelector('.promo-unit-badge')) {
+                        const promoBadge = document.createElement('div');
+                        promoBadge.className = 'badge bg-success-subtle text-success border border-success-subtle small mt-1 promo-unit-badge';
+                        promoBadge.textContent = 'Giảm -' + formatMoneyVnd(discountPerUnit) + '/cuốn';
+                        tdTitle.appendChild(promoBadge);
+                    }
+                }
+
+                // 2. Cập nhật cột Thành tiền: xác định bằng class selector ổn định (.cart-item-linetotal-col)
+                const tdLineTotal = tr.querySelector('.cart-item-linetotal-col') || tr.children[5];
+                if (tdLineTotal) {
+                    while (tdLineTotal.firstChild) {
+                        tdLineTotal.removeChild(tdLineTotal.firstChild);
+                    }
+
+                    if (lineDiscount > 0) {
+                        const originalSpan = document.createElement('div');
+                        originalSpan.className = 'text-decoration-line-through text-muted small';
+                        originalSpan.textContent = formatMoneyVnd(serverItem.lineTotal);
+                        tdLineTotal.appendChild(originalSpan);
+
+                        const netSpan = document.createElement('div');
+                        netSpan.className = 'fw-bold text-danger fs-6';
+                        netSpan.textContent = formatMoneyVnd(netLineTotal);
+                        tdLineTotal.appendChild(netSpan);
+                    } else {
+                        const normalSpan = document.createElement('span');
+                        normalSpan.className = 'fw-bold text-primary';
+                        normalSpan.textContent = formatMoneyVnd(serverItem.lineTotal);
+                        tdLineTotal.appendChild(normalSpan);
+                    }
+                }
+            });
         }
 
         function transitionToPending(orderData) {
@@ -1228,6 +1323,11 @@
 
             const discountRow = document.getElementById('pendingDiscountRow');
             const discountAmount = document.getElementById('pendingDiscountAmount');
+            const promoNameEl = document.getElementById('pendingPromoName');
+            if (promoNameEl) {
+                promoNameEl.textContent = orderData.promotionName ? ' (' + orderData.promotionName + ')' : '';
+            }
+
             if (orderData.discountAmount > 0) {
                 discountAmount.textContent = '-' + formatMoneyVnd(orderData.discountAmount);
                 discountRow.classList.remove('d-none');
@@ -1246,15 +1346,20 @@
 
             document.getElementById('pendingTotalAmount').textContent = formatMoneyVnd(orderData.totalAmount);
 
-            // 4. Khởi tạo tính tiền thối lại (P2)
+            // 4. Cập nhật chi tiết giảm giá từng dòng trong giỏ hàng (V7.1 ProductDiscount)
+            if (orderData.items && orderData.items.length > 0) {
+                updateCartBreakdownFromPending(orderData.items);
+            }
+
+            // 5. Khởi tạo tính tiền thối lại (P2)
             const cashInput = document.getElementById('cashGivenInput');
             if (cashInput) cashInput.value = '';
             calculateCashChange();
 
-            // 5. Khởi động Timer đếm ngược (RemainingSeconds từ server, đồng hồ JS dùng performance.now)
+            // 6. Khởi động Timer đếm ngược (RemainingSeconds từ server, đồng hồ JS dùng performance.now)
             PosApp.TimerModule.start(orderData.remainingSeconds, orderData.expiresAt, orderData.serverTime);
 
-            // 6. Cảnh báo beforeunload khi có đơn Pending
+            // 7. Cảnh báo beforeunload khi có đơn Pending
             window.onbeforeunload = function () {
                 return 'Đơn hàng đang chờ thanh toán. Bạn có chắc chắn muốn rời khỏi trang?';
             };
@@ -1627,6 +1732,13 @@
                     const tdTitle = document.createElement('td');
                     tdTitle.textContent = item.title || `Sách #${item.bookId}`;
 
+                    if (item.lineDiscountAmount && item.lineDiscountAmount > 0) {
+                        const discountBadge = document.createElement('div');
+                        discountBadge.className = 'small text-success';
+                        discountBadge.textContent = `(-${formatMoneyVnd(item.discountPerUnit || 0)}/cuốn)`;
+                        tdTitle.appendChild(discountBadge);
+                    }
+
                     const tdQty = document.createElement('td');
                     tdQty.className = 'text-center';
                     tdQty.textContent = (item.quantity || 1).toString();
@@ -1636,8 +1748,20 @@
                     tdPrice.textContent = formatMoneyVnd(item.unitPrice || 0);
 
                     const tdTotal = document.createElement('td');
-                    tdTotal.className = 'text-end fw-bold';
-                    tdTotal.textContent = formatMoneyVnd(item.lineTotal || (item.unitPrice * item.quantity));
+                    if (item.lineDiscountAmount && item.lineDiscountAmount > 0) {
+                        tdTotal.className = 'text-end';
+                        const delEl = document.createElement('del');
+                        delEl.className = 'text-muted small d-block';
+                        delEl.textContent = formatMoneyVnd(item.lineTotal || (item.unitPrice * item.quantity));
+                        const netEl = document.createElement('span');
+                        netEl.className = 'fw-bold text-success';
+                        netEl.textContent = formatMoneyVnd(item.netLineTotal);
+                        tdTotal.appendChild(delEl);
+                        tdTotal.appendChild(netEl);
+                    } else {
+                        tdTotal.className = 'text-end fw-bold';
+                        tdTotal.textContent = formatMoneyVnd(item.lineTotal || (item.unitPrice * item.quantity));
+                    }
 
                     tr.appendChild(tdTitle);
                     tr.appendChild(tdQty);
@@ -1646,13 +1770,36 @@
                     tbody.appendChild(tr);
                 });
 
+                const unassignedNotice = document.getElementById('receiptUnassignedNotice');
+                if (unassignedNotice) {
+                    const isProductDiscount = receipt.promotionType === 2 || receipt.promotionType === 'ProductDiscount';
+                    const hasAnyLineDiscount = (receipt.items || []).some(i => i.lineDiscountAmount && i.lineDiscountAmount > 0);
+                    if (isProductDiscount && !hasAnyLineDiscount && receipt.discountAmount > 0) {
+                        unassignedNotice.classList.remove('d-none');
+                    } else {
+                        unassignedNotice.classList.add('d-none');
+                    }
+                }
+
                 // Totals
                 document.getElementById('receiptSubTotal').textContent = formatMoneyVnd(receipt.subTotal);
 
                 const discountRow = document.getElementById('receiptDiscountRow');
                 const discountSpan = document.getElementById('receiptDiscountAmount');
+                const discountLabel = document.getElementById('receiptDiscountLabel');
                 if (receipt.discountAmount > 0) {
                     discountSpan.textContent = '-' + formatMoneyVnd(receipt.discountAmount);
+                    let labelText = 'Giảm khuyến mãi:';
+                    if (receipt.promotionName) {
+                        let promoTypeStr = '';
+                        if (receipt.promotionType === 1 || receipt.promotionType === 'OrderDiscount') {
+                            promoTypeStr = ' (Hóa đơn)';
+                        } else if (receipt.promotionType === 2 || receipt.promotionType === 'ProductDiscount') {
+                            promoTypeStr = ' (Từng sách)';
+                        }
+                        labelText = `KM - ${receipt.promotionName}${promoTypeStr}:`;
+                    }
+                    if (discountLabel) discountLabel.textContent = labelText;
                     discountRow.classList.remove('d-none');
                 } else {
                     discountRow.classList.add('d-none');
