@@ -16,6 +16,15 @@ namespace BookKiosk.Kiosk.ViewModels
     {
         private record SearchQuerySnapshot(string? Keyword, int? CategoryId, int Page);
 
+        private enum SearchExecutionStatus
+        {
+            NotStarted,
+            InFlight,
+            Completed,
+            CancelledOnDeactivate,
+            Failed
+        }
+
         private readonly NavigationService _navigationService;
         private readonly IBarcodeScanner _scanner;
         private readonly IBookKioskApiClient _apiClient;
@@ -29,7 +38,7 @@ namespace BookKiosk.Kiosk.ViewModels
         private CancellationTokenSource? _searchCts;
         private SearchQuerySnapshot? _activeQuerySnapshot;
         private bool _isActive = false;
-        private bool _wasSearchPendingWhenDeactivated = false;
+        private SearchExecutionStatus _searchStatus = SearchExecutionStatus.NotStarted;
         private bool _suppressCategorySearch = false;
 
         private bool _hasNextPage = false;
@@ -281,6 +290,7 @@ namespace BookKiosk.Kiosk.ViewModels
             var cancellationToken = _searchCts.Token;
 
             int currentVersion = Interlocked.Increment(ref _searchVersion);
+            _searchStatus = SearchExecutionStatus.InFlight;
 
             int? categoryId;
             string? keyword;
@@ -372,6 +382,7 @@ namespace BookKiosk.Kiosk.ViewModels
                     _activeQuerySnapshot = snapshot;
                     _skip = snapshot.Page * Take;
                     ErrorMessage = "";
+                    _searchStatus = SearchExecutionStatus.Completed;
                 }
                 else
                 {
@@ -382,6 +393,7 @@ namespace BookKiosk.Kiosk.ViewModels
                         HasNextPage = false;
                         _activeQuerySnapshot = null;
                     }
+                    _searchStatus = SearchExecutionStatus.Failed;
                 }
             }
             catch (OperationCanceledException)
@@ -401,6 +413,7 @@ namespace BookKiosk.Kiosk.ViewModels
                     HasNextPage = false;
                     _activeQuerySnapshot = null;
                 }
+                _searchStatus = SearchExecutionStatus.Failed;
             }
             finally
             {
@@ -449,10 +462,15 @@ namespace BookKiosk.Kiosk.ViewModels
             _scanner.BarcodeScanned -= Scanner_BarcodeScanned;
             _scanner.BarcodeScanned += Scanner_BarcodeScanned;
 
-            // BUG-02: Nếu request bị Deactivate hủy giữa chừng hoặc kết quả trống bất thường, khôi phục lại
-            if (_wasSearchPendingWhenDeactivated || (SearchResults.Count == 0 && !HasError && _searchVersion > 0))
+            // SEARCH-05: Chỉ khôi phục tìm kiếm khi truy vấn trước bị Deactivate hủy giữa chừng
+            // Nếu đang InFlight (request từ constructor đang bay) -> KHÔNG gọi lại (chống duplicate)
+            // Nếu đã Completed (kể cả kết quả rỗng) hoặc Failed -> KHÔNG gọi lại (giữ nguyên kết quả/lỗi)
+            if (_searchStatus == SearchExecutionStatus.CancelledOnDeactivate)
             {
-                _wasSearchPendingWhenDeactivated = false;
+                ExecuteSearch(true);
+            }
+            else if (_searchStatus == SearchExecutionStatus.NotStarted)
+            {
                 ExecuteSearch(true);
             }
         }
@@ -467,7 +485,7 @@ namespace BookKiosk.Kiosk.ViewModels
 
             if (IsLoading)
             {
-                _wasSearchPendingWhenDeactivated = true;
+                _searchStatus = SearchExecutionStatus.CancelledOnDeactivate;
                 _searchCts?.Cancel();
                 IsLoading = false;
             }
