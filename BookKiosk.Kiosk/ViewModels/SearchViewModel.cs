@@ -57,15 +57,15 @@ namespace BookKiosk.Kiosk.ViewModels
         public ObservableCollection<CategoryModel> Categories { get; } = new ObservableCollection<CategoryModel>();
 
         private string _keyword;
-        public string Keyword 
+        public string Keyword
         {
             get => _keyword;
             set 
             { 
                 if (_keyword != value)
                 {
-                    _keyword = value; 
-                    OnPropertyChanged(); 
+                    _keyword = value;
+                    OnPropertyChanged();
 
                     // SEARCH-04: Invalidate con trỏ phân trang ngay khi keyword đổi
                     HasNextPage = false;
@@ -245,7 +245,7 @@ namespace BookKiosk.Kiosk.ViewModels
             {
                 Categories.Clear();
                 Categories.Add(new CategoryModel { Id = 0, Name = "Tất cả" });
-                
+
                 if (result != null && result.Success && result.Data != null)
                 {
                     foreach(var cat in result.Data)
@@ -253,7 +253,7 @@ namespace BookKiosk.Kiosk.ViewModels
                         Categories.Add(new CategoryModel { Id = cat.CategoryId, Name = cat.Name });
                     }
                 }
-                
+
                 _suppressCategorySearch = true;
                 try
                 {
@@ -354,7 +354,7 @@ namespace BookKiosk.Kiosk.ViewModels
                             // FE-13: Chống nạp trùng dữ liệu sách
                             if (!SearchResults.Any(x => x.BookId == b.BookId))
                             {
-                                SearchResults.Add(new BookModel 
+                                SearchResults.Add(new BookModel
                                 {
                                     BookId = b.BookId,
                                     Barcode = b.Barcode,
