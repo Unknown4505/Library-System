@@ -203,9 +203,9 @@ Acceptance bắt buộc:
 | PD-E2E-09 | POS manual/no selection | Chọn đúng requested promotion; không chọn thì discount 0 | PASS — BACKEND TARGETED QA |
 | PD-E2E-10 | Zero/negative payable | HTTP 400 `BAD_REQUEST`, không Pending/QR, kho và điểm rollback | PASS — BACKEND TARGETED QA |
 | PD-E2E-11 | Pending → Paid | Promotion/totals không bị tính lại | PASS — BACKEND TARGETED QA |
-| PD-E2E-12 | Receipt snapshot | Receipt/PDF khớp snapshot promotion, points và từng line | BACKEND RECEIPT PASS / FE PDF NOT RUN |
+| PD-E2E-12 | Receipt snapshot | Receipt/PDF khớp snapshot promotion, points và từng line | BACKEND RECEIPT PASS / FE TARGETED QA PASS; WPF UI E2E NOT RUN |
 | PD-E2E-13 | Legacy order | Fallback title/points an toàn; không sửa Paid cũ, không suy đoán ProductDiscount | PASS — BACKEND TARGETED QA |
 | PD-E2E-14 | Cancel/stock/points regression | Hủy nhả reserve; lỗi rollback điểm/kho đúng một lần | PASS — BACKEND TARGETED QA |
 | PD-E2E-15 | QR amount | QR amount bằng persisted `TotalAmount`, là số nguyên VNĐ và > 0 | PASS — BACKEND TARGETED QA |
 
-Backend targeted QA đã kiểm tra JSON/enum/collection/legacy/item breakdown trên SQL QA disposable và PASS ở PR #52. Full feature vẫn cần FE implementation và UI/PDF E2E riêng; không cộng Backend PASS thành FE PASS.
+Backend targeted QA đã kiểm tra JSON/enum/collection/legacy/item breakdown trên SQL QA disposable và PASS ở PR #52. FE ProductDiscount implementation tại PR #58 HEAD `054d5f1` đã vượt final targeted retest 9/9: nested POS DTO, selection/server-authoritative totals, payable `<= 0`, positive checkout breakdown và BAD_REQUEST. PR #58 vẫn chờ merge; browser/WPF UI và cross-layer E2E #48 chưa chạy, nên không gọi full feature E2E PASS.
