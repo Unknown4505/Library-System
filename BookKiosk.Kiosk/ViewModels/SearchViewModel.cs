@@ -40,6 +40,7 @@ namespace BookKiosk.Kiosk.ViewModels
         private bool _isActive = false;
         private SearchExecutionStatus _searchStatus = SearchExecutionStatus.NotStarted;
         private bool _suppressCategorySearch = false;
+        private bool _hasPendingDebounce = false;
 
         private bool _hasNextPage = false;
         public bool HasNextPage
@@ -67,8 +68,9 @@ namespace BookKiosk.Kiosk.ViewModels
                     _keyword = value;
                     OnPropertyChanged();
 
-                    // SEARCH-04: Invalidate con trỏ phân trang ngay khi keyword đổi
-                    HasNextPage = false;
+                    // SEARCH-RACE-01: Vô hiệu hóa phiên tìm kiếm đang bay và con trỏ phân trang ngay khi keyword đổi
+                    InvalidateActiveSearch();
+                    _hasPendingDebounce = true;
 
                     if (_debounceTimer != null)
                     {
@@ -91,11 +93,10 @@ namespace BookKiosk.Kiosk.ViewModels
                     OnPropertyChanged(); 
                     if (_suppressCategorySearch) return;
 
-                    // SEARCH-04: Invalidate con trỏ phân trang ngay khi Category đổi
-                    HasNextPage = false;
-
-                    // BUG-01: Đổi Category hủy debounce keyword đang chờ và tìm ngay lập tức
+                    // SEARCH-RACE-01 & BUG-01: Đổi Category hủy debounce, vô hiệu hóa phiên đang bay và tìm ngay
+                    InvalidateActiveSearch();
                     _debounceTimer?.Stop();
+                    _hasPendingDebounce = false;
                     ExecuteSearch(true);
                 }
             }
@@ -153,6 +154,8 @@ namespace BookKiosk.Kiosk.ViewModels
         {
             if (parameter is string keyword && !string.IsNullOrWhiteSpace(keyword))
             {
+                _debounceTimer?.Stop();
+                _hasPendingDebounce = false;
                 _keyword = keyword;
                 OnPropertyChanged(nameof(Keyword));
                 ExecuteSearch(true);
@@ -275,6 +278,43 @@ namespace BookKiosk.Kiosk.ViewModels
             }
         }
 
+        private static string NormalizeKeyword(string? kw)
+        {
+            return string.IsNullOrWhiteSpace(kw) ? string.Empty : kw.Trim();
+        }
+
+        private static int? NormalizeCategoryId(CategoryModel? category)
+        {
+            if (category == null || category.Id == 0) return null;
+            return category.Id;
+        }
+
+        private static int? NormalizeCategoryId(int? categoryId)
+        {
+            if (!categoryId.HasValue || categoryId.Value == 0) return null;
+            return categoryId.Value;
+        }
+
+        private void InvalidateActiveSearch()
+        {
+            var oldCts = _searchCts;
+            _searchCts = null;
+            if (oldCts != null)
+            {
+                try
+                {
+                    oldCts.Cancel();
+                }
+                catch (ObjectDisposedException) { }
+            }
+
+            Interlocked.Increment(ref _searchVersion);
+            _activeQuerySnapshot = null;
+            HasNextPage = false;
+            IsLoading = false;
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
+
         private async void ExecuteSearch(bool reset)
         {
             // FE-13 & SEARCH-04: Chống Load More đồng thời và dừng khi đã hết trang hoặc chưa có active snapshot
@@ -283,26 +323,22 @@ namespace BookKiosk.Kiosk.ViewModels
                 if (IsLoading || !HasNextPage || _activeQuerySnapshot == null) return;
             }
 
-            // BUG-01: Hủy CTS cũ và tạo CTS mới cho mỗi lần tìm
-            _searchCts?.Cancel();
-            _searchCts?.Dispose();
-            _searchCts = new CancellationTokenSource();
-            var cancellationToken = _searchCts.Token;
-
-            int currentVersion = Interlocked.Increment(ref _searchVersion);
-            _searchStatus = SearchExecutionStatus.InFlight;
-
             int? categoryId;
             string? keyword;
             int targetPage;
 
             if (reset)
             {
+                _debounceTimer?.Stop();
+                _hasPendingDebounce = false;
+
+                InvalidateActiveSearch();
+
                 _skip = 0;
                 targetPage = 1;
                 HasNextPage = false;
                 ErrorMessage = "";
-                categoryId = SelectedCategory?.Id == 0 ? null : SelectedCategory?.Id;
+                categoryId = NormalizeCategoryId(SelectedCategory);
                 keyword = Keyword;
 
                 var dispatcher = System.Windows.Application.Current?.Dispatcher;
@@ -325,20 +361,37 @@ namespace BookKiosk.Kiosk.ViewModels
 
             var snapshot = new SearchQuerySnapshot(keyword, categoryId, targetPage);
 
+            var oldCts = _searchCts;
+            _searchCts = new CancellationTokenSource();
+            if (oldCts != null)
+            {
+                try { oldCts.Cancel(); } catch (ObjectDisposedException) { }
+            }
+            var cancellationToken = _searchCts.Token;
+
+            int currentVersion = Interlocked.Increment(ref _searchVersion);
+            _searchStatus = SearchExecutionStatus.InFlight;
+
             IsLoading = true;
             System.Windows.Input.CommandManager.InvalidateRequerySuggested();
 
             try
             {
-                if (cancellationToken.IsCancellationRequested || currentVersion != _searchVersion)
+                if (cancellationToken.IsCancellationRequested
+                    || currentVersion != _searchVersion
+                    || !string.Equals(NormalizeKeyword(snapshot.Keyword), NormalizeKeyword(Keyword), StringComparison.OrdinalIgnoreCase)
+                    || NormalizeCategoryId(snapshot.CategoryId) != NormalizeCategoryId(SelectedCategory))
                 {
                     return;
                 }
 
                 var result = await _apiClient.GetBooksAsync(snapshot.Page, Take, snapshot.Keyword, snapshot.CategoryId);
-                
-                // BUG-01: SAU MỖI await: Bỏ qua nếu token đã hủy hoặc version không còn hiện hành
-                if (cancellationToken.IsCancellationRequested || currentVersion != _searchVersion)
+
+                // BUG-01 & SEARCH-RACE-01: SAU MỖI await: Bỏ qua nếu token đã hủy, version cũ hoặc input đã đổi
+                if (cancellationToken.IsCancellationRequested
+                    || currentVersion != _searchVersion
+                    || !string.Equals(NormalizeKeyword(snapshot.Keyword), NormalizeKeyword(Keyword), StringComparison.OrdinalIgnoreCase)
+                    || NormalizeCategoryId(snapshot.CategoryId) != NormalizeCategoryId(SelectedCategory))
                 {
                     return;
                 }
@@ -403,7 +456,10 @@ namespace BookKiosk.Kiosk.ViewModels
             }
             catch (Exception ex)
             {
-                if (cancellationToken.IsCancellationRequested || currentVersion != _searchVersion)
+                if (cancellationToken.IsCancellationRequested
+                    || currentVersion != _searchVersion
+                    || !string.Equals(NormalizeKeyword(snapshot.Keyword), NormalizeKeyword(Keyword), StringComparison.OrdinalIgnoreCase)
+                    || NormalizeCategoryId(snapshot.CategoryId) != NormalizeCategoryId(SelectedCategory))
                 {
                     return;
                 }
@@ -444,6 +500,7 @@ namespace BookKiosk.Kiosk.ViewModels
         private void DebounceTimer_Tick(object? sender, EventArgs e)
         {
             _debounceTimer?.Stop();
+            _hasPendingDebounce = false;
             ExecuteSearch(true);
         }
 
@@ -462,10 +519,17 @@ namespace BookKiosk.Kiosk.ViewModels
             _scanner.BarcodeScanned -= Scanner_BarcodeScanned;
             _scanner.BarcodeScanned += Scanner_BarcodeScanned;
 
+            // SEARCH-RACE-01: Nếu có debounce đang chờ khi Deactivate, thực thi ngay một request cho keyword mới
+            if (_hasPendingDebounce)
+            {
+                _hasPendingDebounce = false;
+                _debounceTimer?.Stop();
+                ExecuteSearch(true);
+            }
             // SEARCH-05: Chỉ khôi phục tìm kiếm khi truy vấn trước bị Deactivate hủy giữa chừng
             // Nếu đang InFlight (request từ constructor đang bay) -> KHÔNG gọi lại (chống duplicate)
             // Nếu đã Completed (kể cả kết quả rỗng) hoặc Failed -> KHÔNG gọi lại (giữ nguyên kết quả/lỗi)
-            if (_searchStatus == SearchExecutionStatus.CancelledOnDeactivate)
+            else if (_searchStatus == SearchExecutionStatus.CancelledOnDeactivate)
             {
                 ExecuteSearch(true);
             }
@@ -480,7 +544,12 @@ namespace BookKiosk.Kiosk.ViewModels
             if (!_isActive) return;
             _isActive = false;
 
-            _debounceTimer?.Stop();
+            if (_debounceTimer?.IsEnabled == true)
+            {
+                _debounceTimer.Stop();
+                _hasPendingDebounce = true;
+            }
+
             _scanner.BarcodeScanned -= Scanner_BarcodeScanned;
 
             if (IsLoading)
@@ -494,9 +563,7 @@ namespace BookKiosk.Kiosk.ViewModels
         public void Dispose()
         {
             Deactivate();
-            _searchCts?.Cancel();
-            _searchCts?.Dispose();
-            _searchCts = null;
+            InvalidateActiveSearch();
             if (_debounceTimer != null)
             {
                 _debounceTimer.Tick -= DebounceTimer_Tick;
