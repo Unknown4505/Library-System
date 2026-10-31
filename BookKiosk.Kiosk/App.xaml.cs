@@ -21,23 +21,51 @@ public partial class App : System.Windows.Application
         AppHost = Host.CreateDefaultBuilder()
             .ConfigureAppConfiguration((context, config) =>
             {
-                config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+                var env = context.HostingEnvironment.EnvironmentName;
+                config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                      .AddJsonFile($"appsettings.{env}.json", optional: true, reloadOnChange: true)
+                      .AddEnvironmentVariables();
             })
             .ConfigureServices((context, services) =>
             {
                 var configuration = context.Configuration;
-                
-                // Cấu hình HttpClientFactory thuần túy với appsettings.json
-                services.AddHttpClient<IBookKioskApiClient, BookKioskApiClient>(client =>
-                {
-                    client.BaseAddress = new Uri(configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7111/");
-                    client.Timeout = TimeSpan.FromSeconds(30);
-                    // Header xác thực Kiosk
-                    client.DefaultRequestHeaders.Add("X-Api-Key", configuration["ApiSettings:ApiKey"] ?? "kiosk-secret-key");
-                });
 
-                // Đăng ký Hardware Mock Services (Dùng cho Laptop Dev)
-                services.AddSingleton<IBarcodeScanner, MockBarcodeScanner>();
+                // 2. ApiClient: Chọn Mock hay Real dựa trên cấu hình (Mặc định Production an toàn: false)
+                bool useMockApi = configuration.GetValue<bool>("KioskSettings:UseMockApi", false)
+                               || configuration.GetValue<bool>("UseMockApi", false);
+                if (useMockApi)
+                {
+                    // DEV/MOCK MODE có chủ đích: Sử dụng Mock API client
+                    services.AddSingleton<IBookKioskApiClient, MockBookKioskApiClient>();
+                }
+                else
+                {
+                    // PRODUCTION MODE (Fail-Closed): Cấu hình HttpClientFactory thuần túy kết nối Backend thật
+                    services.AddHttpClient<IBookKioskApiClient, BookKioskApiClient>(client =>
+                    {
+                        client.BaseAddress = new Uri(configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7111/");
+                        client.Timeout = TimeSpan.FromSeconds(30);
+                        client.DefaultRequestHeaders.Add("X-Api-Key", configuration["ApiSettings:ApiKey"] ?? "kiosk-secret-key");
+                    });
+                }
+
+                // 3. Hardware Scanner Service: Chọn Mock hay Real dựa trên ScannerMode (Mặc định Production an toàn: "Auto")
+                string scannerMode = configuration["KioskSettings:ScannerMode"]
+                                  ?? configuration["ScannerMode"]
+                                  ?? "Auto";
+                if (string.Equals(scannerMode, "Mock", StringComparison.OrdinalIgnoreCase))
+                {
+                    services.AddSingleton<IBarcodeScanner, MockBarcodeScanner>();
+                }
+                else
+                {
+                    // Production / Auto / Usb / Camera: Sử dụng KioskBarcodeScanner thật (không mock, không tự fallback)
+                    services.AddSingleton<KioskBarcodeScanner>();
+                    services.AddSingleton<IBarcodeScanner>(sp => sp.GetRequiredService<KioskBarcodeScanner>());
+                }
+
+                // Hardware Printer: Mô phỏng hardware có chủ đích khi chưa có driver máy in nhiệt thật
+                // (Module 8, Task 8.5 thuộc trách nhiệm Leader; cần Leader xác nhận và bàn giao driver ESC/POS).
                 services.AddSingleton<IReceiptPrinter, MockReceiptPrinter>();
 
                 // Đăng ký Core Services cho Kiosk
@@ -78,7 +106,7 @@ public partial class App : System.Windows.Application
 
         var mainWindow = AppHost.Services.GetRequiredService<MainWindow>();
         mainWindow.Show();
-        
+
         // Điều hướng trang ban đầu sau khi load MainWindow
         var navigationService = AppHost.Services.GetRequiredService<NavigationService>();
         navigationService.Navigate<IdlePage>();
@@ -94,7 +122,7 @@ public partial class App : System.Windows.Application
     {
         await AppHost!.StopAsync();
         AppHost.Dispose();
-        
+
         base.OnExit(e);
     }
 }

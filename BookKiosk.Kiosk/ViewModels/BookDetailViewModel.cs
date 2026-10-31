@@ -54,10 +54,12 @@ namespace BookKiosk.Kiosk.ViewModels
                             Barcode = bookDto.Barcode,
                             Title = bookDto.Title,
                             Author = bookDto.Author,
+                            Publisher = bookDto.Publisher,
                             ImageUrl = bookDto.ImageUrl,
                             SellingPrice = bookDto.SellingPrice,
                             AvailableStock = bookDto.AvailableStock,
                             CategoryId = bookDto.CategoryId,
+                            CategoryName = bookDto.CategoryName,
                             AreaName = bookDto.AreaName
                         };
                     }
