@@ -96,7 +96,7 @@ namespace BookKiosk.Kiosk.Services
 
 namespace BookKiosk.Kiosk.Services.Hardware
 {
-    public class MockBarcodeScanner : IBarcodeScanner
+    public class MockBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink
     {
         public event EventHandler<string>? BarcodeScanned;
 
@@ -108,6 +108,11 @@ namespace BookKiosk.Kiosk.Services.Hardware
         public void StopListening()
         {
             Debug.WriteLine("[Mock Scanner] Đã tắt chế độ lắng nghe mã vạch.");
+        }
+
+        public void ProcessKeyboardWedgeInput(string barcode)
+        {
+            SimulateScan(barcode);
         }
 
         /// <summary>

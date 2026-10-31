@@ -2,6 +2,9 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Panel.ZIndex="1000">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </UserControl.Resources>
     <Grid Background="#99000000">
         <Border Width="700" Height="650" Background="White" CornerRadius="20" VerticalAlignment="Center" HorizontalAlignment="Center">
             <Border.Effect>
@@ -27,8 +30,8 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Fallback Manual Input -->
-                <StackPanel Grid.Row="2">
+                <!-- Fallback Manual Input (Chỉ hiển thị khi cấu hình ScannerMode == Mock hoặc DevMode == true) -->
+                <StackPanel Grid.Row="2" Visibility="{Binding IsManualInputVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock Text="Nhập mã tay (Dành cho Dev/Demo):" FontSize="20" Foreground="#7f8c8d" Margin="0,0,0,10" FontWeight="Bold"/>
                     <Grid>
                         <Grid.ColumnDefinitions>

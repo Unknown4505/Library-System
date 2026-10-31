@@ -109,6 +109,13 @@ namespace BookKiosk.Kiosk.ViewModels
             set { _isScannerOpen = value; OnPropertyChanged(); }
         }
 
+        private bool _isManualInputVisible;
+        public bool IsManualInputVisible
+        {
+            get => _isManualInputVisible;
+            private set { _isManualInputVisible = value; OnPropertyChanged(); }
+        }
+
         public ICommand SearchCommand { get; }
         public ICommand FilterCommand { get; }
         public ICommand LoadMoreCommand { get; }
@@ -123,13 +130,19 @@ namespace BookKiosk.Kiosk.ViewModels
             IBarcodeScanner scanner,
             IBookKioskApiClient apiClient,
             CartService cartService,
-            IDialogService dialogService)
+            IDialogService dialogService,
+            Microsoft.Extensions.Configuration.IConfiguration? configuration = null)
         {
             _navigationService = navigationService;
             _scanner = scanner;
             _apiClient = apiClient;
             _cartService = cartService;
             _dialogService = dialogService;
+
+            var devModeStr = configuration?["KioskSettings:DevMode"] ?? configuration?["DevMode"];
+            bool devMode = bool.TryParse(devModeStr, out var dm) && dm;
+            var scannerMode = configuration?["KioskSettings:ScannerMode"] ?? configuration?["ScannerMode"] ?? "Auto";
+            _isManualInputVisible = devMode || string.Equals(scannerMode, "Mock", StringComparison.OrdinalIgnoreCase);
 
             SearchCommand = new RelayCommand(_ => ExecuteSearch(true));
             FilterCommand = new RelayCommand(cat => ExecuteFilter(cat as CategoryModel));
@@ -184,6 +197,10 @@ namespace BookKiosk.Kiosk.ViewModels
         private async void ExecuteScan(string barcode)
         {
             if (string.IsNullOrWhiteSpace(barcode)) return;
+            string cleanBarcode = barcode.Trim();
+            if (cleanBarcode.Length == 0 || cleanBarcode.Length > 128) return;
+
+            try { System.Media.SystemSounds.Beep.Play(); } catch { }
 
             // Dừng lắng nghe ngay để chống quét liên tục (debounce barcode)
             _scanner.StopListening();
@@ -192,7 +209,7 @@ namespace BookKiosk.Kiosk.ViewModels
             try
             {
                 // Gọi API đã tự động bắt lỗi 404
-                var result = await _apiClient.GetBookByBarcodeAsync(barcode);
+                var result = await _apiClient.GetBookByBarcodeAsync(cleanBarcode);
 
                 if (result == null || !result.Success || result.Data == null)
                 {
@@ -552,6 +569,10 @@ namespace BookKiosk.Kiosk.ViewModels
 
             _scanner.BarcodeScanned -= Scanner_BarcodeScanned;
 
+            // Đóng popup và dừng lắng nghe scanner an toàn (idempotent), không phụ thuộc cờ IsScannerOpen
+            IsScannerOpen = false;
+            _scanner.StopListening();
+
             if (IsLoading)
             {
                 _searchStatus = SearchExecutionStatus.CancelledOnDeactivate;
@@ -563,6 +584,7 @@ namespace BookKiosk.Kiosk.ViewModels
         public void Dispose()
         {
             Deactivate();
+            _scanner.StopListening();
             InvalidateActiveSearch();
             if (_debounceTimer != null)
             {
