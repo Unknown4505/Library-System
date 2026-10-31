@@ -6,7 +6,7 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     </UserControl.Resources>
     <Grid Background="#99000000">
-        <Border Width="700" Height="650" Background="White" CornerRadius="20" VerticalAlignment="Center" HorizontalAlignment="Center">
+        <Border Width="700" Height="680" Background="White" CornerRadius="20" VerticalAlignment="Center" HorizontalAlignment="Center">
             <Border.Effect>
                 <DropShadowEffect Color="Black" BlurRadius="30" Opacity="0.5" ShadowDepth="0"/>
             </Border.Effect>
@@ -20,14 +20,59 @@
                 <!-- Header -->
                 <TextBlock Text="📷 QUÉT MÃ SÁCH" FontSize="36" FontWeight="Bold" Foreground="#2c3e50" HorizontalAlignment="Center"/>
                 <Button Content="✖" FontSize="36" FontWeight="Bold" Foreground="#e74c3c" Background="Transparent" BorderThickness="0" 
-                        HorizontalAlignment="Right" VerticalAlignment="Top" Cursor="Hand" Command="{Binding CloseScannerCommand}"/>
+                        HorizontalAlignment="Right" VerticalAlignment="Top" Cursor="Hand" Command="{Binding CloseScannerCommand}"
+                        Panel.ZIndex="1000"/>
 
-                <!-- Scanner View (Leader will insert ZXing here later) -->
-                <Border Grid.Row="1" Background="#ecf0f1" BorderBrush="#bdc3c7" BorderThickness="3" CornerRadius="15" Margin="0,30">
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Text="[ CAMERA ĐANG LẮNG NGHE ]" Foreground="#7f8c8d" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                        <TextBlock Text="Hãy đưa mã vạch sách vào ô này" Foreground="#95a5a6" FontSize="20" HorizontalAlignment="Center"/>
-                    </StackPanel>
+                <!-- Scanner View: Live Camera Preview & Reticle Overlay -->
+                <Border Grid.Row="1" Background="#2c3e50" BorderBrush="#bdc3c7" BorderThickness="3" CornerRadius="15" Margin="0,20" ClipToBounds="True">
+                    <Grid>
+                        <!-- Live Camera Preview -->
+                        <Image Source="{Binding CameraPreviewSource}" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+                        <!-- Camera Starting / Standby Notice -->
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Visibility="{Binding ShowCameraStartingNotice, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="📷" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,10" Foreground="#bdc3c7"/>
+                            <TextBlock Text="ĐANG KHỞI ĐỘNG CAMERA..." Foreground="#bdc3c7" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                            <TextBlock Text="Hãy đưa mã vạch hoặc mã QR vào khung ngắm" Foreground="#95a5a6" FontSize="16" HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Scanning Reticle / Frame Guide -->
+                        <Grid Width="360" Height="220" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                            <Border BorderBrush="#2ecc71" BorderThickness="3" CornerRadius="12" Background="#152ecc71">
+                                <Grid>
+                                    <!-- Scan Laser Line -->
+                                    <Rectangle Height="2" Fill="#e74c3c" HorizontalAlignment="Stretch" VerticalAlignment="Center" Opacity="0.85"/>
+                                    <TextBlock Text="ĐẶT MÃ VÀO ĐÂY" Foreground="#2ecc71" FontSize="14" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <!-- Camera Error / Permission Denied / Busy Overlay -->
+                        <Border Background="#f02c3e50" Visibility="{Binding HasCameraError, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                Padding="25" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Panel.ZIndex="50">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <TextBlock Text="⚠️" FontSize="56" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                                <TextBlock Text="{Binding CameraErrorMessage}" Foreground="White" FontSize="18" TextWrapping="Wrap"
+                                           TextAlignment="Center" FontWeight="SemiBold" MaxWidth="500" Margin="0,0,0,25"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Button Content="🔄 THỬ LẠI" FontSize="20" FontWeight="Bold" Foreground="White" Background="#3498db"
+                                            Padding="25,12" Margin="0,0,15,0" Cursor="Hand" Command="{Binding RetryCameraCommand}">
+                                        <Button.Resources>
+                                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style>
+                                        </Button.Resources>
+                                    </Button>
+                                    <Button Content="ĐÓNG" FontSize="20" FontWeight="Bold" Foreground="White" Background="#95a5a6"
+                                            Padding="25,12" Cursor="Hand" Command="{Binding CloseScannerCommand}">
+                                        <Button.Resources>
+                                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style>
+                                        </Button.Resources>
+                                    </Button>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
                 </Border>
 
                 <!-- Fallback Manual Input (Chỉ hiển thị khi cấu hình ScannerMode == Mock hoặc DevMode == true) -->

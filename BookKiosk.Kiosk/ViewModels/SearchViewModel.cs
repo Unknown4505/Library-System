@@ -116,6 +116,40 @@ namespace BookKiosk.Kiosk.ViewModels
             private set { _isManualInputVisible = value; OnPropertyChanged(); }
         }
 
+        private System.Windows.Media.ImageSource? _cameraPreviewSource;
+        public System.Windows.Media.ImageSource? CameraPreviewSource
+        {
+            get => _cameraPreviewSource;
+            set
+            {
+                if (_cameraPreviewSource != value)
+                {
+                    _cameraPreviewSource = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(ShowCameraStartingNotice));
+                }
+            }
+        }
+
+        private string? _cameraErrorMessage;
+        public string? CameraErrorMessage
+        {
+            get => _cameraErrorMessage;
+            set
+            {
+                if (_cameraErrorMessage != value)
+                {
+                    _cameraErrorMessage = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(HasCameraError));
+                    OnPropertyChanged(nameof(ShowCameraStartingNotice));
+                }
+            }
+        }
+
+        public bool HasCameraError => !string.IsNullOrEmpty(_cameraErrorMessage);
+        public bool ShowCameraStartingNotice => !HasCameraError && _cameraPreviewSource == null;
+
         public ICommand SearchCommand { get; }
         public ICommand FilterCommand { get; }
         public ICommand LoadMoreCommand { get; }
@@ -124,6 +158,7 @@ namespace BookKiosk.Kiosk.ViewModels
         public ICommand OpenScannerCommand { get; }
         public ICommand CloseScannerCommand { get; }
         public ICommand SimulateScanCommand { get; }
+        public ICommand RetryCameraCommand { get; }
 
         public SearchViewModel(
             NavigationService navigationService,
@@ -152,12 +187,19 @@ namespace BookKiosk.Kiosk.ViewModels
             OpenScannerCommand = new RelayCommand(_ => OpenScanner());
             CloseScannerCommand = new RelayCommand(_ => CloseScanner());
             SimulateScanCommand = new RelayCommand(p => ExecuteScan(p as string));
+            RetryCameraCommand = new RelayCommand(_ => ExecuteRetryCamera());
 
             _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _debounceTimer.Tick += DebounceTimer_Tick;
 
             // Lắng nghe sự kiện quét từ máy quét (phần cứng hoặc Mock)
             _scanner.BarcodeScanned += Scanner_BarcodeScanned;
+
+            if (_scanner is ICameraFrameSource frameSource)
+            {
+                frameSource.FrameReady += Scanner_FrameReady;
+                frameSource.ScannerErrorOccurred += Scanner_ScannerErrorOccurred;
+            }
 
             LoadCategoriesAsync();
             ExecuteSearch(true);
@@ -177,6 +219,8 @@ namespace BookKiosk.Kiosk.ViewModels
 
         private void OpenScanner()
         {
+            CameraErrorMessage = null;
+            CameraPreviewSource = null;
             IsScannerOpen = true;
             _scanner.StartListening();
         }
@@ -185,6 +229,38 @@ namespace BookKiosk.Kiosk.ViewModels
         {
             IsScannerOpen = false;
             _scanner.StopListening();
+            CameraPreviewSource = null;
+            CameraErrorMessage = null;
+        }
+
+        private void ExecuteRetryCamera()
+        {
+            CameraErrorMessage = null;
+            CameraPreviewSource = null;
+            _scanner.StopListening();
+            _scanner.StartListening();
+        }
+
+        private void Scanner_FrameReady(object? sender, System.Windows.Media.Imaging.BitmapSource frame)
+        {
+            System.Windows.Application.Current?.Dispatcher?.InvokeAsync(() =>
+            {
+                if (IsScannerOpen)
+                {
+                    CameraPreviewSource = frame;
+                }
+            });
+        }
+
+        private void Scanner_ScannerErrorOccurred(object? sender, string error)
+        {
+            System.Windows.Application.Current?.Dispatcher?.InvokeAsync(() =>
+            {
+                if (IsScannerOpen)
+                {
+                    CameraErrorMessage = error;
+                }
+            });
         }
 
         private void Scanner_BarcodeScanned(object? sender, string barcode)
@@ -536,6 +612,14 @@ namespace BookKiosk.Kiosk.ViewModels
             _scanner.BarcodeScanned -= Scanner_BarcodeScanned;
             _scanner.BarcodeScanned += Scanner_BarcodeScanned;
 
+            if (_scanner is ICameraFrameSource frameSource)
+            {
+                frameSource.FrameReady -= Scanner_FrameReady;
+                frameSource.FrameReady += Scanner_FrameReady;
+                frameSource.ScannerErrorOccurred -= Scanner_ScannerErrorOccurred;
+                frameSource.ScannerErrorOccurred += Scanner_ScannerErrorOccurred;
+            }
+
             // SEARCH-RACE-01: Nếu có debounce đang chờ khi Deactivate, thực thi ngay một request cho keyword mới
             if (_hasPendingDebounce)
             {
@@ -569,9 +653,17 @@ namespace BookKiosk.Kiosk.ViewModels
 
             _scanner.BarcodeScanned -= Scanner_BarcodeScanned;
 
+            if (_scanner is ICameraFrameSource frameSource)
+            {
+                frameSource.FrameReady -= Scanner_FrameReady;
+                frameSource.ScannerErrorOccurred -= Scanner_ScannerErrorOccurred;
+            }
+
             // Đóng popup và dừng lắng nghe scanner an toàn (idempotent), không phụ thuộc cờ IsScannerOpen
             IsScannerOpen = false;
             _scanner.StopListening();
+            CameraPreviewSource = null;
+            CameraErrorMessage = null;
 
             if (IsLoading)
             {
@@ -585,6 +677,13 @@ namespace BookKiosk.Kiosk.ViewModels
         {
             Deactivate();
             _scanner.StopListening();
+            if (_scanner is ICameraFrameSource frameSource)
+            {
+                frameSource.FrameReady -= Scanner_FrameReady;
+                frameSource.ScannerErrorOccurred -= Scanner_ScannerErrorOccurred;
+            }
+            CameraPreviewSource = null;
+            CameraErrorMessage = null;
             InvalidateActiveSearch();
             if (_debounceTimer != null)
             {
