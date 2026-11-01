@@ -634,82 +634,152 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
 
     /// <summary>
     /// Chuyển đổi OpenCvSharp Mat sang WPF BitmapSource và Freeze để chia sẻ an toàn xuyên thread.
+    /// Hỗ trợ ảnh 8-bit unsigned với 1 kênh (Gray8), 3 kênh (Bgr24), hoặc 4 kênh (Bgra32).
     /// </summary>
-    public static BitmapSource? ConvertMatToBitmapSource(Mat mat)
+    public static BitmapSource? ConvertMatToBitmapSource(Mat? mat)
     {
-        if (mat.Empty()) return null;
+        if (mat == null || mat.IsDisposed || mat.Empty() || mat.Width <= 0 || mat.Height <= 0 || mat.Data == IntPtr.Zero)
+            return null;
 
-        int width = mat.Width;
-        int height = mat.Height;
-        int stride = (int)mat.Step();
-        var format = System.Windows.Media.PixelFormats.Bgr24;
+        if (mat.Depth() != MatType.CV_8U)
+            return null;
 
-        if (mat.Channels() == 1)
+        int channels = mat.Channels();
+        System.Windows.Media.PixelFormat format;
+        if (channels == 1)
+        {
             format = System.Windows.Media.PixelFormats.Gray8;
-        else if (mat.Channels() == 4)
+        }
+        else if (channels == 3)
+        {
+            format = System.Windows.Media.PixelFormats.Bgr24;
+        }
+        else if (channels == 4)
+        {
             format = System.Windows.Media.PixelFormats.Bgra32;
+        }
+        else
+        {
+            return null;
+        }
 
-        var bs = BitmapSource.Create(
-            width,
-            height,
-            96,
-            96,
-            format,
-            null,
-            mat.Data,
-            stride * height,
-            stride);
+        try
+        {
+            int width = mat.Width;
+            int height = mat.Height;
+            int stride = (int)mat.Step();
 
-        bs.Freeze();
-        return bs;
+            var bs = BitmapSource.Create(
+                width,
+                height,
+                96,
+                96,
+                format,
+                null,
+                mat.Data,
+                stride * height,
+                stride);
+
+            bs.Freeze();
+            return bs;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Kiosk Scanner] Lỗi ConvertMatToBitmapSource: {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>
     /// Giải mã mã vạch / QR từ Mat hình ảnh bằng ZXing.Net.
-    /// Hỗ trợ EAN-13, EAN-8, Code 128 và QR Code.
+    /// Hỗ trợ EAN-13, EAN-8, Code 128 và QR Code với ảnh 8-bit unsigned (Gray8, BGR24, BGRA32).
     /// </summary>
-    public static string? DecodeMat(Mat frame)
+    public static string? DecodeMat(Mat? frame)
     {
-        if (frame.Empty()) return null;
+        if (frame == null || frame.IsDisposed || frame.Empty() || frame.Width <= 0 || frame.Height <= 0 || frame.Data == IntPtr.Zero)
+            return null;
 
-        int width = frame.Width;
-        int height = frame.Height;
-        int step = (int)frame.Step();
-        int totalBytes = step * height;
+        if (frame.Depth() != MatType.CV_8U)
+            return null;
 
-        byte[] pixelBuffer = new byte[totalBytes];
-        System.Runtime.InteropServices.Marshal.Copy(frame.Data, pixelBuffer, 0, totalBytes);
-
-        var format = ZXing.RGBLuminanceSource.BitmapFormat.BGR24;
-        if (frame.Channels() == 1)
-            format = ZXing.RGBLuminanceSource.BitmapFormat.Gray8;
-        else if (frame.Channels() == 4)
-            format = ZXing.RGBLuminanceSource.BitmapFormat.BGRA32;
-
-        var luminanceSource = new ZXing.RGBLuminanceSource(
-            pixelBuffer,
-            width,
-            height,
-            format);
-
-        var reader = new ZXing.BarcodeReaderGeneric
+        int channels = frame.Channels();
+        ZXing.RGBLuminanceSource.BitmapFormat format;
+        if (channels == 1)
         {
-            AutoRotate = true,
-            Options = new ZXing.Common.DecodingOptions
-            {
-                TryHarder = true,
-                PossibleFormats = new List<ZXing.BarcodeFormat>
-                {
-                    ZXing.BarcodeFormat.EAN_13,
-                    ZXing.BarcodeFormat.EAN_8,
-                    ZXing.BarcodeFormat.CODE_128,
-                    ZXing.BarcodeFormat.QR_CODE
-                }
-            }
-        };
+            format = ZXing.RGBLuminanceSource.BitmapFormat.Gray8;
+        }
+        else if (channels == 3)
+        {
+            format = ZXing.RGBLuminanceSource.BitmapFormat.BGR24;
+        }
+        else if (channels == 4)
+        {
+            format = ZXing.RGBLuminanceSource.BitmapFormat.BGRA32;
+        }
+        else
+        {
+            return null;
+        }
 
-        var result = reader.Decode(luminanceSource);
-        return result?.Text?.Trim();
+        Mat matToDecode = frame;
+        Mat? clonedMat = null;
+        if (!frame.IsContinuous())
+        {
+            try
+            {
+                clonedMat = frame.Clone();
+                matToDecode = clonedMat;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        try
+        {
+            int width = matToDecode.Width;
+            int height = matToDecode.Height;
+            int step = (int)matToDecode.Step();
+            int totalBytes = step * height;
+
+            byte[] pixelBuffer = new byte[totalBytes];
+            System.Runtime.InteropServices.Marshal.Copy(matToDecode.Data, pixelBuffer, 0, totalBytes);
+
+            var luminanceSource = new ZXing.RGBLuminanceSource(
+                pixelBuffer,
+                width,
+                height,
+                format);
+
+            var reader = new ZXing.BarcodeReaderGeneric
+            {
+                AutoRotate = true,
+                Options = new ZXing.Common.DecodingOptions
+                {
+                    TryHarder = true,
+                    PossibleFormats = new List<ZXing.BarcodeFormat>
+                    {
+                        ZXing.BarcodeFormat.EAN_13,
+                        ZXing.BarcodeFormat.EAN_8,
+                        ZXing.BarcodeFormat.CODE_128,
+                        ZXing.BarcodeFormat.QR_CODE
+                    }
+                }
+            };
+
+            var result = reader.Decode(luminanceSource);
+            return result?.Text?.Trim();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Kiosk Scanner] Lỗi DecodeMat: {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            clonedMat?.Dispose();
+        }
     }
 
     public void Dispose()
