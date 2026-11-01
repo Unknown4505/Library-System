@@ -32,16 +32,22 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
     public const int MaxDecodeFps = 10;
 
     private readonly object _lock = new object();
+    private readonly object _cameraSyncLock = new object();
     private bool _isListening = false;
     private bool _isCameraAvailable = true;
+    private bool _isDisposed = false;
 
     private string? _lastDispatchedBarcode = null;
     private long _lastDispatchedTimestamp = 0;
     private bool _isProcessing = false;
     private string? _continuousCameraBarcode = null;
 
+    // Quản lý phiên Camera an toàn đa luồng
+    private int _sessionGeneration = 0;
     private CancellationTokenSource? _cameraCts;
     private Task? _cameraTask;
+    private volatile bool _isDraining = false;
+    private volatile bool _isFaulted = false;
 
     public bool IsListening
     {
@@ -60,7 +66,7 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
         {
             lock (_lock)
             {
-                return _isCameraAvailable;
+                return _isCameraAvailable && !_isFaulted;
             }
         }
     }
@@ -69,16 +75,20 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
     {
         lock (_lock)
         {
+            if (_isDisposed) return;
             if (_isListening) return;
             _isListening = true;
         }
 
-        // Khởi tạo / mở camera nếu hỗ trợ; nếu camera lỗi hoặc không có thiết bị,
+        // Khởi tạo / mở camera trong cổng đồng bộ _cameraSyncLock; nếu camera lỗi hoặc không có thiết bị,
         // ghi nhận lỗi nhưng KHÔNG ném ngoại lệ và KHÔNG chuyển sang Mock.
         // Cờ _isListening vẫn bật để USB Wedge tiếp tục hoạt động độc lập.
         try
         {
-            TryInitializeCamera();
+            lock (_cameraSyncLock)
+            {
+                TryInitializeCamera();
+            }
         }
         catch (Exception ex)
         {
@@ -97,7 +107,6 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
     {
         lock (_lock)
         {
-            if (!_isListening) return;
             _isListening = false;
             _continuousCameraBarcode = null;
             _isProcessing = false;
@@ -105,7 +114,10 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
 
         try
         {
-            TryStopCamera();
+            lock (_cameraSyncLock)
+            {
+                TryStopCamera();
+            }
         }
         catch (Exception ex)
         {
@@ -259,12 +271,59 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
     }
 
     /// <summary>
-    /// Mở camera laptop và khởi động capture loop.
+    /// Mở camera laptop và khởi động capture loop trong cổng đồng bộ.
+    /// Nếu có task cũ đang dọn, đợi tối đa ~200ms; nếu vẫn chưa dọn xong thì từ chối mở phiên mới,
+    /// bảo vệ thiết bị và giữ nguyên chế độ quét USB.
     /// </summary>
     protected virtual void TryInitializeCamera()
     {
-        TryStopCamera();
+        // 1. Kiểm tra task cũ nếu còn đang chạy
+        Task? oldTask;
+        lock (_lock)
+        {
+            oldTask = _cameraTask;
+        }
 
+        if (oldTask != null && !oldTask.IsCompleted)
+        {
+            // Chờ tối đa ~200ms trên UI thread (theo Q1)
+            try
+            {
+                oldTask.Wait(TimeSpan.FromMilliseconds(200));
+            }
+            catch { }
+
+            // Nếu sau 200ms task cũ VẪN CHƯA THOÁT:
+            if (!oldTask.IsCompleted)
+            {
+                lock (_lock)
+                {
+                    _isCameraAvailable = false;
+                }
+                Debug.WriteLine("[Kiosk Scanner] Camera đang giải phóng thiết bị, từ chối mở phiên mới. USB Wedge vẫn hoạt động.");
+                ScannerErrorOccurred?.Invoke(this, "Camera đang giải phóng thiết bị, vui lòng thử lại sau giây lát; máy quét USB vẫn dùng được.");
+                return;
+            }
+        }
+
+        // Khi task cũ đã hoàn thành hoàn toàn (hoặc chưa từng có task)
+        lock (_lock)
+        {
+            if (_cameraTask != null && _cameraTask.IsCompleted)
+            {
+                _cameraTask = null;
+                _cameraCts = null;
+                _isDraining = false;
+                _isFaulted = false;
+            }
+
+            if (!_isListening || _isDisposed)
+            {
+                return;
+            }
+        }
+
+        // 2. Mở VideoCapture mới
         VideoCapture? capture = CreateVideoCapture();
         if (capture == null || !capture.IsOpened())
         {
@@ -277,12 +336,32 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
             return;
         }
 
+        // 3. Khởi tạo session mới
+        CancellationTokenSource cts;
+        int currentGeneration;
+
         lock (_lock)
         {
+            if (!_isListening || _isDisposed)
+            {
+                capture.Dispose();
+                return;
+            }
+
             _isCameraAvailable = true;
+            _isDraining = false;
+            _isFaulted = false;
+            currentGeneration = Interlocked.Increment(ref _sessionGeneration);
             _cameraCts = new CancellationTokenSource();
-            var token = _cameraCts.Token;
-            _cameraTask = Task.Run(() => CaptureLoop(capture, token), token);
+            cts = _cameraCts;
+        }
+
+        var token = cts.Token;
+        var captureTask = Task.Run(() => CaptureLoop(capture, cts, token, currentGeneration), token);
+
+        lock (_lock)
+        {
+            _cameraTask = captureTask;
         }
     }
 
@@ -315,7 +394,9 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
     }
 
     /// <summary>
-    /// Dừng camera loop an toàn, giải phóng capture task và token.
+    /// Dừng camera loop an toàn, theo dõi capture task đến khi kết thúc.
+    /// TUYỆT ĐỐI KHÔNG xóa tham chiếu task khi task chưa IsCompleted.
+    /// TUYỆT ĐỐI KHÔNG dispose Cts cưỡng bức ở đây.
     /// </summary>
     protected virtual void TryStopCamera()
     {
@@ -326,10 +407,17 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
         {
             cts = _cameraCts;
             task = _cameraTask;
-            _cameraCts = null;
-            _cameraTask = null;
+
+            if (task == null && cts == null)
+            {
+                return;
+            }
+
+            _isDraining = true;
+            // TUYỆT ĐỐI KHÔNG GÁN _cameraCts = null hay _cameraTask = null Ở ĐÂY!
         }
 
+        // 1. Hủy CancellationToken để phát tín hiệu dừng
         if (cts != null)
         {
             try
@@ -339,106 +427,208 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
             catch { }
         }
 
-        if (task != null)
+        // 2. Chờ ưu tiên 2 giây (theo Q2)
+        if (task != null && !task.IsCompleted)
         {
+            bool completed = false;
             try
             {
-                task.Wait(TimeSpan.FromSeconds(2));
+                completed = task.Wait(TimeSpan.FromSeconds(2));
             }
             catch { }
+
+            // 3. Nếu chưa xong sau 2s, tiếp tục chờ tối đa 3s (tổng 5s)
+            if (!completed)
+            {
+                Debug.WriteLine("[Kiosk Scanner] Task capture chưa dừng sau 2s, tiếp tục chờ tối đa 3s nữa (tổng 5s)...");
+                try
+                {
+                    completed = task.Wait(TimeSpan.FromSeconds(3));
+                }
+                catch { }
+            }
+
+            // 4. Quá 5 giây tổng: đánh dấu Faulted nhưng TUYỆT ĐỐI KHÔNG dispose cưỡng bức
+            if (!completed)
+            {
+                lock (_lock)
+                {
+                    _isFaulted = true;
+                }
+                Debug.WriteLine("[Kiosk Scanner] CẢNH BÁO: Task capture quá 5s chưa thoát (thiết bị/driver bị chậm). Đánh dấu Faulted, KHÔNG dispose cưỡng bức, tiếp tục theo dõi task.");
+            }
         }
 
-        if (cts != null)
+        // 5. Chỉ xóa tham chiếu NẾU task thật sự IsCompleted
+        lock (_lock)
         {
+            if (task != null && task.IsCompleted)
+            {
+                _cameraTask = null;
+                _cameraCts = null;
+                _isDraining = false;
+            }
+        }
+
+        // TUYỆT ĐỐI KHÔNG GỌI cts.Dispose() Ở ĐÂY! cts sẽ được dọn trong finally của CaptureLoop.
+    }
+
+    /// <summary>
+    /// Hook đọc frame từ VideoCapture, hỗ trợ giả lập và kiểm thử đa luồng.
+    /// </summary>
+    protected virtual bool ReadFrame(VideoCapture capture, Mat frame)
+    {
+        return capture.Read(frame);
+    }
+
+    /// <summary>
+    /// Vòng lặp chụp frame liên tục từ camera, chuyển đổi preview và giải mã mã vạch/QR.
+    /// CHỈ MỘT NƠI DUY NHẤT dọn tài nguyên VideoCapture và CTS (trong finally của chính loop này).
+    /// </summary>
+    private void CaptureLoop(VideoCapture capture, CancellationTokenSource cts, CancellationToken ct, int generation)
+    {
+        try
+        {
+            using (var frame = new Mat())
+            {
+                var stopwatch = Stopwatch.StartNew();
+                const int minIntervalMs = 1000 / MaxDecodeFps;
+
+                while (!ct.IsCancellationRequested)
+                {
+                    lock (_lock)
+                    {
+                        if (_isDisposed || _isDraining || generation != _sessionGeneration || !_isListening)
+                        {
+                            break;
+                        }
+                    }
+
+                    long frameStart = stopwatch.ElapsedMilliseconds;
+
+                    bool readSuccess = false;
+                    try
+                    {
+                        readSuccess = ReadFrame(capture, frame);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[Kiosk Scanner] Ngoại lệ khi đọc frame: {ex.Message}");
+                        lock (_lock)
+                        {
+                            _isFaulted = true;
+                        }
+                        break;
+                    }
+
+                    if (!readSuccess || frame.Empty())
+                    {
+                        NotifyCameraFrameNoBarcode();
+                        try { Task.Delay(50, ct).Wait(ct); } catch (OperationCanceledException) { break; }
+                        continue;
+                    }
+
+                    // Guard late frame: kiểm tra thế hệ (generation) và cờ lắng nghe
+                    lock (_lock)
+                    {
+                        if (_isDisposed || _isDraining || generation != _sessionGeneration || !_isListening)
+                        {
+                            break;
+                        }
+                    }
+
+                    // 1. Đưa frame lên sự kiện preview
+                    try
+                    {
+                        var previewBitmap = ConvertMatToBitmapSource(frame);
+                        if (previewBitmap != null)
+                        {
+                            bool canDispatch = false;
+                            lock (_lock)
+                            {
+                                canDispatch = !_isDisposed && !_isDraining && generation == _sessionGeneration && _isListening;
+                            }
+                            if (canDispatch)
+                            {
+                                FrameReady?.Invoke(this, previewBitmap);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[Kiosk Scanner] Lỗi convert preview: {ex.Message}");
+                    }
+
+                    // 2. Giải mã mã vạch / QR
+                    try
+                    {
+                        string? decoded = DecodeMat(frame);
+                        if (!string.IsNullOrWhiteSpace(decoded))
+                        {
+                            bool canDispatch = false;
+                            lock (_lock)
+                            {
+                                canDispatch = !_isDisposed && !_isDraining && generation == _sessionGeneration && _isListening;
+                            }
+                            if (canDispatch)
+                            {
+                                ProcessCameraBarcode(decoded);
+                            }
+                        }
+                        else
+                        {
+                            NotifyCameraFrameNoBarcode();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[Kiosk Scanner] Lỗi ZXing decode: {ex.Message}");
+                        NotifyCameraFrameNoBarcode();
+                    }
+
+                    // 3. Giới hạn tốc độ khung hình (10 FPS)
+                    long elapsed = stopwatch.ElapsedMilliseconds - frameStart;
+                    int delay = minIntervalMs - (int)elapsed;
+                    if (delay > 0)
+                    {
+                        try
+                        {
+                            Task.Delay(delay, ct).Wait(ct);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        finally
+        {
+            // CHỈ MỘT NƠI DUY NHẤT DỌN TÀI NGUYÊN PHIÊN (TRONG FINALLY CỦA CAPTURE LOOP):
+            try
+            {
+                capture.Dispose();
+            }
+            catch { }
+
             try
             {
                 cts.Dispose();
             }
             catch { }
-        }
-    }
 
-    /// <summary>
-    /// Vòng lặp chụp frame liên tục từ camera, chuyển đổi preview và giải mã mã vạch/QR.
-    /// </summary>
-    private void CaptureLoop(VideoCapture capture, CancellationToken ct)
-    {
-        using (capture)
-        using (var frame = new Mat())
-        {
-            var stopwatch = Stopwatch.StartNew();
-            const int minIntervalMs = 1000 / MaxDecodeFps;
-
-            while (!ct.IsCancellationRequested)
+            lock (_lock)
             {
-                long frameStart = stopwatch.ElapsedMilliseconds;
-
-                bool readSuccess = false;
-                try
+                if (_sessionGeneration == generation)
                 {
-                    readSuccess = capture.Read(frame);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[Kiosk Scanner] Ngoại lệ khi đọc frame: {ex.Message}");
-                    break;
-                }
-
-                if (!readSuccess || frame.Empty())
-                {
-                    NotifyCameraFrameNoBarcode();
-                    try { Task.Delay(50, ct).Wait(ct); } catch (OperationCanceledException) { break; }
-                    continue;
-                }
-
-                // 1. Đưa frame lên sự kiện preview
-                try
-                {
-                    var previewBitmap = ConvertMatToBitmapSource(frame);
-                    if (previewBitmap != null)
-                    {
-                        FrameReady?.Invoke(this, previewBitmap);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[Kiosk Scanner] Lỗi convert preview: {ex.Message}");
-                }
-
-                // 2. Giải mã mã vạch / QR
-                try
-                {
-                    string? decoded = DecodeMat(frame);
-                    if (!string.IsNullOrWhiteSpace(decoded))
-                    {
-                        ProcessCameraBarcode(decoded);
-                    }
-                    else
-                    {
-                        NotifyCameraFrameNoBarcode();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[Kiosk Scanner] Lỗi ZXing decode: {ex.Message}");
-                    NotifyCameraFrameNoBarcode();
-                }
-
-                // 3. Giới hạn tốc độ khung hình (10 FPS)
-                long elapsed = stopwatch.ElapsedMilliseconds - frameStart;
-                int delay = minIntervalMs - (int)elapsed;
-                if (delay > 0)
-                {
-                    try
-                    {
-                        Task.Delay(delay, ct).Wait(ct);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        break;
-                    }
+                    _isDraining = false;
+                    _cameraTask = null;
+                    _cameraCts = null;
                 }
             }
+
+            Debug.WriteLine($"[Kiosk Scanner] CaptureLoop thế hệ {generation} đã kết thúc và dọn dẹp tài nguyên.");
         }
     }
 
@@ -524,6 +714,12 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
 
     public void Dispose()
     {
+        lock (_lock)
+        {
+            if (_isDisposed) return;
+            _isDisposed = true;
+        }
+
         StopListening();
         BarcodeScanned = null;
         ScannerErrorOccurred = null;
