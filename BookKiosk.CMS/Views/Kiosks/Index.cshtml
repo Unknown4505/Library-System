@@ -1,0 +1,298 @@
+@model BookKiosk.CMS.ViewModels.Kiosks.KioskMonitoringViewModel
+@{
+    ViewData["Title"] = "Giám sát Kiosk - BookKiosk CMS";
+}
+
+@if (Model.UseMockApi)
+{
+    <div class="alert alert-warning py-2 mb-4 d-flex align-items-center shadow-sm" role="alert">
+        <i class="fas fa-flask-vial fa-lg me-2 text-warning"></i>
+        <div>
+            <strong>Chế độ Mock:</strong> Hệ thống đang sử dụng dữ liệu mô phỏng thiết bị (Cms:UseMockApi = true). Các chỉ số không phản ánh thiết bị vật lý thật.
+        </div>
+    </div>
+}
+
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0 fw-bold text-dark">
+            <i class="fas fa-desktop me-2 text-primary"></i>Giám sát trạm Kiosk
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb small mb-0">
+                <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index" class="text-decoration-none">Trang chủ</a></li>
+                <li class="breadcrumb-item">Hệ thống</li>
+                <li class="breadcrumb-item active" aria-current="page">Giám sát Kiosk</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="text-muted small">
+        <i class="fas fa-sync-alt me-1"></i>
+        Cập nhật: @BookKiosk.CMS.Helpers.DateTimeHelper.FormatVietnamDateTime(DateTime.UtcNow)
+    </div>
+</div>
+
+@if (!Model.IsBackendAvailable)
+{
+    <div class="alert alert-secondary py-3 mb-4 d-flex align-items-center border shadow-sm" role="alert">
+        <i class="fas fa-info-circle fa-2x me-3 text-secondary"></i>
+        <div>
+            <div class="fw-bold text-dark">Phân hệ Giám sát Kiosk thời gian thực:</div>
+            <div class="small text-muted mt-1">
+                Backend API hiện chưa mở endpoint tổng hợp trạng thái thiết bị (<code>KioskStatusSummaryDto</code> theo <em>Docs 04 §3.7</em>).
+                Theo nguyên tắc giao diện trung thực, các trường dữ liệu và danh sách thiết bị dưới đây đang để trống chờ Backend kết nối.
+            </div>
+        </div>
+    </div>
+}
+
+<!-- 4 KPI Cards: Trạng thái trạm Kiosk -->
+<div class="row g-3 mb-4" aria-live="polite">
+    <!-- Card 1: Tổng số Kiosk -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-start border-primary border-4 shadow-sm h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-uppercase fw-bold text-primary small mb-1">Tổng số trạm Kiosk</div>
+                    <div class="h4 mb-0 fw-bold text-dark">
+                        @(Model.IsBackendAvailable ? Model.TotalKiosks.ToString() : "--")
+                    </div>
+                    <div class="text-muted small mt-1">Thiết bị đăng ký hệ thống</div>
+                </div>
+                <div class="text-primary opacity-50">
+                    <i class="fas fa-desktop fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 2: Đang hoạt động (Online) -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-start border-success border-4 shadow-sm h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-uppercase fw-bold text-success small mb-1">Đang trực tuyến (Online)</div>
+                    <div class="h4 mb-0 fw-bold text-dark">
+                        @(Model.IsBackendAvailable ? Model.OnlineCount.ToString() : "--")
+                    </div>
+                    <div class="text-muted small mt-1">Nhận heartbeat đều đặn</div>
+                </div>
+                <div class="text-success opacity-50">
+                    <i class="fas fa-wifi fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 3: Cảnh báo vật tư (Warning) -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-start border-warning border-4 shadow-sm h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-uppercase fw-bold text-warning small mb-1">Cảnh báo vật tư</div>
+                    <div class="h4 mb-0 fw-bold text-dark">
+                        @(Model.IsBackendAvailable ? Model.WarningCount.ToString() : "--")
+                    </div>
+                    <div class="text-muted small mt-1">Sắp hết giấy / kẹt giấy</div>
+                </div>
+                <div class="text-warning opacity-50">
+                    <i class="fas fa-triangle-exclamation fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 4: Mất kết nối (Offline) -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-start border-danger border-4 shadow-sm h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-uppercase fw-bold text-danger small mb-1">Mất kết nối (Offline)</div>
+                    <div class="h4 mb-0 fw-bold text-dark">
+                        @(Model.IsBackendAvailable ? Model.OfflineCount.ToString() : "--")
+                    </div>
+                    <div class="text-muted small mt-1">&gt; 2 phút không gửi heartbeat</div>
+                </div>
+                <div class="text-danger opacity-50">
+                    <i class="fas fa-plug-circle-xmark fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Row: Pie Chart (Task 11.4) + Danh sách Kiosk -->
+<div class="row g-4 mb-4">
+    <!-- Col Left: Biểu đồ Pie Chart Trạng thái Kiosk (Task 11.4) -->
+    <div class="col-xl-4 col-lg-5">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="m-0 fw-bold text-primary">
+                    <i class="fas fa-chart-pie me-2"></i>Tỷ lệ trạng thái Kiosk
+                </h6>
+                <span class="badge bg-light text-secondary border small">Task 11.4</span>
+            </div>
+            <div class="card-body d-flex flex-column justify-content-center">
+                @if (!Model.IsBackendAvailable || Model.TotalKiosks == 0)
+                {
+                    <div class="text-center text-muted py-5 my-3">
+                        <i class="fas fa-chart-pie fa-3x mb-3 text-secondary opacity-25"></i>
+                        <div class="fw-semibold">Chưa có dữ liệu biểu đồ</div>
+                        <div class="small text-muted mt-1">Đang chờ tín hiệu giám sát từ Backend</div>
+                    </div>
+                }
+                else
+                {
+                    <div class="position-relative" style="height: 260px;">
+                        <canvas id="kioskStatusChart"
+                                role="img"
+                                aria-label="Biểu đồ tỷ lệ trạng thái thiết bị Kiosk"
+                                data-online="@Model.OnlineCount"
+                                data-warning="@Model.WarningCount"
+                                data-offline="@Model.OfflineCount">
+                        </canvas>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Col Right: Bảng danh sách thiết bị Kiosk -->
+    <div class="col-xl-8 col-lg-7">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="m-0 fw-bold text-dark">
+                    <i class="fas fa-list me-2 text-secondary"></i>Danh sách máy trạm Kiosk bán lẻ
+                </h6>
+                <span class="badge bg-light text-secondary border small">Giám sát phần cứng</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr class="small text-uppercase text-secondary">
+                                <th style="width: 15%;">Mã trạm</th>
+                                <th style="width: 25%;">Tên Kiosk / Vị trí</th>
+                                <th style="width: 15%;">Địa chỉ IP</th>
+                                <th style="width: 15%;">Máy in</th>
+                                <th style="width: 15%;">Máy quét</th>
+                                <th style="width: 15%;" class="text-center">Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!Model.Kiosks.Any())
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-5">
+                                        <i class="fas fa-desktop fa-2x mb-2 d-block opacity-25"></i>
+                                        <div class="fw-semibold">Chưa có dữ liệu thiết bị Kiosk</div>
+                                        <div class="small text-muted mt-1">Hệ thống chưa ghi nhận trạm Kiosk nào kết nối từ máy chủ Backend.</div>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var k in Model.Kiosks)
+                                {
+                                    string badgeClass = k.Status switch
+                                    {
+                                        "Online" => "bg-success text-white",
+                                        "Warning" => "bg-warning text-dark",
+                                        "Maintenance" => "bg-secondary text-white",
+                                        _ => "bg-danger text-white"
+                                    };
+                                    string statusText = k.Status switch
+                                    {
+                                        "Online" => "Trực tuyến",
+                                        "Warning" => "Cảnh báo",
+                                        "Maintenance" => "Bảo trì",
+                                        _ => "Mất kết nối"
+                                    };
+
+                                    <tr>
+                                        <td>
+                                            <code class="fw-bold">@k.KioskId</code>
+                                        </td>
+                                        <td>
+                                            <div class="fw-semibold text-dark">@k.KioskName</div>
+                                            <div class="small text-muted">@k.Location</div>
+                                        </td>
+                                        <td>
+                                            <span class="font-monospace small">@k.IpAddress</span>
+                                        </td>
+                                        <td>
+                                            <span class="small @(k.PrinterStatus.Contains("Cảnh báo") ? "text-warning fw-semibold" : "text-muted")">
+                                                <i class="fas fa-print me-1"></i>@k.PrinterStatus
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="small text-muted">
+                                                <i class="fas fa-barcode me-1"></i>@k.ScannerStatus
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge @badgeClass px-2 py-1">@statusText</span>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/chartjs/chart.umd.min.js"></script>
+    @if (Model.IsBackendAvailable && Model.TotalKiosks > 0)
+    {
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const canvas = document.getElementById("kioskStatusChart");
+                if (!canvas || typeof Chart === "undefined") return;
+
+                const online = parseInt(canvas.getAttribute("data-online") || "0", 10);
+                const warning = parseInt(canvas.getAttribute("data-warning") || "0", 10);
+                const offline = parseInt(canvas.getAttribute("data-offline") || "0", 10);
+
+                new Chart(canvas.getContext("2d"), {
+                    type: "doughnut",
+                    data: {
+                        labels: ["Đang hoạt động", "Cảnh báo vật tư", "Mất kết nối"],
+                        datasets: [{
+                            data: [online, warning, offline],
+                            backgroundColor: [
+                                "rgba(25, 135, 84, 0.85)",  // Success green
+                                "rgba(255, 193, 7, 0.85)",  // Warning yellow
+                                "rgba(220, 53, 69, 0.85)"   // Danger red
+                            ],
+                            borderColor: [
+                                "#198754",
+                                "#ffc107",
+                                "#dc3545"
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: "bottom",
+                                labels: {
+                                    boxWidth: 12,
+                                    font: { size: 12 }
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+        </script>
+    }
+}
+
