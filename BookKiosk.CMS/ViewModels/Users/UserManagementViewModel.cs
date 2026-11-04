@@ -31,4 +31,3 @@ namespace BookKiosk.CMS.ViewModels.Users
         public string StatusMessage { get; set; } = string.Empty;
     }
 }
-
