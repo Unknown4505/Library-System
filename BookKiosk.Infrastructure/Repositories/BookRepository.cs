@@ -34,13 +34,24 @@ public class BookRepository : IBookRepository
             .Where(b => b.IsActive) // Kiosk chỉ thấy sách đang kinh doanh
             .AsNoTracking();
 
-        // Lọc theo từ khoá (tiêu đề hoặc tác giả)
+        // Lọc theo từ khoá tìm kiếm mở rộng (kết hợp OR trên 6 trường: Title, Author, Barcode, Publisher, Category.Name, Area.Name)
         if (!string.IsNullOrWhiteSpace(keyword))
         {
-            var kw = keyword.Trim().ToLower();
+            var trimmed = keyword.Trim();
+            // Guard: Nếu chuỗi tìm kiếm vượt quá 500 ký tự, trả về rỗng ngay lập tức để chống DoS và tránh cắt cụt sai lệch
+            if (trimmed.Length > 500)
+            {
+                return (Enumerable.Empty<Book>(), 0);
+            }
+
+            var kwLower = trimmed.ToLower();
             query = query.Where(b =>
-                b.Title.ToLower().Contains(kw) ||
-                b.Author.ToLower().Contains(kw));
+                b.Title.ToLower().Contains(kwLower) ||
+                b.Author.ToLower().Contains(kwLower) ||
+                b.Barcode.ToLower().Contains(kwLower) ||
+                (b.Publisher != null && b.Publisher.ToLower().Contains(kwLower)) ||
+                (b.Category != null && b.Category.Name.ToLower().Contains(kwLower)) ||
+                (b.Area != null && b.Area.Name.ToLower().Contains(kwLower)));
         }
 
         // Lọc theo danh mục
