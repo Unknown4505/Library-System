@@ -193,7 +193,7 @@ else
                         <canvas id="revenueBarChart"
                                 role="img"
                                 aria-label="Biểu đồ cột thể hiện doanh thu 12 tháng trong năm @Model.SelectedYear"
-                                data-revenue='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.RevenueReport?.MonthlyData ?? new()))'
+                                data-revenue='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MonthlyRows))'
                                 data-year="@Model.SelectedYear">
                             <p>Trình duyệt của bạn không hỗ trợ canvas. Vui lòng xem bảng đối chiếu chi tiết bên dưới.</p>
                         </canvas>

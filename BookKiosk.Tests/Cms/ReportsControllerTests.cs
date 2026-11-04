@@ -290,6 +290,57 @@ namespace BookKiosk.Tests.Cms
         }
 
         [Fact]
+        public void ChartDataAndTableRows_WhenDataContainsDuplicateMonths_AreIdenticalAndConsistent()
+        {
+            // Arrange - REPORT-CONSISTENCY-01: Leader fixture với tháng trùng (tháng 3: 15M/50 và 25M/70; tháng 8: 10M/20 và 30M/40)
+            var vm = new ReportsIndexViewModel
+            {
+                SelectedYear = 2026,
+                RevenueReport = new RevenueReportResponseDto
+                {
+                    Year = 2026,
+                    MonthlyData = new List<MonthlyRevenueItemDto>
+                    {
+                        new() { Month = 3, Revenue = 15_000_000m, TotalOrders = 50 },
+                        new() { Month = 3, Revenue = 25_000_000m, TotalOrders = 70 }, // Duplicate tháng 3
+                        new() { Month = 8, Revenue = 10_000_000m, TotalOrders = 20 },
+                        new() { Month = 8, Revenue = 30_000_000m, TotalOrders = 40 }  // Duplicate tháng 8
+                    }
+                }
+            };
+
+            // Act - Dữ liệu cấp cho Canvas Chart.js (data-revenue) bắt nguồn từ MonthlyRows
+            var chartSourceRows = vm.MonthlyRows;
+            var jsonChartData = System.Text.Json.JsonSerializer.Serialize(chartSourceRows);
+            var deserializedChartData = System.Text.Json.JsonSerializer.Deserialize<List<MonthlyReportRow>>(jsonChartData)!;
+
+            // Assert: 12 tháng của Chart Data và Table Rows phải trùng khớp nhau 100%
+            deserializedChartData.Should().HaveCount(12);
+            chartSourceRows.Should().HaveCount(12);
+
+            for (int i = 0; i < 12; i++)
+            {
+                deserializedChartData[i].Month.Should().Be(chartSourceRows[i].Month);
+                deserializedChartData[i].Revenue.Should().Be(chartSourceRows[i].Revenue);
+                deserializedChartData[i].TotalOrders.Should().Be(chartSourceRows[i].TotalOrders);
+                deserializedChartData[i].AverageOrderValue.Should().Be(chartSourceRows[i].AverageOrderValue);
+            }
+
+            // Tháng 3 trên biểu đồ và bảng đều phải là 40,000,000 / 120 đơn (không bị ghi đè thành 25,000,000 / 70)
+            deserializedChartData[2].Revenue.Should().Be(40_000_000m);
+            deserializedChartData[2].TotalOrders.Should().Be(120);
+
+            // Tháng 8 trên biểu đồ và bảng đều phải là 40,000,000 / 60 đơn (không bị ghi đè thành 30,000,000 / 40)
+            deserializedChartData[7].Revenue.Should().Be(40_000_000m);
+            deserializedChartData[7].TotalOrders.Should().Be(60);
+
+            // Tổng doanh thu và đơn hàng của Chart Data khớp 100% với KPI cards
+            deserializedChartData.Sum(x => x.Revenue).Should().Be(vm.TotalAnnualRevenue);
+            deserializedChartData.Sum(x => x.TotalOrders).Should().Be(vm.TotalAnnualOrders);
+            vm.AnnualAverageOrderValue.Should().Be(Math.Round(vm.TotalAnnualRevenue / vm.TotalAnnualOrders));
+        }
+
+        [Fact]
         public void AnnualTotals_CalculatesSumAndAverageCorrectly_AndGuardsDivideByZero()
         {
             // Arrange

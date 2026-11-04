@@ -52,8 +52,8 @@ document.addEventListener("DOMContentLoaded", function () {
         initialRawData.forEach(item => {
             const m = (item.month || item.Month || 0);
             if (m >= 1 && m <= 12) {
-                initialRevenueData[m - 1] = Number(item.revenue ?? item.Revenue ?? 0);
-                currentOrdersData[m - 1] = Number(item.totalOrders ?? item.TotalOrders ?? 0);
+                initialRevenueData[m - 1] += Number(item.revenue ?? item.Revenue ?? 0);
+                currentOrdersData[m - 1] += Number(item.totalOrders ?? item.TotalOrders ?? 0);
             }
         });
     }
@@ -152,8 +152,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     res.data.forEach(item => {
                         const m = (item.month || item.Month || 0);
                         if (m >= 1 && m <= 12) {
-                            newRevenueData[m - 1] = Number(item.revenue ?? item.Revenue ?? 0);
-                            newOrdersData[m - 1] = Number(item.totalOrders ?? item.TotalOrders ?? 0);
+                            newRevenueData[m - 1] += Number(item.revenue ?? item.Revenue ?? 0);
+                            newOrdersData[m - 1] += Number(item.totalOrders ?? item.TotalOrders ?? 0);
                         }
                     });
                 }
