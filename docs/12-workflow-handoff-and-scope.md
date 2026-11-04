@@ -1,6 +1,6 @@
 # Workflow handoff và phạm vi current/target — BookKiosk
 
-Ngày đối chiếu integration/schema: 2026-10-16, baseline `origin/main@efcd388a2c5c6791eeecefe6e511d6b31ec8a91f`, branch `codex/leader-workflow-integration`. Trạng thái merge của Kiosk Receipt/Advertising/Navigation được đồng bộ ngày 2026-10-24 theo `origin/main@9a55b09760ad59aa2e7712e8ffbbc9016d235664`; baseline schema lịch sử ở trên không bị thay thế.
+Ngày đối chiếu integration/schema: 2026-10-16, baseline `origin/main@efcd388a2c5c6791eeecefe6e511d6b31ec8a91f`, branch `codex/leader-workflow-integration`. Trạng thái merge của Kiosk Receipt/Advertising/Navigation được đồng bộ ngày 2026-10-24 theo `origin/main@9a55b09760ad59aa2e7712e8ffbbc9016d235664`; baseline schema lịch sử ở trên không bị thay thế. Dependency audit ngày 2026-11-04 đối chiếu GitHub và source tại `main@e81693861893ce03a1c14a1a78a78e7cdca1ddd6` cho Issues #60/#61/#66 và PR #64; Issue #65 được Leader đóng `not_planned` vì CMS Kiosk Monitoring ngoài phạm vi bắt buộc.
 
 ## 1. Quyết định đã chốt
 
@@ -78,7 +78,7 @@ Không thay precision 11 cột cũ, không seed lương, không sửa migration 
 
 | Chức năng | Admin | Manager | Staff | Trạng thái |
 |---|:---:|:---:|:---:|---|
-| Quản lý tài khoản | R/W | Không mặc định | Self only | PLANNED |
+| Quản lý tài khoản | Read contract assigned; Write HOLD | Không mặc định | Không mặc định | Issue #66 READ CONTRACT FIRST; mutations NEEDS LEADER APPROVAL |
 | Hồ sơ nhân viên | R/W | Theo policy | Self only | PLANNED |
 | Sổ lương | Create/Pay/Read all | Own Paid only; không pay | Own Paid only | APPROVED DESIGN; API/UI PLANNED |
 | Reports | Yes | No | No | Contract hiện tại Admin-only |
@@ -93,7 +93,9 @@ Không thay precision 11 cột cũ, không seed lương, không sửa migration 
 | 2.7 Receipt | Orders, OrderDetails, Books | Contract `ReceiptDto`, Issue #28/#29 | IMPLEMENTED / MERGED / TARGETED QA VERIFIED; UI/E2E NOT RUN |
 | 2.8 Cancel/Timeout | Books, Orders | `OrderService`, cleanup service | IMPLEMENTED core; nhả reserved, không trừ stock |
 | 3.0 Nhập kho | Suppliers, ImportReceipts, ImportReceiptDetails, Books | Import service/API | IMPLEMENTED source |
-| 8.0 Reports | Orders/OrderDetails, Books | ReportsController/DTO | IMPLEMENTED endpoint; Admin authorization cần evidence riêng |
+| 8.0 Reports | Orders/OrderDetails, Books | ReportsController/DTO | Revenue/Top Books IMPLEMENTED; CMS runtime E2E chưa nghiệm thu; `REPORT-RISK-01` là FE robustness bug |
+| CMS Kiosk Monitoring | Kiosks, KioskIncidents | Heartbeat hiện hữu; Issue #65 | **OUT OF SCOPE / NOT REQUIRED**; #65 CLOSED — NOT PLANNED; POST heartbeat giữ nguyên |
+| CMS Users | Users | AuthController hiện hữu; Issue #66 | Login IMPLEMENTED; read API ASSIGNED / NOT IMPLEMENTED; mutations HOLD |
 | HR target | Users, Employees, SalaryPayments | Domain + EF config + migration `20261016071312` | Model/migration SCAFFOLDED; API PLANNED; runtime SQL NOT TESTED |
 
 Artefacts canonical: [`BFD.drawio`](../diagram/BFD.drawio), [`DFD_Level_0_Context.drawio`](../diagram/DFD_Level_0_Context.drawio), [`DFD_Level_1_Main.drawio`](../diagram/DFD_Level_1_Main.drawio), [`DFD_Level_2_P2_Invoice_Checkout.drawio`](../diagram/DFD_Level_2_P2_Invoice_Checkout.drawio), [`ERD_Current_and_Target_3_Pages.drawio`](../diagram/ERD_Current_and_Target_3_Pages.drawio) và [`BookKiosk_Class_Diagram_Current_Target.drawio`](../diagram/BookKiosk_Class_Diagram_Current_Target.drawio). Current phản ánh source; Target được phép chứa HR nhưng phải ghi `PLANNED`/runtime unknown. Bốn file legacy đã được loại khỏi worktree. Theo quyết định Leader ngày 2026-10-16, lượt này chỉ cập nhật `.drawio`; PNG hiện có không được ghi đè và sẽ được Leader vẽ/xuất lại sau.
@@ -118,18 +120,21 @@ Owner: `@lehuukhang`. Task 8.2.1. Status: **IMPLEMENTED / MERGED / TARGETED QA V
 - Acceptance: hiển thị/in/PDF nhất quán; 404/409/timeout/network xử lý an toàn; targeted ViewModel/PDF tests đã PASS. WPF runtime/UI E2E vẫn phải chạy riêng.
 - Evidence hiện có chỉ chứng minh targeted behavior; ảnh UI/PDF runtime và full E2E chưa chạy, không được suy ra PASS từ mock.
 
-## 7. Draft handoff bổ sung — chờ Leader duyệt
+## 7. Handoff bổ sung — assigned issues và approval gates
 
-Không tạo Issue hoặc giao việc chính thức từ bảng này. Owner dưới đây là **đề xuất** để Leader duyệt trước khi triển khai.
+Issues [#60](https://github.com/Unknown4505/Library-System/issues/60), [#61](https://github.com/Unknown4505/Library-System/issues/61) và [#66](https://github.com/Unknown4505/Library-System/issues/66) đã được tạo và gán owner trên GitHub. Việc tạo issue chỉ giao phạm vi được ghi rõ; không tự phê duyệt phần HOLD, policy/schema mới hoặc mở rộng PR #64. [Issue #65](https://github.com/Unknown4505/Library-System/issues/65) đã **CLOSED — NOT PLANNED** và không còn là handoff/dependency phải triển khai. Các hàng Employee/Salary/NCC chưa có issue riêng vẫn là proposal/approval-gated.
 
-| Hạng mục | Owner đề xuất | Dependencies | API/Data contract | Outputs | Acceptance criteria | Trạng thái |
+| Hạng mục | Owner / handoff | Dependencies | API/Data contract | Outputs | Acceptance criteria | Trạng thái |
 |---|---|---|---|---|---|---|
-| Auth/RBAC CMS | BE `@thien33`; Leader chốt policy; FE `@lehuukhang` tích hợp login | `Users`, JWT config, role matrix Admin/Manager/Staff | `/api/auth/login`, `/api/users`, password/JWT/security rules | Auth/User API + CMS login/session | Không trả `PasswordHash`; 401/403 đúng; enum số không đổi; targeted auth/role tests PASS | **PLANNED / APPROVAL REQUIRED** |
+| Extended Books Search — [#60](https://github.com/Unknown4505/Library-System/issues/60) | BE `@thien33`; FE `@lehuukhang` tích hợp qua #61 | `GET /api/books` hiện chỉ Title/Author; giữ category/paging/sorting | BE-01 thêm Barcode/Publisher/CategoryName/Area; BE-02 đổi Barcode tách biệt | Backend query + contract/evidence handoff | Không duplicate/N+1; keyword+category/paging targeted tests; real Backend E2E | **BE-01 READY / OPEN; BE-02 HOLD — LEADER DECISION** |
+| Kiosk WPF — [#61](https://github.com/Unknown4505/Library-System/issues/61) | FE `@lehuukhang` | Camera/runtime isolation; FEAT-02 phụ thuộc #60 BE-01 | Dùng API/DTO Backend hiện hữu, không tự sửa BE/SQL | Camera/search/mock isolation phía Kiosk | Targeted + physical camera/WPF visual + real BE integration theo từng dependency | **OPEN / PARTIAL; CMS KHÔNG THUỘC SCOPE ISSUE** |
+| CMS Kiosk Monitoring — [#65](https://github.com/Unknown4505/Library-System/issues/65) | Không giao triển khai | POST heartbeat và entity Kiosk có sẵn, giữ nguyên | Không yêu cầu GET list/summary hoặc monitoring contract mới | Không có output bắt buộc | Không thuộc acceptance/E2E bắt buộc của đồ án | **OUT OF SCOPE / CLOSED — NOT PLANNED** |
+| Auth/User Management CMS — [#66](https://github.com/Unknown4505/Library-System/issues/66) | BE `@thien33`; Leader chốt security; FE `@lehuukhang` tích hợp | Login/JWT có sẵn; chưa có `/api/users` | GET list/detail contract-first; mutations/security/schema approval-gated | Read API trước; approved mutation subset sau | Không trả `PasswordHash`; 401/403; DTO/role thống nhất; không bịa field/schema | **READ CONTRACT ASSIGNED; MUTATIONS HOLD — LEADER APPROVAL REQUIRED** |
 | Employee | BE `@thien33`; FE `@lehuukhang`; Leader sở hữu schema | Auth/RBAC PASS; migration HR được apply trên QA disposable | `Employee` DTO/policy, filtered unique UserId/EmployeeCode, disable thay delete | Employee API + CMS CRUD/self profile | 400/404/409 đúng; row authorization; không lộ PII; targeted API tests PASS | **PLANNED** |
 | Salary ledger | BE `@thien33`; FE `@lehuukhang`; Leader giữ schema/shared contract | Auth + Employee PASS; SQL QA migration PASS | `SalaryPayment` Draft/Paid; PayYear 2000..2100; unique kỳ lương; decimal(18,0); công thức NetSalary; Admin-only pay; Manager/Staff own-Paid | Salary API + CMS draft/pay/read | Draft không actor/time; Draft→Paid atomically; Admin actor + UTC; concurrent pay chỉ thắng một; Paid immutable; JWT row ownership; không chuyển tiền ngân hàng | **APPROVED DESIGN; IMPLEMENTATION PLANNED** |
 | NCC/Supplier CMS | BE `@thien33`; FE `@lehuukhang` | Supplier/Import contract hiện có; authorization CMS | `Suppliers`, `ImportReceipts`, DTO/validation và delete policy | Supplier CRUD/list + CMS integration | Không xóa làm mất lịch sử nhập; duplicate/invalid trả wrapper chuẩn; import regression targeted PASS | **PLANNED** |
 
-Mỗi handoff cần issue/task riêng sau khi Leader duyệt, kèm file ownership và test evidence; không gộp vào #28/#29.
+#60/#61/#66 phải giữ đúng boundary và handoff evidence trong từng issue. #65 chỉ được giữ như dấu vết quyết định **OUT OF SCOPE / CLOSED — NOT PLANNED**, không phải task chờ triển khai. Các handoff còn lại cần issue/task riêng sau khi Leader duyệt, kèm file ownership và test evidence; không gộp vào #28/#29 hoặc suy diễn việc tạo issue là approval toàn bộ thiết kế.
 
 ### 7.1 Salary enforcement contract cho member — APPROVED DESIGN
 
@@ -144,25 +149,29 @@ Mỗi handoff cần issue/task riêng sau khi Leader duyệt, kèm file ownershi
 
 **Thiện — Backend (`@thien33`)**
 
-- Chức năng: Issue #28 Receipt API; sau đó Auth, Employee và Salary API theo contract đã chốt.
-- Dependencies: migration HR phải PASS trên SQL QA disposable; Auth/JWT identity mapping sẵn sàng trước Employee self-service/Salary; Receipt #28 độc lập với Salary.
+- Chức năng hiện được giao: [#60](https://github.com/Unknown4505/Library-System/issues/60) BE-01 Extended Search và [#66](https://github.com/Unknown4505/Library-System/issues/66) User read contract/API. Issue #28 Receipt API đã hoàn thành; Employee/Salary tiếp tục theo approval/dependency riêng. #65 đã CLOSED — NOT PLANNED nên không giao Thiện triển khai Monitoring API.
+- Dependencies: #60 BE-02 đổi Barcode vẫn HOLD; #66 mutations phải có Leader security sign-off. Migration HR phải PASS trên SQL QA disposable trước Employee/Salary; Receipt #28 độc lập. CMS Kiosk Monitoring không còn là dependency.
 - Ownership: Controller/Service/DTO/validation/RBAC/transaction/concurrency Backend. Không sửa Domain entity, EF configuration, migration/snapshot hoặc Kiosk/CMS UI nếu chưa phối hợp Leader.
-- Acceptance: targeted API/service tests cho validation, JWT row ownership, Draft/Paid transition, concurrent pay và immutable Paid; không báo IMPLEMENTED trước khi có code + evidence.
+- Acceptance: mỗi issue handoff route/DTO, PR + exact SHA và targeted API/security evidence; không báo IMPLEMENTED trước khi có code + evidence và không code phần HOLD.
 
 **Khang — Frontend (`@lehuukhang`)**
 
-- Chức năng: Issue #29 Receipt UI/PDF phụ thuộc #28; CMS Auth/Employee/Salary/NCC theo DTO/API contract.
-- Dependencies: #28 PASS contract trước Receipt integration; Auth/Employee/Salary API thật trước integration/runtime acceptance. Có thể chuẩn bị UI bằng fake API nhưng phải giữ DTO/error states tương thích.
+- Chức năng: [Issue #61](https://github.com/Unknown4505/Library-System/issues/61) chỉ bao gồm Kiosk WPF camera/search/mock isolation. Issue #29 Receipt UI/PDF đã hoàn thành targeted scope. CMS Reports/Users trong PR [#64](https://github.com/Unknown4505/Library-System/pull/64) không tự thuộc #61 và cần tách hoặc Leader approve mở rộng scope; CMS Kiosk Monitoring cần loại/tách vì đã OUT OF SCOPE.
+- Dependencies: FEAT-02 #61 chờ #60 BE-01; CMS Users chờ #66; Revenue APIs đã có nhưng CMS runtime E2E và `REPORT-RISK-01` chưa hoàn tất. CMS Kiosk Monitoring không chờ Backend và không phải tiêu chí merge/E2E. Có thể chuẩn bị UI bằng fake API nhưng phải giữ mock/unavailable state rõ ràng và không báo Production E2E PASS.
 - Ownership: Kiosk Receipt View/ViewModel/API client/Mock Printer/PDF và CMS pages/state. Không sửa Backend Controller/Service, Domain/EF/migration hoặc tự định nghĩa contract khác.
 - Acceptance: targeted ViewModel/UI tests, xử lý 400/401/403/404/409/network; UI ẩn nút không được coi là security enforcement; không mock rồi báo E2E PASS.
 
-**Leader:** giữ Domain/EF schema, shared contract, quyết định security/business và integration QA.
+**PR #64 boundary:** HEAD audit `c0c484c6a7299ae7860fd2fe6608f23b88a282b2` chỉ thay đổi Kiosk/CMS/test phía FE, không triển khai Backend. PR vẫn HOLD; việc có source CMS không đánh dấu Tasks 11.3–11.5 hoàn thành, không chuyển dependency #60/#66 sang Khang và không khôi phục Monitoring #65 đã đóng.
+
+**Leader:** giữ Domain/EF schema, shared contract, quyết định security/business, phê duyệt scope PR #64 và integration QA.
 
 ## 8. Acceptance Leader và blocker
 
 - Leader Task 12.1.1 chạy `Checkout → Pending → SePay Paid → Receipt API → UI/PDF` trên SQL QA/test mode. Thiếu SePay/SQL/endpoint thì `BLOCKED — ENV`.
 - #19/#20 đã closed/completed và PR #26 đã merge; không mở lại hoặc sửa lại nếu không có regression evidence mới.
 - Migration HR đã scaffold an toàn qua design-time factory và static-review chỉ có additive HR operations. Apply/rollback/runtime SQL vẫn `BLOCKED — ENV` vì chưa có connection QA disposable được xác minh; không chạy API hay `database update` trên DB hiện hữu.
+- Revenue Backend đã có `GET /api/reports/revenue` và `GET /api/reports/top-books`; `REPORT-RISK-01` thuộc FE robustness, không phải bằng chứng Backend thiếu. CMS Reports E2E vẫn phải chạy riêng.
+- #65 đã **CLOSED — NOT PLANNED**; không yêu cầu heartbeat monitoring policy, GET APIs hoặc Monitoring E2E mới. #66 được tạo/assign không đồng nghĩa User mutation security policy, enum/authorization hoặc schema mới đã được Leader duyệt; các điểm đó vẫn **NEEDS LEADER DECISION**.
 - Merge readiness chỉ đạt khi build PASS, diagram XML PASS, PNG được Leader visual-review/xuất lại, migration review + SQL QA PASS và các test Receipt/E2E theo dependency hoàn thành. Docs/model riêng không đủ để claim feature complete.
 
 ## 9. Handoff Kiosk Advertising & Navigation — IMPLEMENTED / TARGETED QA VERIFIED; FINAL INTEGRATION BLOCKED
