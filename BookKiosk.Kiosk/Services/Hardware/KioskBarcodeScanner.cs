@@ -286,14 +286,14 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
 
         if (oldTask != null && !oldTask.IsCompleted)
         {
-            // Chờ tối đa ~200ms trên UI thread (theo Q1)
+            // Chờ tối đa 50ms (không ảnh hưởng UI) để phiên trước kịp hoàn tất dọn dẹp
             try
             {
-                oldTask.Wait(TimeSpan.FromMilliseconds(200));
+                oldTask.Wait(TimeSpan.FromMilliseconds(50));
             }
             catch { }
 
-            // Nếu sau 200ms task cũ VẪN CHƯA THOÁT:
+            // Nếu sau 50ms task cũ VẪN CHƯA THOÁT:
             if (!oldTask.IsCompleted)
             {
                 lock (_lock)
@@ -357,11 +357,28 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
         }
 
         var token = cts.Token;
-        var captureTask = Task.Run(() => CaptureLoop(capture, cts, token, currentGeneration), token);
-
-        lock (_lock)
+        // CAM-RISK-01: KHÔNG truyền token vào Task.Run(..., token) vì TaskScheduler có thể hủy task
+        // TRƯỚC khi delegate chạy, làm khối finally trong CaptureLoop không được gọi -> rò rỉ VideoCapture và CTS.
+        // Khi không truyền token cho Task.Run, delegate luôn được thực thi trên ThreadPool và khối finally luôn được gọi.
+        try
         {
-            _cameraTask = captureTask;
+            var captureTask = Task.Run(() => CaptureLoop(capture, cts, token, currentGeneration));
+            lock (_lock)
+            {
+                _cameraTask = captureTask;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Kiosk Scanner] Không thể lên lịch capture task: {ex.Message}");
+            try { capture.Dispose(); } catch { }
+            try { cts.Dispose(); } catch { }
+            lock (_lock)
+            {
+                _isCameraAvailable = false;
+            }
+            ScannerErrorOccurred?.Invoke(this, "Không thể khởi động luồng quét camera; máy quét USB vẫn dùng được.");
+            return;
         }
     }
 
@@ -395,8 +412,9 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
 
     /// <summary>
     /// Dừng camera loop an toàn, theo dõi capture task đến khi kết thúc.
+    /// CAM-UI-01: Hoàn tất bất đồng bộ / không chặn UI thread (trả về lập tức &lt; 1ms).
     /// TUYỆT ĐỐI KHÔNG xóa tham chiếu task khi task chưa IsCompleted.
-    /// TUYỆT ĐỐI KHÔNG dispose Cts cưỡng bức ở đây.
+    /// TUYỆT ĐỐI KHÔNG dispose Cts cưỡng bức ở đây (Cts sẽ được dọn trong finally của CaptureLoop).
     /// </summary>
     protected virtual void TryStopCamera()
     {
@@ -417,7 +435,7 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
             // TUYỆT ĐỐI KHÔNG GÁN _cameraCts = null hay _cameraTask = null Ở ĐÂY!
         }
 
-        // 1. Hủy CancellationToken để phát tín hiệu dừng
+        // 1. Hủy CancellationToken để phát tín hiệu dừng lập tức
         if (cts != null)
         {
             try
@@ -427,39 +445,33 @@ public class KioskBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink, I
             catch { }
         }
 
-        // 2. Chờ ưu tiên 2 giây (theo Q2)
+        // 2. CAM-UI-01: Không dùng task.Wait() chặn UI thread (STA/WPF).
+        // Giám sát task trong background: nếu sau 5 giây task chưa IsCompleted do driver thiết bị bị chậm/kẹt,
+        // đánh dấu _isFaulted = true trong nền để bảo vệ hệ thống mà không làm đơ giao diện.
         if (task != null && !task.IsCompleted)
         {
-            bool completed = false;
-            try
+            _ = Task.Run(async () =>
             {
-                completed = task.Wait(TimeSpan.FromSeconds(2));
-            }
-            catch { }
-
-            // 3. Nếu chưa xong sau 2s, tiếp tục chờ tối đa 3s (tổng 5s)
-            if (!completed)
-            {
-                Debug.WriteLine("[Kiosk Scanner] Task capture chưa dừng sau 2s, tiếp tục chờ tối đa 3s nữa (tổng 5s)...");
                 try
                 {
-                    completed = task.Wait(TimeSpan.FromSeconds(3));
+                    var completedTask = await Task.WhenAny(task, Task.Delay(5000)).ConfigureAwait(false);
+                    if (completedTask != task)
+                    {
+                        lock (_lock)
+                        {
+                            _isFaulted = true;
+                        }
+                        Debug.WriteLine("[Kiosk Scanner] CẢNH BÁO: Task capture quá 5s chưa thoát (thiết bị/driver bị chậm). Đánh dấu Faulted, tiếp tục theo dõi task.");
+                    }
                 }
-                catch { }
-            }
-
-            // 4. Quá 5 giây tổng: đánh dấu Faulted nhưng TUYỆT ĐỐI KHÔNG dispose cưỡng bức
-            if (!completed)
-            {
-                lock (_lock)
+                catch (Exception ex)
                 {
-                    _isFaulted = true;
+                    Debug.WriteLine($"[Kiosk Scanner] Lỗi trong background task watcher: {ex.Message}");
                 }
-                Debug.WriteLine("[Kiosk Scanner] CẢNH BÁO: Task capture quá 5s chưa thoát (thiết bị/driver bị chậm). Đánh dấu Faulted, KHÔNG dispose cưỡng bức, tiếp tục theo dõi task.");
-            }
+            });
         }
 
-        // 5. Chỉ xóa tham chiếu NẾU task thật sự IsCompleted
+        // 3. Chỉ xóa tham chiếu NẾU task thật sự đã IsCompleted từ trước
         lock (_lock)
         {
             if (task != null && task.IsCompleted)
