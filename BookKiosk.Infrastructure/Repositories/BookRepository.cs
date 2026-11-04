@@ -59,9 +59,17 @@ public class BookRepository : IBookRepository
             query = query.Where(b => b.CategoryId == categoryId.Value);
 
         var totalCount = await query.CountAsync();
+
+        // Fix DEFECT-01: Chống tràn số kiểu int khi page cực lớn (ví dụ: page = int.MaxValue)
+        long skip = (long)Math.Max(0, page - 1) * pageSize;
+        if (skip >= totalCount || totalCount == 0)
+        {
+            return (new List<Book>(), totalCount);
+        }
         var items = await query
             .OrderBy(b => b.Title) // Sắp xếp nhất quán — tránh random order mỗi lần load
-            .Skip((page - 1) * pageSize)
+            .ThenBy(b => b.BookId)
+            .Skip((int)skip)
             .Take(pageSize)
             .ToListAsync();
 
