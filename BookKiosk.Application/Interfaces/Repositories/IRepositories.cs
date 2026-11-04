@@ -1,4 +1,5 @@
 using BookKiosk.Domain.Entities;
+using BookKiosk.Domain.Enums;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -16,6 +17,8 @@ public interface IUserRepository
 {
     Task<User?> GetByUsernameAsync(string username);
     Task<User?> GetByIdAsync(int id);
+    Task<(IEnumerable<User> Items, int TotalCount)> GetUsersPagedAsync(
+        int page, int pageSize, string? keyword, UserRole? role, bool? isActive);
 }
 
 public interface ISupplierRepository

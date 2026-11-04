@@ -40,6 +40,7 @@ try
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Services.IKioskAdvertisingService, BookKiosk.Application.Services.KioskAdvertisingService>();
     builder.Services.AddScoped<BookKiosk.Application.Services.IAuthService, BookKiosk.Application.Services.AuthService>();
     builder.Services.AddScoped<BookKiosk.Application.Services.ISupplierService, BookKiosk.Application.Services.SupplierService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IUserService, BookKiosk.Application.Services.UserService>();
 
     // Đăng ký Unit Of Work & Repositories (Thien33)
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IUnitOfWork, BookKiosk.Infrastructure.Repositories.UnitOfWork>();

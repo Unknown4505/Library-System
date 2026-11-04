@@ -55,6 +55,40 @@ public class UserRepository : IUserRepository
     public UserRepository(ApplicationDbContext context) => _context = context;
     public async Task<User?> GetByUsernameAsync(string username) => await _context.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
     public async Task<User?> GetByIdAsync(int id) => await _context.Users.FindAsync(id);
+
+    public async Task<(IEnumerable<User> Items, int TotalCount)> GetUsersPagedAsync(
+        int page, int pageSize, string? keyword, UserRole? role, bool? isActive)
+    {
+        var query = _context.Users.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim().ToLower();
+            query = query.Where(u =>
+                (u.Username != null && u.Username.ToLower().Contains(kw)) ||
+                (u.FullName != null && u.FullName.ToLower().Contains(kw)));
+        }
+
+        if (role.HasValue)
+        {
+            query = query.Where(u => u.Role == role.Value);
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(u => u.IsActive == isActive.Value);
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .OrderBy(u => u.UserId)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (items, totalCount);
+    }
 }
 
 public class SupplierRepository : ISupplierRepository
