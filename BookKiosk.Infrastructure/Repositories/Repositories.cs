@@ -81,13 +81,6 @@ public class UserRepository : IUserRepository
 
         var totalCount = await query.CountAsync();
 
-        // Fix DEFECT-02: Chá»‘ng trĂ n sá»‘ kiá»ƒu int khi page cá»±c lá»›n (vĂ­ dá»¥: page = int.MaxValue)
-        long skip = (long)Math.Max(0, page - 1) * pageSize;
-        if (skip >= totalCount || totalCount == 0)
-        {
-            return (new List<User>(), totalCount);
-        }
-
         // Fix DEFECT-02: Chống tràn số kiểu int khi page cực lớn (ví dụ: page = int.MaxValue)
         long skip = (long)Math.Max(0, page - 1) * pageSize;
         if (skip >= totalCount || totalCount == 0)
@@ -262,12 +255,6 @@ public class InventoryRepository : IInventoryRepository
 
         var totalCount = await query.CountAsync();
 
-        // Fix DEFECT-02: Chống tràn số kiểu int khi page cực lớn (ví dụ: page = int.MaxValue)
-        long skip = (long)Math.Max(0, page - 1) * pageSize;
-        if (skip >= totalCount || totalCount == 0)
-        {
-            return (new List<User>(), totalCount);
-        }
         var items = await query
             .OrderByDescending(r => r.ImportReceiptId)
             .Skip((page - 1) * pageSize)
@@ -383,12 +370,6 @@ public class OrderRepository : IOrderRepository
 
         var totalCount = await query.CountAsync();
 
-        // Fix DEFECT-02: Chống tràn số kiểu int khi page cực lớn (ví dụ: page = int.MaxValue)
-        long skip = (long)Math.Max(0, page - 1) * pageSize;
-        if (skip >= totalCount || totalCount == 0)
-        {
-            return (new List<User>(), totalCount);
-        }
         var items = await query
             .OrderByDescending(o => o.OrderId)
             .Skip((page - 1) * pageSize)
