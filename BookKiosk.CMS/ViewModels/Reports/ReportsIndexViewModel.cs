@@ -37,6 +37,7 @@ namespace BookKiosk.CMS.ViewModels.Reports
         /// <summary>
         /// Chuẩn hóa mảng đủ 12 tháng (tháng 1 đến 12).
         /// Tháng nào Backend không có dữ liệu thì gán mặc định bằng 0.
+        /// REPORT-RISK-01: An toàn tuyệt đối trước dữ liệu trùng tháng từ Backend/Mock (dùng GroupBy và gộp cộng dồn).
         /// </summary>
         public List<MonthlyReportRow> MonthlyRows
         {
@@ -45,7 +46,15 @@ namespace BookKiosk.CMS.ViewModels.Reports
                 var rows = new List<MonthlyReportRow>();
                 var dict = RevenueReport?.MonthlyData?
                     .Where(m => m.Month >= 1 && m.Month <= 12)
-                    .ToDictionary(m => m.Month, m => m) ?? new Dictionary<int, MonthlyRevenueItemDto>();
+                    .GroupBy(m => m.Month)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => new MonthlyRevenueItemDto
+                        {
+                            Month = g.Key,
+                            Revenue = g.Sum(x => x.Revenue),
+                            TotalOrders = g.Sum(x => x.TotalOrders)
+                        }) ?? new Dictionary<int, MonthlyRevenueItemDto>();
 
                 for (int m = 1; m <= 12; m++)
                 {
@@ -118,4 +127,3 @@ namespace BookKiosk.CMS.ViewModels.Reports
         }
     }
 }
-

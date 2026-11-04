@@ -244,6 +244,52 @@ namespace BookKiosk.Tests.Cms
         }
 
         [Fact]
+        public void MonthlyRows_WhenDataContainsDuplicateMonths_AggregatesCorrectlyWithoutException()
+        {
+            // Arrange - REPORT-RISK-01: Backend hoặc Mock trả về danh sách có tháng bị trùng lặp (ví dụ 2 bản ghi tháng 3, 2 bản ghi tháng 8)
+            var vm = new ReportsIndexViewModel
+            {
+                RevenueReport = new RevenueReportResponseDto
+                {
+                    Year = 2026,
+                    MonthlyData = new List<MonthlyRevenueItemDto>
+                    {
+                        new() { Month = 3, Revenue = 15_000_000m, TotalOrders = 50 },
+                        new() { Month = 3, Revenue = 25_000_000m, TotalOrders = 70 }, // Trùng tháng 3
+                        new() { Month = 8, Revenue = 10_000_000m, TotalOrders = 20 },
+                        new() { Month = 8, Revenue = 30_000_000m, TotalOrders = 40 }  // Trùng tháng 8
+                    }
+                }
+            };
+
+            // Act - Không được ném ArgumentException từ ToDictionary
+            var rows = vm.MonthlyRows;
+            var totalRevenue = vm.TotalAnnualRevenue;
+            var totalOrders = vm.TotalAnnualOrders;
+            var avgOrder = vm.AnnualAverageOrderValue;
+
+            // Assert
+            rows.Should().HaveCount(12, "Vẫn phải chuẩn hóa đủ 12 tháng");
+
+            // Tháng 3: gộp doanh thu 15M + 25M = 40M, tổng đơn 50 + 70 = 120
+            rows[2].Month.Should().Be(3);
+            rows[2].Revenue.Should().Be(40_000_000m);
+            rows[2].TotalOrders.Should().Be(120);
+            rows[2].AverageOrderValue.Should().Be(Math.Round(40_000_000m / 120));
+
+            // Tháng 8: gộp doanh thu 10M + 30M = 40M, tổng đơn 20 + 40 = 60
+            rows[7].Month.Should().Be(8);
+            rows[7].Revenue.Should().Be(40_000_000m);
+            rows[7].TotalOrders.Should().Be(60);
+            rows[7].AverageOrderValue.Should().Be(Math.Round(40_000_000m / 60));
+
+            // Tổng cả năm
+            totalRevenue.Should().Be(80_000_000m);
+            totalOrders.Should().Be(180);
+            avgOrder.Should().Be(Math.Round(80_000_000m / 180));
+        }
+
+        [Fact]
         public void AnnualTotals_CalculatesSumAndAverageCorrectly_AndGuardsDivideByZero()
         {
             // Arrange
@@ -490,4 +536,3 @@ namespace BookKiosk.Tests.Cms
         }
     }
 }
-
