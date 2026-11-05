@@ -18,6 +18,7 @@ public class UnitOfWork : IUnitOfWork
     public UnitOfWork(ApplicationDbContext context) => _context = context;
 
     public async Task BeginTransactionAsync() => _transaction = await _context.Database.BeginTransactionAsync();
+    public async Task BeginTransactionAsync(System.Data.IsolationLevel isolationLevel) => _transaction = await _context.Database.BeginTransactionAsync(isolationLevel);
     public async Task CommitAsync() { if (_transaction != null) await _transaction.CommitAsync(); }
     public async Task RollbackAsync() { if (_transaction != null) await _transaction.RollbackAsync(); }
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
@@ -95,6 +96,25 @@ public class UserRepository : IUserRepository
             .ToListAsync();
 
         return (items, totalCount);
+    }
+
+    public async Task AddAsync(User user) => await _context.Users.AddAsync(user);
+
+    public Task UpdateAsync(User user)
+    {
+        _context.Users.Update(user);
+        return Task.CompletedTask;
+    }
+
+    public async Task<bool> ExistsByUsernameAsync(string username)
+    {
+        var normalized = username.Trim().ToLower();
+        return await _context.Users.AnyAsync(u => u.Username.ToLower() == normalized);
+    }
+
+    public async Task<int> CountActiveAdminsAsync()
+    {
+        return await _context.Users.CountAsync(u => u.Role == UserRole.Admin && u.IsActive);
     }
 }
 

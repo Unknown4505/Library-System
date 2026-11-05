@@ -8,6 +8,7 @@ namespace BookKiosk.Application.Interfaces.Repositories;
 public interface IUnitOfWork : System.IDisposable
 {
     Task BeginTransactionAsync();
+    Task BeginTransactionAsync(System.Data.IsolationLevel isolationLevel);
     Task CommitAsync();
     Task RollbackAsync();
     Task<int> SaveChangesAsync();
@@ -19,6 +20,10 @@ public interface IUserRepository
     Task<User?> GetByIdAsync(int id);
     Task<(IEnumerable<User> Items, int TotalCount)> GetUsersPagedAsync(
         int page, int pageSize, string? keyword, UserRole? role, bool? isActive);
+    Task AddAsync(User user);
+    Task UpdateAsync(User user);
+    Task<bool> ExistsByUsernameAsync(string username);
+    Task<int> CountActiveAdminsAsync();
 }
 
 public interface ISupplierRepository
