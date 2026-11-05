@@ -78,11 +78,14 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 #### Lấy danh sách Sách (Có phân trang, tìm kiếm)
 - **Endpoint:** `GET /api/books`
 - **Query Params:** 
-  - `keyword` (string): Trên `main@e816938`, tìm theo tên hoặc tác giả (tùy chọn).
+  - `keyword` (string): Trên `main@3410193`, tìm theo tên hoặc tác giả (tùy chọn); mở rộng 6 trường chỉ có trong open PR #68.
   - `categoryId` (int): Lọc theo danh mục (tùy chọn).
   - `page` (int): Mặc định `1`.
   - `pageSize` (int): Mặc định `12` theo source hiện tại.
-- **Extended Search — PLANNED / ASSIGNED:** [Issue #60](https://github.com/Unknown4505/Library-System/issues/60) BE-01 đang **READY / OPEN**, owner `@thien33`; phạm vi dự kiến mở rộng keyword sang `Barcode`, `Publisher`, `CategoryName` và `Area` nhưng phải giữ `categoryId`, paging, sorting và response contract hiện tại. Source Backend hiện chưa triển khai các trường mở rộng và real Backend E2E chưa PASS. BE-02 sửa Barcode vẫn **HOLD — NEEDS LEADER DECISION**; không tự thêm khả năng đổi Barcode vào update contract.
+- **Extended Search — IMPLEMENTED IN PR #68 / TARGETED QA PASS / NOT MERGED:** [Issue #60](https://github.com/Unknown4505/Library-System/issues/60) BE-01 tại exact QA HEAD `829a46b27327d3dceb98c93b521cd4779bb65fbd` mở rộng `keyword` theo OR trên `Title`, `Author`, `Barcode`, `Publisher`, `Category.Name`, `Area.Name`; kết hợp được với `categoryId`, giữ pagination và sort ổn định `Title ASC, BookId ASC`. Extreme-page overflow đã FIX VERIFIED; HTTP/SQL targeted QA PASS. PR #68 còn OPEN nên API mở rộng **chưa có trên `main`** và chưa có full FE/Kiosk E2E evidence.
+- [x] #60 BE-01 implementation và targeted Backend QA.
+- [ ] #60 BE-01 merge/full FE-Kiosk E2E — chưa hoàn thành.
+- [ ] #60 BE-02 sửa Barcode — **HOLD / LEADER DECISION REQUIRED**; không tự thêm khả năng đổi Barcode vào update contract.
 - **Response (Success - 200 OK):**
 ```json
 {
@@ -399,7 +402,9 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 Trạng thái phải tách riêng giữa authentication hiện hữu và các API quản trị chưa triển khai:
 
 - `POST /api/auth/login`: **IMPLEMENTED**; xác thực tài khoản active và trả JWT có role `Admin`, `Manager` hoặc `Staff`.
-- [Issue #66](https://github.com/Unknown4505/Library-System/issues/66) được giao cho `@thien33`. `GET /api/users` và `GET /api/users/{id}` đã có source trong PR [#68](https://github.com/Unknown4505/Library-System/pull/68), nhưng PR còn OPEN nên trạng thái là **IMPLEMENTED IN OPEN PR / NOT MERGED / NOT ACCEPTED**. Contract Admin-only chỉ trả `userId`, `username`, `fullName`, `role`, `isActive`; không trả `PasswordHash`, token hoặc secret.
+- [Issue #66](https://github.com/Unknown4505/Library-System/issues/66) được giao cho `@thien33`. `GET /api/users` và `GET /api/users/{id}` tại exact PR [#68](https://github.com/Unknown4505/Library-System/pull/68) HEAD `829a46b27327d3dceb98c93b521cd4779bb65fbd` là **IMPLEMENTED / TARGETED QA PASS / NOT MERGED**. List hỗ trợ `keyword`, `role`, `isActive`, `page`, `pageSize`; detail trả `404 NOT_FOUND` khi không tồn tại. Cả hai route Admin-only và response allowlist chỉ gồm `userId`, `username`, `fullName`, `role`, `isActive`; không trả `PasswordHash`, token, secret, `Email` hoặc `CreatedAt`. Extreme-page overflow, JWT 401/403 matrix và GET read-only đã targeted QA PASS; API này **chưa có trên `main`**.
+- [x] #66 BE-01 implementation và targeted Backend QA; [x] #66 BE-03 targeted auth/security QA.
+- [ ] #66 BE-01 merge/full CMS E2E — chưa hoàn thành; targeted auth/security PASS không được suy rộng thành full security regression PASS.
 - **Leader decision USER-MGMT-BE02-01 (2026-11-04): APPROVED DESIGN / READY TO IMPLEMENT.** `@thien33` được triển khai trong PR riêng: `POST /api/users`, `PUT /api/users/{id}` chỉ sửa `fullName`/`role`, `PATCH /api/users/{id}/status` để activate/deactivate và `POST /api/users/{id}/reset-password` nhận mật khẩu mới. Chỉ role `Admin` được gọi; `Manager`/`Staff` phải nhận `403`.
 - Không triển khai hard-delete hoặc đổi `username`. Không cho Admin tự vô hiệu hóa hoặc vô hiệu hóa Admin active cuối cùng. Username unique không phân biệt hoa/thường và phải xử lý cạnh tranh tạo trùng; password tối thiểu 8 ký tự, có chữ hoa/chữ thường/số, được hash bằng cơ chế hiện hữu và không xuất hiện trong response/log.
 - Không thêm `Email`, `CreatedAt`, `MustChangePassword` hoặc bảng audit/migration mới trong BE-02. CMS phải bỏ/ẩn các mock field không có trong entity. BE-02 chỉ được ghi **IMPLEMENTED** sau khi có code, authorization/validation/concurrency tests và evidence; quyết định duyệt thiết kế không đồng nghĩa E2E đã PASS.
