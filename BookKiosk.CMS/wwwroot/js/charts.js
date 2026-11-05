@@ -124,23 +124,40 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // Xử lý thay đổi Năm qua AJAX
+    let lastGoodYear = yearSelect
+        ? parseInt(yearSelect.value, 10)
+        : (parseInt(chartCanvas.getAttribute("data-year"), 10) || new Date().getFullYear());
+    let currentRequestSeq = 0;
+    let activeAbortController = null;
+
     if (yearSelect) {
         yearSelect.addEventListener("change", function () {
             const selectedYear = parseInt(this.value, 10);
             if (!selectedYear) return;
+            if (selectedYear === lastGoodYear) return;
+
+            if (activeAbortController) {
+                activeAbortController.abort();
+            }
+            activeAbortController = new AbortController();
+            const thisSeq = ++currentRequestSeq;
 
             yearSelect.disabled = true;
 
             fetch(`/Home/GetRevenueChartData?year=${selectedYear}`, {
-                headers: { "Accept": "application/json" }
+                headers: { "Accept": "application/json" },
+                signal: activeAbortController.signal
             })
             .then(res => {
+                if (thisSeq !== currentRequestSeq) return null;
                 if (!res.ok) throw new Error("HTTP " + res.status);
                 return res.json();
             })
             .then(res => {
-                if (!res || !res.success) {
-                    notifyError(res?.message || "Không thể tải dữ liệu doanh thu cho năm đã chọn.", "warning");
+                if (!res || thisSeq !== currentRequestSeq) return;
+                if (!res.success) {
+                    yearSelect.value = String(lastGoodYear);
+                    notifyError(res?.message || `Không thể tải dữ liệu doanh thu năm ${selectedYear}. Đang hiển thị năm ${lastGoodYear}.`, "warning");
                     return;
                 }
 
@@ -203,13 +220,24 @@ document.addEventListener("DOMContentLoaded", function () {
                 // Cập nhật thẻ KPI
                 if (kpiAnnualRevenue) kpiAnnualRevenue.textContent = formatVnd(res.totalRevenue);
                 if (kpiAnnualOrders) kpiAnnualOrders.textContent = formatNumber(res.totalOrders);
+
+                lastGoodYear = res.year || selectedYear;
             })
             .catch(err => {
+                if ((err && err.name === "AbortError") || thisSeq !== currentRequestSeq) return;
                 console.error("Lỗi tải dữ liệu doanh thu:", err);
-                notifyError("Đã xảy ra lỗi khi kết nối máy chủ để lấy dữ liệu biểu đồ.", "danger");
+                yearSelect.value = String(lastGoodYear);
+                const errMsg = (err && err.message) ? err.message : String(err || "");
+                const isAuthError = errMsg.includes("401") || errMsg.includes("403") || (err && err.name === "SyntaxError");
+                const msg = isAuthError
+                    ? `Phiên làm việc hết hạn hoặc không có quyền truy cập năm ${selectedYear}. Đang hiển thị năm ${lastGoodYear}.`
+                    : `Lỗi kết nối khi lấy dữ liệu doanh thu năm ${selectedYear}. Đang hiển thị năm ${lastGoodYear}.`;
+                notifyError(msg, "danger");
             })
             .finally(() => {
-                yearSelect.disabled = false;
+                if (thisSeq === currentRequestSeq) {
+                    yearSelect.disabled = false;
+                }
             });
         });
     }
