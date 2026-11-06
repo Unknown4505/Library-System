@@ -394,7 +394,15 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - `GET /api/reports/revenue?year={year}` → `ApiResponseDto<RevenueReportDto>` gồm `year` và `data[] { month, revenue, totalOrders }`.
 - `GET /api/reports/top-books?top={n}` → `ApiResponseDto<List<TopSellingBookDto>>` gồm `bookId`, `title`, `imageUrl`, `totalSold`, `totalRevenue`.
 - Cả hai endpoint chỉ dành cho JWT role `Admin`; tiền chỉ tính từ order `Paid`.
-- Hai endpoint Revenue/Top Books đã được triển khai trên Backend; source CMS trong PR [#64](https://github.com/Unknown4505/Library-System/pull/64) không thay đổi trạng thái Backend này. `REPORT-RISK-01` (duplicate month làm `ToDictionary` ném `ArgumentException`) là lỗi robustness phía FE/CMS; runtime CMS↔BE↔DB vẫn cần QA/E2E riêng.
+- Hai endpoint Revenue/Top Books đã được triển khai trên Backend; source CMS trong PR [#64](https://github.com/Unknown4505/Library-System/pull/64) không thay đổi trạng thái Backend này. Runtime CMS↔BE↔DB vẫn cần QA/E2E riêng.
+
+**REVENUE-MONTHLY-01 — APPROVED (2026-11-06):**
+
+- Backend sở hữu phép tổng hợp tài chính. Trong response thành công, mỗi `month` chỉ xuất hiện tối đa một lần, là số nguyên từ `1` đến `12`, và các row được sắp xếp `month ASC`; chỉ order `Paid` hợp lệ theo Revenue contract hiện hữu được tính.
+- Dữ liệu tháng thưa là hợp lệ. CMS phải kiểm tra range/uniqueness, zero-fill tháng thiếu và chuẩn hóa thành đúng 12 row có thứ tự trước khi tính annual revenue/total orders. Dashboard và Reports chart/table/KPI phải dùng cùng một dataset đã kiểm tra.
+- Duplicate month hoặc month ngoài `1..12` làm toàn bộ Revenue response không hợp lệ. CMS không được âm thầm `GroupBy + Sum`, không render totals chưa tin cậy và không cập nhật UI từng phần; Backend phải điều tra nếu API thực tế vi phạm contract.
+- Empty `data[]` thành công được zero-fill thành 12 tháng bằng 0. API unavailable hoặc payload `null`/malformed không phải doanh thu 0 hợp lệ và phải hiển thị trạng thái unavailable/invalid riêng.
+- Backend hiện đã group theo tháng và trả 12 row có thứ tự; đây là contract của endpoint hiện hữu, không phải yêu cầu tạo route hay DTO mới. CMS chịu trách nhiệm validation/normalization và rollback nguyên tử khi response không hợp lệ.
 - `KioskStatusSummaryDto { online, offline, error, openIncidents }` vẫn tồn tại ở mức contract lịch sử, nhưng CMS Kiosk Monitoring đã **OUT OF SCOPE / NOT REQUIRED**; Issue #65 **CLOSED — NOT PLANNED** và không yêu cầu Backend triển khai endpoint tổng hợp.
 
 ### 3.8 Auth đã triển khai; Users BE-02 đã duyệt thiết kế; Employees và SalaryPayments còn PLANNED
