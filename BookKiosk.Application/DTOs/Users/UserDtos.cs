@@ -58,7 +58,8 @@ public class UpdateUserDto
 
 public class UpdateUserStatusDto
 {
-    public bool IsActive { get; set; }
+    [Required(ErrorMessage = "Trường isActive là bắt buộc.")]
+    public bool? IsActive { get; set; }
 }
 
 public class ResetPasswordDto

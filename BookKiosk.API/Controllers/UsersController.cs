@@ -4,6 +4,7 @@ using BookKiosk.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
@@ -59,6 +60,11 @@ public class UsersController : ControllerBase
         {
             return Conflict(ApiResponseDto<object>.Error("CONFLICT", ex.Message));
         }
+        catch (DbUpdateException)
+        {
+            // QA-USER-01: Map vi phạm unique constraint đồng thời sang 409 CONFLICT an toàn
+            return Conflict(ApiResponseDto<object>.Error("CONFLICT", "Tên đăng nhập đã tồn tại trong hệ thống."));
+        }
     }
 
     [HttpPut("{id:int}")]
@@ -81,18 +87,41 @@ public class UsersController : ControllerBase
         {
             return Conflict(ApiResponseDto<object>.Error("CONFLICT", ex.Message));
         }
+        catch (DbUpdateConcurrencyException)
+        {
+            // P2 Hardening: Map concurrency sang thông điệp nghiệp vụ an toàn
+            return Conflict(ApiResponseDto<object>.Error("CONFLICT", "Hệ thống bắt buộc phải có ít nhất một tài khoản Quản trị viên (Admin) đang hoạt động."));
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(ApiResponseDto<object>.Error("CONFLICT", "Yêu cầu không thể hoàn tất do xung đột dữ liệu đồng thời. Vui lòng thử lại sau."));
+        }
     }
 
     [HttpPatch("{id:int}/status")]
     public async Task<IActionResult> UpdateUserStatus(int id, [FromBody] UpdateUserStatusDto dto)
     {
+        // QA-USER-04: Validate danh tính actor nghiêm ngặt, từ chối token không có userId hợp lệ
         var currentUserIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-        int.TryParse(currentUserIdClaim, out var currentAdminId);
+            ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+            ?? User.FindFirst("sub")?.Value
+            ?? User.FindFirst("UserId")?.Value
+            ?? User.FindFirst("userId")?.Value;
+
+        if (string.IsNullOrWhiteSpace(currentUserIdClaim) || !int.TryParse(currentUserIdClaim, out var currentAdminId) || currentAdminId <= 0)
+        {
+            return Unauthorized(ApiResponseDto<object>.Error("UNAUTHORIZED", "Token không chứa định danh người dùng hợp lệ."));
+        }
+
+        // QA-USER-03: Validate bắt buộc sự hiện diện của trường isActive
+        if (dto == null || !dto.IsActive.HasValue)
+        {
+            return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", "Trường isActive là bắt buộc."));
+        }
 
         try
         {
-            var result = await _userService.UpdateUserStatusAsync(id, dto.IsActive, currentAdminId);
+            var result = await _userService.UpdateUserStatusAsync(id, dto.IsActive.Value, currentAdminId);
             return Ok(ApiResponseDto<UserDto>.Ok(result, "Cập nhật trạng thái người dùng thành công."));
         }
         catch (KeyNotFoundException ex)
@@ -106,6 +135,15 @@ public class UsersController : ControllerBase
         catch (InvalidOperationException ex)
         {
             return Conflict(ApiResponseDto<object>.Error("CONFLICT", ex.Message));
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // P2 Hardening: Map concurrency sang thông điệp nghiệp vụ an toàn
+            return Conflict(ApiResponseDto<object>.Error("CONFLICT", "Hệ thống bắt buộc phải có ít nhất một tài khoản Quản trị viên (Admin) đang hoạt động."));
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(ApiResponseDto<object>.Error("CONFLICT", "Yêu cầu không thể hoàn tất do xung đột dữ liệu đồng thời. Vui lòng thử lại sau."));
         }
     }
 
@@ -124,6 +162,10 @@ public class UsersController : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", ex.Message));
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(ApiResponseDto<object>.Error("CONFLICT", "Yêu cầu không thể hoàn tất do xung đột dữ liệu đồng thời. Vui lòng thử lại sau."));
         }
     }
 }

@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace BookKiosk.Application.Services;
@@ -25,6 +26,9 @@ public class UserService : IUserService
 {
     private static readonly Regex UsernameRegex = new(@"^[a-zA-Z0-9_]{3,50}$", RegexOptions.Compiled);
     private static readonly Regex PasswordRegex = new(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$", RegexOptions.Compiled);
+
+    // SemaphoreSlim đồng bộ hóa in-process cho các thao tác tác động tới bất biến activeAdmins >= 1
+    private static readonly SemaphoreSlim _adminLifecycleLock = new(1, 1);
 
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -117,8 +121,16 @@ public class UserService : IUserService
             IsActive = true
         };
 
-        await _userRepository.AddAsync(user);
-        await _unitOfWork.SaveChangesAsync();
+        try
+        {
+            await _userRepository.AddAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+        }
+        catch (Exception ex) when (ex.GetType().Name.Contains("DbUpdate") || (ex.InnerException != null && ex.InnerException.Message.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase)))
+        {
+            // Bắt vi phạm Unique Index trong SQL Server khi hai request cùng gửi đồng thời
+            throw new InvalidOperationException("Tên đăng nhập đã tồn tại trong hệ thống.", ex);
+        }
 
         return new UserDto
         {
@@ -151,18 +163,45 @@ public class UserService : IUserService
         // Demote Guard: Ngăn chặn hạ quyền Admin duy nhất đang hoạt động
         if (user.Role == UserRole.Admin && user.IsActive && dto.Role != UserRole.Admin)
         {
-            var activeAdmins = await _userRepository.CountActiveAdminsAsync();
-            if (activeAdmins <= 1)
+            await _adminLifecycleLock.WaitAsync();
+            try
             {
-                throw new InvalidOperationException("Hệ thống bắt buộc phải có ít nhất một tài khoản Quản trị viên (Admin) đang hoạt động.");
+                await _unitOfWork.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+                try
+                {
+                    var activeAdmins = await _userRepository.CountActiveAdminsAsync();
+                    if (activeAdmins <= 1)
+                    {
+                        await _unitOfWork.RollbackAsync();
+                        throw new InvalidOperationException("Hệ thống bắt buộc phải có ít nhất một tài khoản Quản trị viên (Admin) đang hoạt động.");
+                    }
+
+                    user.FullName = dto.FullName.Trim();
+                    user.Role = dto.Role;
+
+                    await _userRepository.UpdateAsync(user);
+                    await _unitOfWork.SaveChangesAsync();
+                    await _unitOfWork.CommitAsync();
+                }
+                catch
+                {
+                    await _unitOfWork.RollbackAsync();
+                    throw;
+                }
+            }
+            finally
+            {
+                _adminLifecycleLock.Release();
             }
         }
+        else
+        {
+            user.FullName = dto.FullName.Trim();
+            user.Role = dto.Role;
 
-        user.FullName = dto.FullName.Trim();
-        user.Role = dto.Role;
-
-        await _userRepository.UpdateAsync(user);
-        await _unitOfWork.SaveChangesAsync();
+            await _userRepository.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+        }
 
         return new UserDto
         {
@@ -188,28 +227,36 @@ public class UserService : IUserService
             throw new ArgumentException("Bạn không thể tự vô hiệu hóa tài khoản của chính mình.");
         }
 
-        // Chốt chặn 2: Last Active Admin Guard với giao dịch Serializable chống Race Condition
+        // Chốt chặn 2: Last Active Admin Guard với giao dịch Serializable và Semaphore Lock chống Race Condition
         if (user.Role == UserRole.Admin && user.IsActive && !isActive)
         {
-            await _unitOfWork.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+            await _adminLifecycleLock.WaitAsync();
             try
             {
-                var activeAdmins = await _userRepository.CountActiveAdminsAsync();
-                if (activeAdmins <= 1)
+                await _unitOfWork.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+                try
+                {
+                    var activeAdmins = await _userRepository.CountActiveAdminsAsync();
+                    if (activeAdmins <= 1)
+                    {
+                        await _unitOfWork.RollbackAsync();
+                        throw new InvalidOperationException("Hệ thống bắt buộc phải có ít nhất một tài khoản Quản trị viên (Admin) đang hoạt động.");
+                    }
+
+                    user.IsActive = false;
+                    await _userRepository.UpdateAsync(user);
+                    await _unitOfWork.SaveChangesAsync();
+                    await _unitOfWork.CommitAsync();
+                }
+                catch
                 {
                     await _unitOfWork.RollbackAsync();
-                    throw new InvalidOperationException("Hệ thống bắt buộc phải có ít nhất một tài khoản Quản trị viên (Admin) đang hoạt động.");
+                    throw;
                 }
-
-                user.IsActive = false;
-                await _userRepository.UpdateAsync(user);
-                await _unitOfWork.SaveChangesAsync();
-                await _unitOfWork.CommitAsync();
             }
-            catch
+            finally
             {
-                await _unitOfWork.RollbackAsync();
-                throw;
+                _adminLifecycleLock.Release();
             }
         }
         else
