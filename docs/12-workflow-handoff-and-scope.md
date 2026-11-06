@@ -15,6 +15,7 @@ Ngày đối chiếu integration/schema: 2026-10-16, baseline `origin/main@efcd3
 | Device incidents | Kiosks/KioskIncidents là bảng thật | Không là process BFD/DFD chính | PASS design |
 | Idle Advertising | Backend #37 đã merge; FE #38 ở PR #54 HEAD `9431b33` | Slideshow 3 nhóm, touch-to-start, 60s Search inactivity và fallback | IMPLEMENTED / TARGETED QA VERIFIED; FINAL WPF/E2E BLOCKED |
 | Post-payment navigation | Receipt UI/PDF #29 đã merge; điều hướng mới thuộc FE #38 | `ReceiptPage → SearchPage`; giữ Receipt 5s và clear completed session | IMPLEMENTED / TARGETED QA VERIFIED; REAL PAID E2E BLOCKED |
+| Revenue monthly correctness | Revenue API hiện hữu | `REVENUE-MONTHLY-01`: unique/range/order từ BE; CMS validate/normalize/reject atomically | APPROVED / IMPLEMENTATION & RETEST PENDING |
 
 Nguồn ưu tiên: Entity/EF config/migration snapshot → `docs/init.sql` và drift → Service/Controller/DTO/docs → quyết định Leader. BFD không phải nguồn schema chuẩn.
 
@@ -93,7 +94,7 @@ Không thay precision 11 cột cũ, không seed lương, không sửa migration 
 | 2.7 Receipt | Orders, OrderDetails, Books | Contract `ReceiptDto`, Issue #28/#29 | IMPLEMENTED / MERGED / TARGETED QA VERIFIED; UI/E2E NOT RUN |
 | 2.8 Cancel/Timeout | Books, Orders | `OrderService`, cleanup service | IMPLEMENTED core; nhả reserved, không trừ stock |
 | 3.0 Nhập kho | Suppliers, ImportReceipts, ImportReceiptDetails, Books | Import service/API | IMPLEMENTED source |
-| 8.0 Reports | Orders/OrderDetails, Books | ReportsController/DTO | Revenue/Top Books IMPLEMENTED; CMS runtime E2E chưa nghiệm thu; `REPORT-RISK-01` là FE robustness bug |
+| 8.0 Reports | Orders/OrderDetails, Books | ReportsController/DTO | Revenue/Top Books IMPLEMENTED; `REVENUE-MONTHLY-01` APPROVED; FE correction/retest và CMS runtime E2E pending |
 | CMS Kiosk Monitoring | Kiosks, KioskIncidents | Heartbeat hiện hữu; Issue #65 | **OUT OF SCOPE / NOT REQUIRED**; #65 CLOSED — NOT PLANNED; POST heartbeat giữ nguyên |
 | CMS Users | Users | AuthController hiện hữu; Issue #66, PR #68 | Login IMPLEMENTED; BE-01 read + BE-03 targeted auth/security QA PASS; PR OPEN / NOT MERGED; BE-02 APPROVED DESIGN / NOT IMPLEMENTED |
 | HR target | Users, Employees, SalaryPayments | Domain + EF config + migration `20261016071312` | Model/migration SCAFFOLDED; API PLANNED; runtime SQL NOT TESTED |
@@ -174,12 +175,20 @@ Issues [#60](https://github.com/Unknown4505/Library-System/issues/60), [#61](htt
 
 **Leader:** giữ Domain/EF schema, shared contract, quyết định security/business, phê duyệt scope PR #64 và integration QA.
 
+### 7.4 REVENUE-MONTHLY-01 — APPROVED / IMPLEMENTATION & RETEST PENDING
+
+- **Backend `@thien33`:** giữ contract aggregation hiện hữu của `GET /api/reports/revenue?year={year}` — Paid-only, mỗi tháng tối đa một row trong `1..12`, `month ASC`; điều tra nếu API thực tế trả duplicate/out-of-range. Không tạo endpoint/DTO mới cho quyết định này.
+- **Frontend `@lehuukhang`:** validate range/uniqueness, zero-fill sparse valid data thành 12 row và dùng cùng normalized dataset cho Dashboard/Reports chart, table, KPI/totals. Duplicate/out-of-range/null/malformed phải bị reject atomically; không silent `GroupBy + Sum`, không partial UI và phải log metadata năm/tháng/count không chứa order-level details.
+- **AJAX/initial render:** lỗi authorization/API/network/JSON/contract giữ last-good year và rollback toàn UI; initial invalid response hiển thị Revenue unavailable/invalid, không giả doanh thu 0. Empty successful list vẫn là dữ liệu hợp lệ để zero-fill.
+- **Leader `@Unknown4505`:** đã approve contract ngày 2026-11-06; giữ ownership, thực hiện final CMS↔BE↔DB E2E và quyết định merge gate.
+- **Trạng thái:** Revenue Backend **IMPLEMENTED**; `REPORT-AJAX-STALE-01` **QA PASS 19/19** tại `10aad080`; `DASHBOARD-MONTHLY-CONSISTENCY-01` **FIX REQUIRED** theo contract mới; FE strict-validation runtime acceptance **NOT RUN**. PR #64 **OPEN / HOLD — DO NOT MERGE**; Issue #61 vẫn OPEN và không bị mở rộng scope bởi CMS Reports.
+
 ## 8. Acceptance Leader và blocker
 
 - Leader Task 12.1.1 chạy `Checkout → Pending → SePay Paid → Receipt API → UI/PDF` trên SQL QA/test mode. Thiếu SePay/SQL/endpoint thì `BLOCKED — ENV`.
 - #19/#20 đã closed/completed và PR #26 đã merge; không mở lại hoặc sửa lại nếu không có regression evidence mới.
 - Migration HR đã scaffold an toàn qua design-time factory và static-review chỉ có additive HR operations. Apply/rollback/runtime SQL vẫn `BLOCKED — ENV` vì chưa có connection QA disposable được xác minh; không chạy API hay `database update` trên DB hiện hữu.
-- Revenue Backend đã có `GET /api/reports/revenue` và `GET /api/reports/top-books`; `REPORT-RISK-01` thuộc FE robustness, không phải bằng chứng Backend thiếu. CMS Reports E2E vẫn phải chạy riêng.
+- Revenue Backend đã có `GET /api/reports/revenue` và `GET /api/reports/top-books`; `REVENUE-MONTHLY-01` đã APPROVED nhưng FE strict-validation correction/retest và CMS Reports E2E vẫn phải chạy riêng. Contract này không phải bằng chứng Backend thiếu.
 - #65 đã **CLOSED — NOT PLANNED**; không yêu cầu heartbeat monitoring policy, GET APIs hoặc Monitoring E2E mới. #66 BE-02 policy đã được Leader duyệt tại `USER-MGMT-BE02-01`; mọi endpoint/schema ngoài approved subset vẫn **NEEDS LEADER DECISION**.
 - **PR #68 merge gate:** exact HEAD `829a46b27327d3dceb98c93b521cd4779bb65fbd` là **BACKEND QA PASS / PR OPEN / PENDING LEADER MERGE GATE**, không phải QA FAIL. Leader chỉ xem xét merge sau khi #66 BE-02 được hoàn thành trong PR riêng với QA evidence và #60 BE-02 có quyết định chính thức tiếp tục HOLD/ngoài đợt merge hoặc được phê duyệt scope. Không đưa BE-02 vào PR #68, không triển khai Barcode khi còn HOLD, không suy ra `MERGED`, `FULL E2E PASS` hay `ISSUE CLOSED`.
 - Merge readiness chỉ đạt khi build PASS, diagram XML PASS, PNG được Leader visual-review/xuất lại, migration review + SQL QA PASS và các test Receipt/E2E theo dependency hoàn thành. Docs/model riêng không đủ để claim feature complete.
