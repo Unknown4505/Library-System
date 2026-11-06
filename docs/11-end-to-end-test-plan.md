@@ -73,6 +73,25 @@ Các ca dưới đây là acceptance requirements theo quyết định Leader ng
 
 Evidence nghiệm thu phải gồm exact PR HEAD, targeted .NET TRX, JavaScript DOM/runtime log, rendered HTML evidence, Debug/Release build logs và `git diff --check`. Final E2E còn phải đối chiếu API thật với SQL QA disposable để xác nhận Paid-only aggregation; targeted mock/DOM evidence không thay thế bước này.
 
+#### REVENUE-NEGATIVE-01 — targeted acceptance
+
+Các ca sau thuộc contract Leader đã duyệt ngày 2026-11-06. Trạng thái tách riêng evidence checkout lịch sử khỏi hardening mới; không suy diễn static review thành runtime PASS.
+
+| ID | Scenario | Expected | Trạng thái |
+|---|---|---|---|
+| REV-NEG-01 | Valid Paid Order with positive amount | Accepted; đóng góp đúng vào Revenue | NOT RUN / LEADER E2E PENDING |
+| REV-NEG-02 | Valid year with no Paid Orders | Monthly Revenue 0, count 0; vẫn là response thành công | NOT RUN / LEADER E2E PENDING |
+| REV-NEG-03 | Backend monthly Revenue negative | `InvalidContract`; toàn bộ Revenue UI unavailable/invalid, không clamp | NOT RUN / PR #64 FIX & QA |
+| REV-NEG-04 | Backend TotalOrders negative | `InvalidContract`; không render totals chưa tin cậy | NOT RUN / PR #64 QA |
+| REV-NEG-05 | Initial Dashboard receives negative Revenue | Không hiển thị revenue/order KPI gây hiểu nhầm; trạng thái unavailable | **QA FAIL P2 / FIX REQUIRED** tại `b161554` |
+| REV-NEG-06 | AJAX negative response after valid year | Reject nguyên tử; rollback dropdown và giữ last-good year | NOT RUN / PR #64 QA |
+| REV-NEG-07 | Kiosk/POS payable 0 or negative | Checkout bị từ chối và rollback; không Pending/QR hoặc mutation một phần | PASS — historical Backend targeted QA; xem PD-E2E-10 |
+| REV-NEG-08 | Preexisting Order amount `<= 0` attempts Pending → Paid | Transition bị từ chối; không partial mutation | NOT RUN / ISSUE #71 PENDING |
+| REV-NEG-09 | Negative Paid Order masked by positive monthly sum | Backend phát hiện invalid source data, không chỉ kiểm aggregate tháng | NOT RUN / ISSUE #71 PENDING |
+| REV-NEG-10 | Normal valid Paid orders | Revenue không đổi sau hardening | NOT RUN / ISSUE #71 PENDING |
+
+Tối ưu test: mở rộng các suite checkout/payment/report và CMS normalizer hiện có; chỉ bổ sung fixture dữ liệu âm tối thiểu cho transition và aggregation. Không tạo harness mới hoặc chạy full regression ngoài dependency bị thay đổi.
+
 ## 3. Đối chiếu bắt buộc sau mỗi order
 
 Ghi lại và so sánh trực tiếp các trường: `OrderId`, `OrderCode`, `SubTotal`, `DiscountAmount`, `PointsUsed`, `TotalAmount`, `OrderStatus`, `CompletedAt`, `StockQuantity`, `ReservedQuantity`, `PaymentTransactions.ReferenceCode` và số dư điểm thành viên. Với race test, chụp trạng thái trước/sau trong cùng database test và giữ log timestamp UTC.

@@ -403,6 +403,15 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - Duplicate month hoặc month ngoài `1..12` làm toàn bộ Revenue response không hợp lệ. CMS không được âm thầm `GroupBy + Sum`, không render totals chưa tin cậy và không cập nhật UI từng phần; Backend phải điều tra nếu API thực tế vi phạm contract.
 - Empty `data[]` thành công được zero-fill thành 12 tháng bằng 0. API unavailable hoặc payload `null`/malformed không phải doanh thu 0 hợp lệ và phải hiển thị trạng thái unavailable/invalid riêng.
 - Backend hiện đã group theo tháng và trả 12 row có thứ tự; đây là contract của endpoint hiện hữu, không phải yêu cầu tạo route hay DTO mới. CMS chịu trách nhiệm validation/normalization và rollback nguyên tử khi response không hợp lệ.
+
+**REVENUE-NEGATIVE-01 — APPROVED (2026-11-06):**
+
+- Mọi order `Paid` hợp lệ phải có `Order.TotalAmount > 0`. Monthly `revenue` và `totalOrders` phải lần lượt thỏa `Revenue >= 0` và `TotalOrders >= 0`; tháng hợp lệ không có order `Paid` được trả `revenue = 0`, `totalOrders = 0`.
+- Monthly Revenue âm là response Backend vi phạm contract (`InvalidContract`). CMS phải reject toàn bộ response nguyên tử, không clamp số âm về 0, không cập nhật chart/table/KPI từng phần và phải biểu diễn unavailable/invalid khác với tháng thành công có doanh thu 0. AJAX invalid phải giữ last-good year theo `REVENUE-MONTHLY-01`.
+- Refund, reversal và negative adjustment chưa thuộc Revenue contract hiện hành. Mọi mô hình net revenue/refund tương lai cần contract và phê duyệt Leader riêng; quyết định này không thêm route, DTO field hoặc HTTP error code.
+- **Implementation đã xác minh:** Kiosk/POS checkout từ chối và rollback khi payable `<= 0`; Revenue repository cộng `TotalAmount` của order `Paid`; `totalOrders` được lấy từ `Count()`.
+- **Backend hardening chưa hoàn thành:** Domain setter chưa tự enforce số tiền dương; EF migrations/model snapshot chưa xác nhận database CHECK `Order.TotalAmount > 0`; các transition của order có sẵn sang `Paid` chưa revalidate positivity; report có thể cộng dữ liệu `Paid` âm đã bypass checkout và aggregate tháng dương vẫn có thể che một order âm. [Issue #71](https://github.com/Unknown4505/Library-System/issues/71) theo dõi phần này.
+- `CONTRACT APPROVED` không đồng nghĩa `BACKEND HARDENING IMPLEMENTED`. Chưa có bằng chứng Production/runtime database chứa order âm; trạng thái đó là **UNVERIFIED**, và `docs/init.sql` không phải bằng chứng schema đang deploy.
 - `KioskStatusSummaryDto { online, offline, error, openIncidents }` vẫn tồn tại ở mức contract lịch sử, nhưng CMS Kiosk Monitoring đã **OUT OF SCOPE / NOT REQUIRED**; Issue #65 **CLOSED — NOT PLANNED** và không yêu cầu Backend triển khai endpoint tổng hợp.
 
 ### 3.8 Auth đã triển khai; Users BE-02 đã duyệt thiết kế; Employees và SalaryPayments còn PLANNED
