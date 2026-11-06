@@ -141,13 +141,15 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 |---|---|:---:|:---:|:---:|:---:|
 | 11.1 | API: `GET /api/reports/revenue` (Group by Tháng) | | @thien33 | | `[x]` |
 | 11.2 | API: `GET /api/reports/top-books` | | @thien33 | | `[x]` |
-| 11.3 | CMS: Vẽ Biểu đồ Bar Chart Doanh thu | | | @lehuukhang | `[ ]` — implementation hiện hữu; `REVENUE-MONTHLY-01` strict-validation correction và retest còn required |
+| 11.3 | CMS: Vẽ Biểu đồ Bar Chart Doanh thu | | | @lehuukhang | `[ ]` — implementation hiện hữu; strict monthly/negative validation đã có, nhưng Dashboard unavailable KPI P2 còn **FIX REQUIRED / RETEST** |
 | 11.4 | CMS: Biểu đồ Pie Chart Trạng thái Kiosk | | | @lehuukhang | `[ ]` — **OUT OF SCOPE / NOT REQUIRED**; Issue [#65](https://github.com/Unknown4505/Library-System/issues/65) CLOSED — NOT PLANNED |
 | 11.5 | **[Leader]** Ghép nối data thống kê giữa BE & FE | @Unknown4505 | | | `[ ]` — Revenue runtime E2E chưa nghiệm thu; không bao gồm CMS Kiosk Monitoring |
 
 **Leader decision — CMS-DASHBOARD-COUNT-01 (21/10/2026):** Trong phạm vi Dashboard/Report của @lehuukhang ở PR #40, Low Stock KPI phải là tổng số đầu sách tồn thấp từ toàn bộ response Backend; Low Stock Preview mới bị giới hạn tối đa 10 và sắp xếp `AvailableStock ASC, BookId ASC`. KPI/preview/sorting/API-unavailable và `CMS-MANAGER-01` đã vượt targeted QA; PR #40 đã merge vào `main` tại `9a55b09760ad59aa2e7712e8ffbbc9016d235664`. Ca 5 items và link “Xem tất cả” truyền `lowOnly=true` vẫn **RETEST REQUIRED**; source `main` hiện chưa truyền filter nên giữ **IMPLEMENTATION GAP**. Không thay đổi ownership Backend/Frontend; xem [SRS](10-srs-functional-requirements.md) và [test plan](11-end-to-end-test-plan.md).
 
 **PR #64 Reports note — REVENUE-MONTHLY-01 APPROVED (06/11/2026):** Backend Revenue không thiếu: `GET /api/reports/revenue` và `GET /api/reports/top-books` vẫn **IMPLEMENTED**, nên Task 11.1/11.2 giữ `[x]`. Lỗi `REPORT-RISK-01` cũ (`ToDictionary` crash khi duplicate month) đã được sửa và technical targeted QA PASS; cách `GroupBy + Sum` hiện hữu không phải financial contract cuối cùng được duyệt. CMS phải detect/reject duplicate hoặc month ngoài `1..12`, normalize sparse valid data và dùng một dataset cho chart/table/KPI. `REPORT-AJAX-STALE-01` đã runtime QA PASS 19/19 tại HEAD `10aad080`; `DASHBOARD-MONTHLY-CONSISTENCY-01` vẫn cần fix/retest theo contract mới. PR #64 vẫn OPEN/HOLD; không đánh dấu Task 11.3 hoặc 11.5 hoàn thành.
+
+**REVENUE-NEGATIVE-01 — APPROVED / BE HARDENING PENDING (06/11/2026):** Paid Order hợp lệ phải có `TotalAmount > 0`; monthly Revenue/TotalOrders không âm, còn tháng hợp lệ không có Paid orders được trả 0/0. FE @lehuukhang giữ strict negative rejection trong PR #64 nhưng phải sửa Dashboard unavailable KPI P2 và retest trước khi Task 11.3 hoàn thành. Backend @thien33 thực hiện hardening riêng theo [Issue #71](https://github.com/Unknown4505/Library-System/issues/71); contract approval không đánh dấu hardening DONE và không chuyển schema authority khỏi Leader. Task 11.5 tiếp tục `[ ]` cho Leader-owned CMS↔BE↔DB E2E.
 
 ### MODULE 12: KIỂM THỬ, BÁO CÁO & ĐÓNG GÓI
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
@@ -202,7 +204,7 @@ Rule QA: chỉ đánh dấu `[x]` khi toàn bộ scope tương ứng có evidenc
 - **7.3 giữ chưa hoàn thành:** Contract xác thực SePay phải được đối chiếu chính xác với cấu hình/tài liệu gateway và regression theo Issue #20; static code review không phải runtime evidence.
 - **7.6 giữ chưa hoàn thành:** HTTP smoke đã PASS Checkout→Pending→QR→polling→Cancel và đối chiếu reserve 0→1→0; F3/Receipt đều trả 404, chưa có SePay Test Mode/Paid/Receipt E2E.
 - **9.1 giữ chưa hoàn thành:** Leader đã bổ sung Category/Area CRUD dùng shared DTO, wrapper và role Admin; SQL contract tests PASS. Books write endpoints hiện chưa có authorization và validation wrapper toàn cục chưa được nghiệm thu, nên chưa thể đánh dấu hoàn thành.
-- **11.5 giữ chưa hoàn thành:** Revenue/Top Books Backend đã tồn tại; contract `REVENUE-MONTHLY-01` đã duyệt nhưng FE correction/retest và Leader-owned runtime CMS↔BE↔DB vẫn chưa đạt. CMS Kiosk Monitoring đã OUT OF SCOPE nên không còn là dependency hoặc tiêu chí của Task 11.5.
+- **11.5 giữ chưa hoàn thành:** Revenue/Top Books Backend đã tồn tại; `REVENUE-MONTHLY-01` và `REVENUE-NEGATIVE-01` đã duyệt nhưng Backend hardening #71, Dashboard KPI P2 fix/retest và Leader-owned runtime CMS↔BE↔DB vẫn chưa đạt. CMS Kiosk Monitoring đã OUT OF SCOPE nên không còn là dependency hoặc tiêu chí của Task 11.5.
 - **12.1 giữ chưa hoàn thành:** Kế hoạch và kết quả component SQL đã cập nhật tại docs/11-end-to-end-test-plan.md; chưa chạy E2E đầy đủ với Kiosk WPF và SePay Test Mode.
 - **12.2 giữ chưa hoàn thành:** Artifact BFD/DFD 0/1/2 tồn tại trong `diagram/`; BFD và DFD Level 1 cùng bảy nhóm chức năng, DFD Level 2 khớp luồng checkout/payment. DFD Level 1 còn thiếu data store/luồng xác thực `Users` và bộ sơ đồ chưa phân biệt rõ chức năng đã triển khai với phần Planned/BLOCKED.
 - **12.3 giữ trạng thái hoàn thành:** ERD đã được đối chiếu có đúng 17 entity, không thêm bảng ngoài model và có quan hệ nullable `Kiosks.AreaId -> Areas.AreaId` đúng cấu hình `SET NULL`.
@@ -217,7 +219,7 @@ Rule QA: chỉ đánh dấu `[x]` khi toàn bộ scope tương ứng có evidenc
 | #66 BE-01 Users Read | `@thien33` | [#66](https://github.com/Unknown4505/Library-System/issues/66) | **[x] QA PASS — PR #68 OPEN / PENDING LEADER MERGE GATE** | CMS E2E chưa nghiệm thu |
 | #66 BE-03 Auth/Security | `@thien33` | [#66](https://github.com/Unknown4505/Library-System/issues/66) | **[x] TARGETED QA PASS** — Admin auth, JWT 401/403, DTO secrecy, read-only GET, login/inactive-login regression | Không suy rộng thành full security regression PASS |
 | #66 BE-02 Users CRUD | `@thien33` | [#66](https://github.com/Unknown4505/Library-System/issues/66) | **[ ] APPROVED DESIGN — NOT IMPLEMENTED** | PR riêng: Admin-only Create, Update FullName/Role, Activate/Deactivate, Reset Password; giữ nguyên `USER-MGMT-BE02-01` |
-| Revenue Reports | `@thien33` | Existing implementation | **IMPLEMENTED** — giữ Task 11.1/11.2 `[x]` | `REVENUE-MONTHLY-01` APPROVED; FE strict validation + CMS Reports E2E chưa nghiệm thu |
+| Revenue Reports | `@thien33` | Existing implementation; [#71](https://github.com/Unknown4505/Library-System/issues/71) hardening | **IMPLEMENTED** — giữ Task 11.1/11.2 `[x]`; hardening **NOT DONE** | `REVENUE-MONTHLY-01` và `REVENUE-NEGATIVE-01` APPROVED; Dashboard KPI P2 fix/retest + Leader E2E chưa nghiệm thu |
 
 **Scope boundary:** Issue #61 chỉ bao gồm Kiosk WPF. CMS Reports/User Management trong PR #64 không tự trở thành scope #61 và cần tách hoặc có Leader approval; CMS Kiosk Monitoring đã OUT OF SCOPE / NOT REQUIRED và không được dùng làm Backend blocker. `@lehuukhang` không tự sửa Backend/SQL để unblock FE; `@thien33` chỉ handoff route/DTO/evidence còn hiệu lực qua #60/#66 trước khi claim cross-layer PASS.
 
