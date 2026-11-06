@@ -19,8 +19,37 @@ public class UnitOfWork : IUnitOfWork
 
     public async Task BeginTransactionAsync() => _transaction = await _context.Database.BeginTransactionAsync();
     public async Task BeginTransactionAsync(System.Data.IsolationLevel isolationLevel) => _transaction = await _context.Database.BeginTransactionAsync(isolationLevel);
-    public async Task CommitAsync() { if (_transaction != null) await _transaction.CommitAsync(); }
-    public async Task RollbackAsync() { if (_transaction != null) await _transaction.RollbackAsync(); }
+    public async Task CommitAsync()
+    {
+        if (_transaction != null)
+        {
+            try
+            {
+                await _transaction.CommitAsync();
+            }
+            finally
+            {
+                await _transaction.DisposeAsync();
+                _transaction = null;
+            }
+        }
+    }
+
+    public async Task RollbackAsync()
+    {
+        if (_transaction != null)
+        {
+            try
+            {
+                await _transaction.RollbackAsync();
+            }
+            finally
+            {
+                await _transaction.DisposeAsync();
+                _transaction = null;
+            }
+        }
+    }
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
     public void Dispose() => _transaction?.Dispose();
 }

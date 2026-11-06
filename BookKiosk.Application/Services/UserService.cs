@@ -30,6 +30,52 @@ public class UserService : IUserService
     // SemaphoreSlim đồng bộ hóa in-process cho các thao tác tác động tới bất biến activeAdmins >= 1
     private static readonly SemaphoreSlim _adminLifecycleLock = new(1, 1);
 
+    public static bool IsUniqueConstraintViolation(Exception ex)
+    {
+        var current = ex;
+        while (current != null)
+        {
+            var typeName = current.GetType().Name;
+
+            // 1. SQL Server: SqlException Number 2601 hoặc 2627
+            if (typeName == "SqlException")
+            {
+                var numberProp = current.GetType().GetProperty("Number");
+                if (numberProp?.GetValue(current) is int number && (number == 2601 || number == 2627))
+                {
+                    return true;
+                }
+            }
+
+            // 2. SQLite: ErrorCode 19
+            if (typeName == "SqliteException")
+            {
+                var codeProp = current.GetType().GetProperty("SqliteErrorCode");
+                if (codeProp?.GetValue(current) is int code && code == 19 &&
+                    current.Message.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            // 3. Fallback message inspection cho mocked/simulated exceptions
+            var msg = current.Message;
+            if (!string.IsNullOrEmpty(msg) &&
+                (msg.Contains("2601") ||
+                 msg.Contains("2627") ||
+                 msg.Contains("IX_Users_Username", StringComparison.OrdinalIgnoreCase) ||
+                 msg.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) ||
+                 msg.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            current = current.InnerException;
+        }
+
+        return false;
+    }
+
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -126,7 +172,7 @@ public class UserService : IUserService
             await _userRepository.AddAsync(user);
             await _unitOfWork.SaveChangesAsync();
         }
-        catch (Exception ex) when (ex.GetType().Name.Contains("DbUpdate") || (ex.InnerException != null && ex.InnerException.Message.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase)))
+        catch (Exception ex) when (IsUniqueConstraintViolation(ex))
         {
             // Bắt vi phạm Unique Index trong SQL Server khi hai request cùng gửi đồng thời
             throw new InvalidOperationException("Tên đăng nhập đã tồn tại trong hệ thống.", ex);
@@ -172,7 +218,6 @@ public class UserService : IUserService
                     var activeAdmins = await _userRepository.CountActiveAdminsAsync();
                     if (activeAdmins <= 1)
                     {
-                        await _unitOfWork.RollbackAsync();
                         throw new InvalidOperationException("Hệ thống bắt buộc phải có ít nhất một tài khoản Quản trị viên (Admin) đang hoạt động.");
                     }
 
@@ -239,7 +284,6 @@ public class UserService : IUserService
                     var activeAdmins = await _userRepository.CountActiveAdminsAsync();
                     if (activeAdmins <= 1)
                     {
-                        await _unitOfWork.RollbackAsync();
                         throw new InvalidOperationException("Hệ thống bắt buộc phải có ít nhất một tài khoản Quản trị viên (Admin) đang hoạt động.");
                     }
 

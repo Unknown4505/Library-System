@@ -60,10 +60,16 @@ public class UsersController : ControllerBase
         {
             return Conflict(ApiResponseDto<object>.Error("CONFLICT", ex.Message));
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException ex) when (UserService.IsUniqueConstraintViolation(ex))
         {
             // QA-USER-01: Map vi phạm unique constraint đồng thời sang 409 CONFLICT an toàn
             return Conflict(ApiResponseDto<object>.Error("CONFLICT", "Tên đăng nhập đã tồn tại trong hệ thống."));
+        }
+        catch (DbUpdateException)
+        {
+            // Lỗi lưu trữ DB khác (không phải unique violation): Trả 500 INTERNAL_ERROR an toàn
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponseDto<object>.Error("INTERNAL_ERROR", "Lỗi lưu trữ dữ liệu. Vui lòng thử lại sau."));
         }
     }
 
@@ -94,7 +100,8 @@ public class UsersController : ControllerBase
         }
         catch (DbUpdateException)
         {
-            return Conflict(ApiResponseDto<object>.Error("CONFLICT", "Yêu cầu không thể hoàn tất do xung đột dữ liệu đồng thời. Vui lòng thử lại sau."));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponseDto<object>.Error("INTERNAL_ERROR", "Lỗi lưu trữ dữ liệu. Vui lòng thử lại sau."));
         }
     }
 
@@ -143,7 +150,8 @@ public class UsersController : ControllerBase
         }
         catch (DbUpdateException)
         {
-            return Conflict(ApiResponseDto<object>.Error("CONFLICT", "Yêu cầu không thể hoàn tất do xung đột dữ liệu đồng thời. Vui lòng thử lại sau."));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponseDto<object>.Error("INTERNAL_ERROR", "Lỗi lưu trữ dữ liệu. Vui lòng thử lại sau."));
         }
     }
 
@@ -165,7 +173,8 @@ public class UsersController : ControllerBase
         }
         catch (DbUpdateException)
         {
-            return Conflict(ApiResponseDto<object>.Error("CONFLICT", "Yêu cầu không thể hoàn tất do xung đột dữ liệu đồng thời. Vui lòng thử lại sau."));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponseDto<object>.Error("INTERNAL_ERROR", "Lỗi lưu trữ dữ liệu. Vui lòng thử lại sau."));
         }
     }
 }
