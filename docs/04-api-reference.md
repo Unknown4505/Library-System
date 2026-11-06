@@ -78,10 +78,14 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 #### Lấy danh sách Sách (Có phân trang, tìm kiếm)
 - **Endpoint:** `GET /api/books`
 - **Query Params:** 
-  - `keyword` (string): Tìm theo tên hoặc tác giả (tùy chọn).
+  - `keyword` (string): Trên `main@3410193`, tìm theo tên hoặc tác giả (tùy chọn); mở rộng 6 trường chỉ có trong open PR #68.
   - `categoryId` (int): Lọc theo danh mục (tùy chọn).
   - `page` (int): Mặc định `1`.
   - `pageSize` (int): Mặc định `12` theo source hiện tại.
+- **Extended Search — IMPLEMENTED IN PR #68 / TARGETED QA PASS / NOT MERGED:** [Issue #60](https://github.com/Unknown4505/Library-System/issues/60) BE-01 tại exact QA HEAD `829a46b27327d3dceb98c93b521cd4779bb65fbd` mở rộng `keyword` theo OR trên `Title`, `Author`, `Barcode`, `Publisher`, `Category.Name`, `Area.Name`; kết hợp được với `categoryId`, giữ pagination và sort ổn định `Title ASC, BookId ASC`. Extreme-page overflow đã FIX VERIFIED; HTTP/SQL targeted QA PASS. PR #68 còn OPEN nên API mở rộng **chưa có trên `main`** và chưa có full FE/Kiosk E2E evidence.
+- [x] #60 BE-01 implementation và targeted Backend QA.
+- [ ] #60 BE-01 merge/full FE-Kiosk E2E — chưa hoàn thành.
+- [ ] #60 BE-02 sửa Barcode — **HOLD / LEADER DECISION REQUIRED**; không tự thêm khả năng đổi Barcode vào update contract.
 - **Response (Success - 200 OK):**
 ```json
 {
@@ -362,6 +366,12 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - **Validation:** `kioskId` là số nguyên dương đã tồn tại; `status` chỉ nhận `1`, `2`, `3`. Giá trị khác phải trả `400 BAD_REQUEST`; ID không tồn tại trả `404 NOT_FOUND`.
 - **Xử lý Backend:** Update `LastPingAt` bằng UTC và tạo `KioskIncident` nếu có lỗi chưa fix. `kioskId` là khóa database được cấp ở bước đăng ký/cấu hình thiết bị và lưu trong cấu hình Kiosk; không hardcode `1` và không gửi mã hiển thị như `KIOSK-01`.
 
+#### 3.5.1 CMS Kiosk Monitoring — OUT OF SCOPE / NOT REQUIRED
+
+- [Issue #65](https://github.com/Unknown4505/Library-System/issues/65) đã **CLOSED — NOT PLANNED** theo quyết định Leader dựa trên yêu cầu giảng viên. Đồ án không yêu cầu triển khai GET danh sách/tổng hợp trạng thái thiết bị cho CMS.
+- Quyết định này không xóa hoặc thay đổi `POST /api/kiosk/heartbeat` hiện có. Heartbeat vẫn là API kỹ thuật của hệ thống, nhưng CMS Monitoring không còn là Backend dependency hoặc tiêu chí nghiệm thu bắt buộc.
+- `KioskStatusSummaryDto { online, offline, error, openIncidents }` được giữ như dấu vết contract/source hiện hữu; việc DTO tồn tại không tạo nghĩa vụ triển khai endpoint Monitoring.
+
 ### 3.6 Admin Catalog CRUD (contract nghiệm thu Task 9.1)
 
 - Tất cả endpoint ghi dữ liệu yêu cầu JWT; `Admin` được tạo/sửa/vô hiệu hóa, `Staff` chỉ có quyền được cấp trong `docs/07-security.md`.
@@ -384,14 +394,28 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - `GET /api/reports/revenue?year={year}` → `ApiResponseDto<RevenueReportDto>` gồm `year` và `data[] { month, revenue, totalOrders }`.
 - `GET /api/reports/top-books?top={n}` → `ApiResponseDto<List<TopSellingBookDto>>` gồm `bookId`, `title`, `imageUrl`, `totalSold`, `totalRevenue`.
 - Cả hai endpoint chỉ dành cho JWT role `Admin`; tiền chỉ tính từ order `Paid`.
-- Dashboard trạng thái thiết bị dùng contract `KioskStatusSummaryDto { online, offline, error, openIncidents }`. Backend hiện chưa có endpoint tổng hợp tương ứng; không giả lập dữ liệu CMS và không tự coi contract này là endpoint đã tồn tại.
+- Hai endpoint Revenue/Top Books đã được triển khai trên Backend; source CMS trong PR [#64](https://github.com/Unknown4505/Library-System/pull/64) không thay đổi trạng thái Backend này. Runtime CMS↔BE↔DB vẫn cần QA/E2E riêng.
 
-### 3.8 Auth, Users, Employees và SalaryPayments — PLANNED
+**REVENUE-MONTHLY-01 — APPROVED (2026-11-06):**
 
-Các route dưới đây chỉ là namespace contract mục tiêu, **chưa phải endpoint đã tồn tại** và cần review riêng trước khi member triển khai:
+- Backend sở hữu phép tổng hợp tài chính. Trong response thành công, mỗi `month` chỉ xuất hiện tối đa một lần, là số nguyên từ `1` đến `12`, và các row được sắp xếp `month ASC`; chỉ order `Paid` hợp lệ theo Revenue contract hiện hữu được tính.
+- Dữ liệu tháng thưa là hợp lệ. CMS phải kiểm tra range/uniqueness, zero-fill tháng thiếu và chuẩn hóa thành đúng 12 row có thứ tự trước khi tính annual revenue/total orders. Dashboard và Reports chart/table/KPI phải dùng cùng một dataset đã kiểm tra.
+- Duplicate month hoặc month ngoài `1..12` làm toàn bộ Revenue response không hợp lệ. CMS không được âm thầm `GroupBy + Sum`, không render totals chưa tin cậy và không cập nhật UI từng phần; Backend phải điều tra nếu API thực tế vi phạm contract.
+- Empty `data[]` thành công được zero-fill thành 12 tháng bằng 0. API unavailable hoặc payload `null`/malformed không phải doanh thu 0 hợp lệ và phải hiển thị trạng thái unavailable/invalid riêng.
+- Backend hiện đã group theo tháng và trả 12 row có thứ tự; đây là contract của endpoint hiện hữu, không phải yêu cầu tạo route hay DTO mới. CMS chịu trách nhiệm validation/normalization và rollback nguyên tử khi response không hợp lệ.
+- `KioskStatusSummaryDto { online, offline, error, openIncidents }` vẫn tồn tại ở mức contract lịch sử, nhưng CMS Kiosk Monitoring đã **OUT OF SCOPE / NOT REQUIRED**; Issue #65 **CLOSED — NOT PLANNED** và không yêu cầu Backend triển khai endpoint tổng hợp.
 
-- `POST /api/auth/login`: xác thực tài khoản active, trả JWT có role `Admin`, `Manager` hoặc `Staff`.
-- `/api/users`: quản lý tài khoản; Admin-only.
+### 3.8 Auth đã triển khai; Users BE-02 đã duyệt thiết kế; Employees và SalaryPayments còn PLANNED
+
+Trạng thái phải tách riêng giữa authentication hiện hữu và các API quản trị chưa triển khai:
+
+- `POST /api/auth/login`: **IMPLEMENTED**; xác thực tài khoản active và trả JWT có role `Admin`, `Manager` hoặc `Staff`.
+- [Issue #66](https://github.com/Unknown4505/Library-System/issues/66) được giao cho `@thien33`. `GET /api/users` và `GET /api/users/{id}` tại exact PR [#68](https://github.com/Unknown4505/Library-System/pull/68) HEAD `829a46b27327d3dceb98c93b521cd4779bb65fbd` là **IMPLEMENTED / TARGETED QA PASS / NOT MERGED**. List hỗ trợ `keyword`, `role`, `isActive`, `page`, `pageSize`; detail trả `404 NOT_FOUND` khi không tồn tại. Cả hai route Admin-only và response allowlist chỉ gồm `userId`, `username`, `fullName`, `role`, `isActive`; không trả `PasswordHash`, token, secret, `Email` hoặc `CreatedAt`. Extreme-page overflow, JWT 401/403 matrix và GET read-only đã targeted QA PASS; API này **chưa có trên `main`**.
+- [x] #66 BE-01 implementation và targeted Backend QA; [x] #66 BE-03 targeted auth/security QA.
+- [ ] #66 BE-01 merge/full CMS E2E — chưa hoàn thành; targeted auth/security PASS không được suy rộng thành full security regression PASS.
+- **Leader decision USER-MGMT-BE02-01 (2026-11-04): APPROVED DESIGN / READY TO IMPLEMENT.** `@thien33` được triển khai trong PR riêng: `POST /api/users`, `PUT /api/users/{id}` chỉ sửa `fullName`/`role`, `PATCH /api/users/{id}/status` để activate/deactivate và `POST /api/users/{id}/reset-password` nhận mật khẩu mới. Chỉ role `Admin` được gọi; `Manager`/`Staff` phải nhận `403`.
+- Không triển khai hard-delete hoặc đổi `username`. Không cho Admin tự vô hiệu hóa hoặc vô hiệu hóa Admin active cuối cùng. Username unique không phân biệt hoa/thường và phải xử lý cạnh tranh tạo trùng; password tối thiểu 8 ký tự, có chữ hoa/chữ thường/số, được hash bằng cơ chế hiện hữu và không xuất hiện trong response/log.
+- Không thêm `Email`, `CreatedAt`, `MustChangePassword` hoặc bảng audit/migration mới trong BE-02. CMS phải bỏ/ẩn các mock field không có trong entity. BE-02 chỉ được ghi **IMPLEMENTED** sau khi có code, authorization/validation/concurrency tests và evidence; quyết định duyệt thiết kế không đồng nghĩa E2E đã PASS.
 - `/api/employees`: hồ sơ nhân viên; Admin/Manager theo policy, Staff chỉ được đọc hồ sơ của chính mình khi có identity mapping.
 - `/api/salary-payments`: sổ lương tháng; API/DTO/controller/service đều **PLANNED**.
 

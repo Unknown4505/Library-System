@@ -50,6 +50,29 @@ Các kết quả dưới đây bổ sung trường Input, Actual và Owner cho t
 | E2E-13 | Revenue/top-books typed DTO | DTO serialization PASS; authorization test FAIL vì ReportsController không giới hạn Admin | FAIL | Thiện Backend, Khang CMS |
 | E2E-14 | API key thiếu/sai; F3/receipt; maintenance | HTTP thiếu key trả 401, key sai trả 403; F3 và receipt trả 404; PR #11 còn password hardcode; Books POST không JWT vẫn trả 201 | FAIL | Thiện auth/#20, Khang Maintenance |
 
+### 2.1 Targeted acceptance — REVENUE-MONTHLY-01
+
+Các ca dưới đây là acceptance requirements theo quyết định Leader ngày 2026-11-06, không phải kết quả test đã chạy. Evidence lịch sử của E2E-13 phía trên được giữ nguyên; chỉ chuyển trạng thái sau khi FE correction được retest trên exact HEAD.
+
+| ID | Input | Expected | Trạng thái |
+|---|---|---|---|
+| REV-MONTH-01 | 12 tháng duy nhất, hợp lệ | Render đúng 12 tháng theo `month ASC` | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-02 | Thiếu Month 4 | Zero-fill Month 4; các tháng còn lại không đổi | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-03 | Hai row Month 3 | Reject toàn bộ response; không `GroupBy + Sum` | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-04 | Month 0 hoặc 13 | Reject toàn bộ response | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-05 | Empty monthly list thành công | Chuẩn hóa thành 12 tháng bằng 0 | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-06 | Payload null/malformed | Hiển thị unavailable/invalid, không coi là doanh thu 0 | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-07 | Initial Dashboard nhận dữ liệu invalid | Không hiển thị chart/table/KPI gây hiểu nhầm; widget độc lập vẫn an toàn | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-08 | Initial Reports nhận dữ liệu invalid | Không hiển thị totals chưa tin cậy | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-09 | AJAX invalid sau một năm hợp lệ | Rollback dropdown và giữ nguyên toàn bộ dữ liệu năm gần nhất thành công | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-10 | HTTP 401/403 hoặc network error | Giữ last-good year, dữ liệu/labels đồng bộ và hiển thị lỗi | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-11 | Success → failure → success | Chart/table/KPI/dropdown/labels luôn cùng năm được chấp nhận | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-12 | Response AJAX cũ về muộn | Không ghi đè kết quả mới nhất đã được chấp nhận | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-13 | Revenue data hợp lệ | Chart/table/KPI và annual totals khớp cùng normalized dataset | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-14 | Admin và non-Admin | Giữ authorization hiện hữu: Admin được phép, non-Admin bị từ chối | NOT RUN / PENDING FE FIX & QA |
+
+Evidence nghiệm thu phải gồm exact PR HEAD, targeted .NET TRX, JavaScript DOM/runtime log, rendered HTML evidence, Debug/Release build logs và `git diff --check`. Final E2E còn phải đối chiếu API thật với SQL QA disposable để xác nhận Paid-only aggregation; targeted mock/DOM evidence không thay thế bước này.
+
 ## 3. Đối chiếu bắt buộc sau mỗi order
 
 Ghi lại và so sánh trực tiếp các trường: `OrderId`, `OrderCode`, `SubTotal`, `DiscountAmount`, `PointsUsed`, `TotalAmount`, `OrderStatus`, `CompletedAt`, `StockQuantity`, `ReservedQuantity`, `PaymentTransactions.ReferenceCode` và số dư điểm thành viên. Với race test, chụp trạng thái trước/sau trong cùng database test và giữ log timestamp UTC.

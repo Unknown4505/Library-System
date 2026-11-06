@@ -134,6 +134,14 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
   * **LOW-STOCK-ERROR-01:** Khi không tải được dữ liệu Backend, Dashboard phải hiển thị trạng thái không khả dụng; không được diễn giải lỗi thành KPI 0 hoặc tự tạo số lượng giả.
   * Staff Workspace chỉ dùng preview tối đa 10 mục và không công bố KPI tổng, nên không mở rộng ý nghĩa KPI Admin sang widget này.
   * **Trạng thái triển khai:** PR #40 đã merge vào `main` tại `9a55b09760ad59aa2e7712e8ffbbc9016d235664`. KPI tổng, preview, sorting và trạng thái API unavailable đã vượt targeted QA; ca 5 items và link “Xem tất cả” truyền `lowOnly=true` vẫn **RETEST REQUIRED**. Source `main` hiện chưa truyền bộ lọc trên link nên đây là **IMPLEMENTATION GAP**, không thay đổi contract.
+* **2.5.3. REVENUE-MONTHLY-01 — Strict Monthly Revenue Validation (APPROVED 06/11/2026)**
+  * Backend aggregation là nguồn tài chính có thẩm quyền: mỗi tháng chỉ xuất hiện tối đa một lần, `month` thuộc `1..12`, sắp xếp tăng dần và chỉ tính order `Paid` hợp lệ.
+  * CMS phải validate range/uniqueness, zero-fill tháng thiếu thành 12 tháng có thứ tự, rồi dùng cùng dataset đã xác minh cho chart, bảng, annual totals và KPI trên Dashboard/Reports.
+  * Duplicate month hoặc month ngoài range làm toàn bộ response không hợp lệ; CMS không được âm thầm `GroupBy + Sum` hoặc hiển thị totals một phần/chưa tin cậy.
+  * Khi dữ liệu Revenue ban đầu invalid/null/malformed, trang phải hiển thị unavailable/invalid thay vì doanh thu 0 hoặc biểu đồ/bảng gây hiểu nhầm; widget độc lập khác vẫn có thể hoạt động.
+  * Khi đổi năm qua AJAX thất bại vì authorization, API/network/JSON, malformed hoặc vi phạm monthly contract, CMS phải giữ nguyên toàn bộ dữ liệu của năm thành công gần nhất, rollback dropdown, hiển thị lỗi và chặn response cũ ghi đè response mới.
+  * Empty monthly list thành công khác API failure và được zero-fill; không bổ sung quy tắc cấm doanh thu âm/refund nếu chưa có contract riêng được duyệt.
+  * **Trạng thái:** Contract đã APPROVED; FE strict-validation correction và targeted retest tại PR #64 vẫn **PENDING**, không được xem là đã nghiệm thu.
 
 ---
 
