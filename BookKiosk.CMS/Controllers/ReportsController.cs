@@ -79,7 +79,18 @@ namespace BookKiosk.CMS.Controllers
                 var revenueResult = await _reportApi.GetRevenueByMonthAsync(selectedYear);
                 if (revenueResult.Success && revenueResult.Data != null)
                 {
-                    viewModel.RevenueReport = revenueResult.Data;
+                    var normResult = MonthlyRevenueNormalizer.Normalize(revenueResult.Data.MonthlyData, selectedYear);
+                    if (normResult.IsValid)
+                    {
+                        viewModel.RevenueReport = revenueResult.Data;
+                        viewModel.MonthlyRows = normResult.Rows;
+                    }
+                    else
+                    {
+                        viewModel.IsRevenueUnavailable = true;
+                        viewModel.ErrorMessage = normResult.ErrorMessage;
+                        _logger.LogWarning("Báo cáo doanh thu Reports năm {Year} vi phạm hợp đồng: {Reason}", selectedYear, normResult.ErrorMessage);
+                    }
                 }
                 else
                 {

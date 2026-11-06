@@ -67,7 +67,20 @@ namespace BookKiosk.CMS.Controllers
                 var revenueResult = await _reportApi.GetRevenueByMonthAsync(selectedYear);
                 if (revenueResult.Success && revenueResult.Data != null)
                 {
-                    viewModel.RevenueReport = revenueResult.Data;
+                    var normResult = MonthlyRevenueNormalizer.Normalize(revenueResult.Data.MonthlyData, selectedYear);
+                    if (normResult.IsValid)
+                    {
+                        viewModel.RevenueReport = revenueResult.Data;
+                        viewModel.NormalizedMonthlyRows = normResult.Rows;
+                        viewModel.TotalAnnualRevenue = normResult.TotalAnnualRevenue;
+                        viewModel.TotalAnnualOrders = normResult.TotalAnnualOrders;
+                    }
+                    else
+                    {
+                        viewModel.IsRevenueUnavailable = true;
+                        viewModel.ErrorMessage = normResult.ErrorMessage;
+                        _logger.LogWarning("Dữ liệu báo cáo doanh thu năm {Year} vi phạm hợp đồng: {Reason}", selectedYear, normResult.ErrorMessage);
+                    }
                 }
                 else
                 {
@@ -209,21 +222,28 @@ namespace BookKiosk.CMS.Controllers
                     return Json(new
                     {
                         success = false,
-                        message = result.Message ?? "Không thể lấy dữ liệu doanh thu."
+                        message = result?.Message ?? "Không thể lấy dữ liệu doanh thu."
                     });
                 }
 
-                var monthlyData = result.Data.MonthlyData;
-                decimal totalRevenue = monthlyData.Sum(m => m.Revenue);
-                int totalOrders = monthlyData.Sum(m => m.TotalOrders);
+                var normResult = MonthlyRevenueNormalizer.Normalize(result.Data.MonthlyData, selectedYear);
+                if (!normResult.IsValid)
+                {
+                    _logger.LogWarning("Dữ liệu AJAX GetRevenueChartData năm {Year} vi phạm hợp đồng: {Reason}", selectedYear, normResult.ErrorMessage);
+                    return Json(new
+                    {
+                        success = false,
+                        message = normResult.ErrorMessage ?? "Dữ liệu doanh thu từ máy chủ không hợp lệ (vi phạm hợp đồng)."
+                    });
+                }
 
                 return Json(new
                 {
                     success = true,
                     year = result.Data.Year,
-                    data = monthlyData,
-                    totalRevenue,
-                    totalOrders
+                    data = normResult.Rows,
+                    totalRevenue = normResult.TotalAnnualRevenue,
+                    totalOrders = normResult.TotalAnnualOrders
                 });
             }
             catch (Exception ex)

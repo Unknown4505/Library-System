@@ -34,52 +34,34 @@ namespace BookKiosk.CMS.ViewModels.Reports
         public int? StatusCode { get; set; }
         public string? ErrorMessage { get; set; }
 
+        private List<MonthlyReportRow>? _monthlyRows;
+
         /// <summary>
         /// Chuẩn hóa mảng đủ 12 tháng (tháng 1 đến 12).
-        /// Tháng nào Backend không có dữ liệu thì gán mặc định bằng 0.
-        /// REPORT-RISK-01: An toàn tuyệt đối trước dữ liệu trùng tháng từ Backend/Mock (dùng GroupBy và gộp cộng dồn).
+        /// REVENUE-MONTHLY-01: Dùng MonthlyRevenueNormalizer kiểm tra hợp đồng nghiêm ngặt.
+        /// Tháng trùng hoặc tháng ngoài 1..12 sẽ bị TỪ CHỐI (IsRevenueUnavailable = true).
         /// </summary>
         public List<MonthlyReportRow> MonthlyRows
         {
             get
             {
-                var rows = new List<MonthlyReportRow>();
-                var dict = RevenueReport?.MonthlyData?
-                    .Where(m => m.Month >= 1 && m.Month <= 12)
-                    .GroupBy(m => m.Month)
-                    .ToDictionary(
-                        g => g.Key,
-                        g => new MonthlyRevenueItemDto
-                        {
-                            Month = g.Key,
-                            Revenue = g.Sum(x => x.Revenue),
-                            TotalOrders = g.Sum(x => x.TotalOrders)
-                        }) ?? new Dictionary<int, MonthlyRevenueItemDto>();
+                if (_monthlyRows != null) return _monthlyRows;
 
-                for (int m = 1; m <= 12; m++)
+                var result = MonthlyRevenueNormalizer.Normalize(RevenueReport?.MonthlyData, SelectedYear);
+                if (!result.IsValid)
                 {
-                    if (dict.TryGetValue(m, out var item))
+                    IsRevenueUnavailable = true;
+                    if (string.IsNullOrWhiteSpace(ErrorMessage))
                     {
-                        rows.Add(new MonthlyReportRow
-                        {
-                            Month = m,
-                            Revenue = item.Revenue,
-                            TotalOrders = item.TotalOrders
-                        });
+                        ErrorMessage = result.ErrorMessage;
                     }
-                    else
-                    {
-                        rows.Add(new MonthlyReportRow
-                        {
-                            Month = m,
-                            Revenue = 0m,
-                            TotalOrders = 0
-                        });
-                    }
+                    return new List<MonthlyReportRow>();
                 }
 
-                return rows;
+                _monthlyRows = result.Rows;
+                return _monthlyRows;
             }
+            set => _monthlyRows = value;
         }
 
         /// <summary>

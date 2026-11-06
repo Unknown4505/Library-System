@@ -244,9 +244,9 @@ namespace BookKiosk.Tests.Cms
         }
 
         [Fact]
-        public void MonthlyRows_WhenDataContainsDuplicateMonths_AggregatesCorrectlyWithoutException()
+        public void MonthlyRows_WhenDataContainsDuplicateMonths_RejectsContractAndMarksUnavailable()
         {
-            // Arrange - REPORT-RISK-01: Backend hoặc Mock trả về danh sách có tháng bị trùng lặp (ví dụ 2 bản ghi tháng 3, 2 bản ghi tháng 8)
+            // Arrange - REVENUE-MONTHLY-01 Option A: Backend trả về danh sách có tháng bị trùng lặp (ví dụ 2 bản ghi tháng 3, 2 bản ghi tháng 8)
             var vm = new ReportsIndexViewModel
             {
                 RevenueReport = new RevenueReportResponseDto
@@ -262,37 +262,23 @@ namespace BookKiosk.Tests.Cms
                 }
             };
 
-            // Act - Không được ném ArgumentException từ ToDictionary
+            // Act - Không được GroupBy+Sum ngầm, phải từ chối payload
             var rows = vm.MonthlyRows;
+            var isUnavailable = vm.IsRevenueUnavailable;
             var totalRevenue = vm.TotalAnnualRevenue;
             var totalOrders = vm.TotalAnnualOrders;
-            var avgOrder = vm.AnnualAverageOrderValue;
 
             // Assert
-            rows.Should().HaveCount(12, "Vẫn phải chuẩn hóa đủ 12 tháng");
-
-            // Tháng 3: gộp doanh thu 15M + 25M = 40M, tổng đơn 50 + 70 = 120
-            rows[2].Month.Should().Be(3);
-            rows[2].Revenue.Should().Be(40_000_000m);
-            rows[2].TotalOrders.Should().Be(120);
-            rows[2].AverageOrderValue.Should().Be(Math.Round(40_000_000m / 120));
-
-            // Tháng 8: gộp doanh thu 10M + 30M = 40M, tổng đơn 20 + 40 = 60
-            rows[7].Month.Should().Be(8);
-            rows[7].Revenue.Should().Be(40_000_000m);
-            rows[7].TotalOrders.Should().Be(60);
-            rows[7].AverageOrderValue.Should().Be(Math.Round(40_000_000m / 60));
-
-            // Tổng cả năm
-            totalRevenue.Should().Be(80_000_000m);
-            totalOrders.Should().Be(180);
-            avgOrder.Should().Be(Math.Round(80_000_000m / 180));
+            isUnavailable.Should().BeTrue("Dữ liệu trùng tháng vi phạm hợp đồng backend và phải bị từ chối");
+            rows.Should().BeEmpty("Khi payload không hợp lệ, không trả về dòng dữ liệu nào");
+            totalRevenue.Should().Be(0m);
+            totalOrders.Should().Be(0);
         }
 
         [Fact]
-        public void ChartDataAndTableRows_WhenDataContainsDuplicateMonths_AreIdenticalAndConsistent()
+        public void ChartDataAndTableRows_WhenDataIsValidAndSparse_AreIdenticalAndConsistent()
         {
-            // Arrange - REPORT-CONSISTENCY-01: Leader fixture với tháng trùng (tháng 3: 15M/50 và 25M/70; tháng 8: 10M/20 và 30M/40)
+            // Arrange - REPORT-CONSISTENCY-01: Dữ liệu hợp lệ chuẩn hóa 12 tháng
             var vm = new ReportsIndexViewModel
             {
                 SelectedYear = 2026,
@@ -301,10 +287,8 @@ namespace BookKiosk.Tests.Cms
                     Year = 2026,
                     MonthlyData = new List<MonthlyRevenueItemDto>
                     {
-                        new() { Month = 3, Revenue = 15_000_000m, TotalOrders = 50 },
-                        new() { Month = 3, Revenue = 25_000_000m, TotalOrders = 70 }, // Duplicate tháng 3
-                        new() { Month = 8, Revenue = 10_000_000m, TotalOrders = 20 },
-                        new() { Month = 8, Revenue = 30_000_000m, TotalOrders = 40 }  // Duplicate tháng 8
+                        new() { Month = 3, Revenue = 25_000_000m, TotalOrders = 70 },
+                        new() { Month = 8, Revenue = 30_000_000m, TotalOrders = 40 }
                     }
                 }
             };
@@ -326,13 +310,13 @@ namespace BookKiosk.Tests.Cms
                 deserializedChartData[i].AverageOrderValue.Should().Be(chartSourceRows[i].AverageOrderValue);
             }
 
-            // Tháng 3 trên biểu đồ và bảng đều phải là 40,000,000 / 120 đơn (không bị ghi đè thành 25,000,000 / 70)
-            deserializedChartData[2].Revenue.Should().Be(40_000_000m);
-            deserializedChartData[2].TotalOrders.Should().Be(120);
+            // Tháng 3 trên biểu đồ và bảng đều là 25,000,000 / 70 đơn
+            deserializedChartData[2].Revenue.Should().Be(25_000_000m);
+            deserializedChartData[2].TotalOrders.Should().Be(70);
 
-            // Tháng 8 trên biểu đồ và bảng đều phải là 40,000,000 / 60 đơn (không bị ghi đè thành 30,000,000 / 40)
-            deserializedChartData[7].Revenue.Should().Be(40_000_000m);
-            deserializedChartData[7].TotalOrders.Should().Be(60);
+            // Tháng 8 trên biểu đồ và bảng đều là 30,000,000 / 40 đơn
+            deserializedChartData[7].Revenue.Should().Be(30_000_000m);
+            deserializedChartData[7].TotalOrders.Should().Be(40);
 
             // Tổng doanh thu và đơn hàng của Chart Data khớp 100% với KPI cards
             deserializedChartData.Sum(x => x.Revenue).Should().Be(vm.TotalAnnualRevenue);
