@@ -18,8 +18,38 @@ public class UnitOfWork : IUnitOfWork
     public UnitOfWork(ApplicationDbContext context) => _context = context;
 
     public async Task BeginTransactionAsync() => _transaction = await _context.Database.BeginTransactionAsync();
-    public async Task CommitAsync() { if (_transaction != null) await _transaction.CommitAsync(); }
-    public async Task RollbackAsync() { if (_transaction != null) await _transaction.RollbackAsync(); }
+    public async Task BeginTransactionAsync(System.Data.IsolationLevel isolationLevel) => _transaction = await _context.Database.BeginTransactionAsync(isolationLevel);
+    public async Task CommitAsync()
+    {
+        if (_transaction != null)
+        {
+            try
+            {
+                await _transaction.CommitAsync();
+            }
+            finally
+            {
+                await _transaction.DisposeAsync();
+                _transaction = null;
+            }
+        }
+    }
+
+    public async Task RollbackAsync()
+    {
+        if (_transaction != null)
+        {
+            try
+            {
+                await _transaction.RollbackAsync();
+            }
+            finally
+            {
+                await _transaction.DisposeAsync();
+                _transaction = null;
+            }
+        }
+    }
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
     public void Dispose() => _transaction?.Dispose();
 }
@@ -55,6 +85,66 @@ public class UserRepository : IUserRepository
     public UserRepository(ApplicationDbContext context) => _context = context;
     public async Task<User?> GetByUsernameAsync(string username) => await _context.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
     public async Task<User?> GetByIdAsync(int id) => await _context.Users.FindAsync(id);
+
+    public async Task<(IEnumerable<User> Items, int TotalCount)> GetUsersPagedAsync(
+        int page, int pageSize, string? keyword, UserRole? role, bool? isActive)
+    {
+        var query = _context.Users.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim().ToLower();
+            query = query.Where(u =>
+                (u.Username != null && u.Username.ToLower().Contains(kw)) ||
+                (u.FullName != null && u.FullName.ToLower().Contains(kw)));
+        }
+
+        if (role.HasValue)
+        {
+            query = query.Where(u => u.Role == role.Value);
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(u => u.IsActive == isActive.Value);
+        }
+
+        var totalCount = await query.CountAsync();
+
+        // Fix DEFECT-02: Chống tràn số kiểu int khi page cực lớn (ví dụ: page = int.MaxValue)
+        long skip = (long)Math.Max(0, page - 1) * pageSize;
+        if (skip >= totalCount || totalCount == 0)
+        {
+            return (new List<User>(), totalCount);
+        }
+
+        var items = await query
+            .OrderBy(u => u.UserId)
+            .Skip((int)skip)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (items, totalCount);
+    }
+
+    public async Task AddAsync(User user) => await _context.Users.AddAsync(user);
+
+    public Task UpdateAsync(User user)
+    {
+        _context.Users.Update(user);
+        return Task.CompletedTask;
+    }
+
+    public async Task<bool> ExistsByUsernameAsync(string username)
+    {
+        var normalized = username.Trim().ToLower();
+        return await _context.Users.AnyAsync(u => u.Username.ToLower() == normalized);
+    }
+
+    public async Task<int> CountActiveAdminsAsync()
+    {
+        return await _context.Users.CountAsync(u => u.Role == UserRole.Admin && u.IsActive);
+    }
 }
 
 public class SupplierRepository : ISupplierRepository
@@ -213,6 +303,7 @@ public class InventoryRepository : IInventoryRepository
         }
 
         var totalCount = await query.CountAsync();
+
         var items = await query
             .OrderByDescending(r => r.ImportReceiptId)
             .Skip((page - 1) * pageSize)
@@ -327,6 +418,7 @@ public class OrderRepository : IOrderRepository
         }
 
         var totalCount = await query.CountAsync();
+
         var items = await query
             .OrderByDescending(o => o.OrderId)
             .Skip((page - 1) * pageSize)

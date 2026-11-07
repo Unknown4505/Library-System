@@ -20,6 +20,21 @@ try
 
     // 2. Add services to the container (Dependency Injection)
     builder.Services.AddControllers();
+
+    // Cấu hình chuẩn hóa phản hồi lỗi Model Validation theo hợp đồng ApiResponseDto
+    builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errorMessage = context.ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage) ? "Dữ liệu đầu vào không hợp lệ." : e.ErrorMessage)
+                .FirstOrDefault() ?? "Dữ liệu đầu vào không hợp lệ.";
+
+            var response = BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("BAD_REQUEST", errorMessage);
+            return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(response);
+        };
+    });
     
     // Đăng ký DbContext với SQL Server
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -40,6 +55,7 @@ try
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Services.IKioskAdvertisingService, BookKiosk.Application.Services.KioskAdvertisingService>();
     builder.Services.AddScoped<BookKiosk.Application.Services.IAuthService, BookKiosk.Application.Services.AuthService>();
     builder.Services.AddScoped<BookKiosk.Application.Services.ISupplierService, BookKiosk.Application.Services.SupplierService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IUserService, BookKiosk.Application.Services.UserService>();
 
     // Đăng ký Unit Of Work & Repositories (Thien33)
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IUnitOfWork, BookKiosk.Infrastructure.Repositories.UnitOfWork>();
