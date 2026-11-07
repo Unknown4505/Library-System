@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using BookKiosk.CMS.Models.Promotions;
 
 namespace BookKiosk.CMS.ViewModels.Promotions
@@ -19,6 +18,16 @@ namespace BookKiosk.CMS.ViewModels.Promotions
         public int InactiveCount { get; set; }
 
         public bool IsAdmin { get; set; }
+    }
+
+    public class ProductDiscountItemViewModel
+    {
+        public int BookId { get; set; }
+        public string BookTitle { get; set; } = string.Empty;
+        public string? Barcode { get; set; }
+        public decimal SellingPrice { get; set; }
+        public int StockQuantity { get; set; }
+        public decimal DiscountAmount { get; set; } = 10000;
     }
 
     public class PromotionFormViewModel
@@ -46,25 +55,21 @@ namespace BookKiosk.CMS.ViewModels.Promotions
         [Display(Name = "Ngày kết thúc")]
         public DateTime EndDate { get; set; } = DateTime.Today.AddMonths(1);
 
+        public string? OriginalStartDateUtc { get; set; }
+        public string? OriginalEndDateUtc { get; set; }
+
         [Display(Name = "Kích hoạt hiệu lực")]
         public bool IsActive { get; set; } = true;
 
         // --- Cấu hình cho Loại 1: Giảm theo Hóa đơn (OrderDiscount) ---
-        [Range(0, double.MaxValue, ErrorMessage = "Giá trị đơn tối thiểu phải từ 0 ₫ trở lên")]
         [Display(Name = "Giá trị đơn hàng tối thiểu (VNĐ)")]
-        public decimal? MinOrderValue { get; set; } = 0;
+        public decimal? OrderMinOrderValue { get; set; } = 0;
 
-        // --- Cấu hình Mức giảm cố định VNĐ (áp dụng cho cả 2 loại) ---
-        [Required(ErrorMessage = "Số tiền giảm giá không được để trống")]
-        [Range(1000, 100000000, ErrorMessage = "Mức giảm cố định phải từ 1.000 ₫ đến 100.000.000 ₫")]
-        [Display(Name = "Số tiền giảm cố định (VNĐ)")]
-        public decimal DiscountAmount { get; set; } = 10000;
+        [Display(Name = "Mức giảm đơn hàng (VNĐ)")]
+        public decimal? OrderDiscountAmount { get; set; } = 10000;
 
         // --- Cấu hình cho Loại 2: Giảm theo Sách (ProductDiscount) ---
-        [Display(Name = "Ấn phẩm sách áp dụng")]
-        public int? BookId { get; set; }
-
-        public IEnumerable<SelectListItem> AvailableBooks { get; set; } = new List<SelectListItem>();
+        public List<ProductDiscountItemViewModel> ProductDiscounts { get; set; } = new();
 
         public bool IsEditMode => PromotionId > 0;
     }

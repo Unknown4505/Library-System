@@ -93,6 +93,41 @@ public class MockBookKioskApiClient : IBookKioskApiClient
         var pointsUsedAmount = Math.Min(Math.Max(request.PointsToUse, 0) * 1000m, subTotal);
         var totalAmount = subTotal - pointsUsedAmount;
 
+        var items = new List<CheckoutItemDiscountDto>();
+        if (request.Items != null && request.Items.Count > 0)
+        {
+            foreach (var reqItem in request.Items)
+            {
+                var unitPrice = 100000m;
+                var lineTotal = unitPrice * reqItem.Quantity;
+                items.Add(new CheckoutItemDiscountDto
+                {
+                    BookId = reqItem.BookId,
+                    BookTitle = $"Sách #{reqItem.BookId}",
+                    Quantity = reqItem.Quantity,
+                    UnitPriceAtTime = unitPrice,
+                    DiscountPerUnit = 0m,
+                    LineTotal = lineTotal,
+                    LineDiscountAmount = 0m,
+                    NetLineTotal = lineTotal
+                });
+            }
+        }
+        else
+        {
+            items.Add(new CheckoutItemDiscountDto
+            {
+                BookId = 1,
+                BookTitle = "Sách Mẫu Mock",
+                Quantity = 1,
+                UnitPriceAtTime = subTotal,
+                DiscountPerUnit = 0m,
+                LineTotal = subTotal,
+                LineDiscountAmount = 0m,
+                NetLineTotal = subTotal
+            });
+        }
+
         return ApiResponseDto<CheckoutResponseDto>.Ok(
             new CheckoutResponseDto
             {
@@ -102,7 +137,8 @@ public class MockBookKioskApiClient : IBookKioskApiClient
                 DiscountAmount = 0,
                 PointsUsedAmount = pointsUsedAmount,
                 TotalAmount = totalAmount,
-                SepayQrCodeUrl = $"https://qr.sepay.vn/img?bank=Vietcombank&amount={totalAmount:0}&code={Uri.EscapeDataString(orderCode)}"
+                SepayQrCodeUrl = $"https://qr.sepay.vn/img?bank=Vietcombank&amount={totalAmount:0}&code={Uri.EscapeDataString(orderCode)}",
+                Items = items
             },
             "Tạo đơn hàng thành công (Mock)");
     }

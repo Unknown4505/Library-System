@@ -128,6 +128,9 @@ namespace BookKiosk.CMS.Services
                 MemberDisplayName = memberDisplayName,
                 PointsEarned = order.PointsEarned,
                 SubTotal = order.SubTotal,
+                PromotionId = order.PromotionId,
+                PromotionName = order.PromotionName,
+                PromotionType = order.PromotionType,
                 DiscountAmount = order.DiscountAmount,
                 PointsUsed = order.PointsUsed,
                 PointsUsedAmount = order.PointsUsedAmount,
@@ -143,7 +146,10 @@ namespace BookKiosk.CMS.Services
                     Title = i.BookTitle,
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPriceAtTime,
-                    LineTotal = i.LineTotal
+                    DiscountPerUnit = i.DiscountPerUnit,
+                    LineTotal = i.LineTotal,
+                    LineDiscountAmount = i.LineDiscountAmount,
+                    NetLineTotal = i.NetLineTotal
                 }).ToList()
             };
 

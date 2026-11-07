@@ -58,24 +58,67 @@ namespace BookKiosk.CMS.Models.Api.Pos
         public string? Description { get; set; }
     }
 
-    // --- 4. DTO Khuyến mãi (Khớp PromotionDto Backend & Hỗ trợ OrderDiscount) ---
+    public class PosPromotionOrderDiscountDto
+    {
+        public decimal MinOrderValue { get; set; }
+        public decimal DiscountAmount { get; set; }
+    }
+
+    public class PosPromotionProductDiscountDto
+    {
+        public int BookId { get; set; }
+        public decimal DiscountAmount { get; set; }
+    }
+
+    // --- 4. DTO Khuyến mãi (Khớp PromotionDto Backend & Hỗ trợ OrderDiscount + ProductDiscount V7.1) ---
     public class PosPromotionDto
     {
         public int PromotionId { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
+        public BookKiosk.Domain.Enums.PromotionType PromotionType { get; set; } = BookKiosk.Domain.Enums.PromotionType.OrderDiscount;
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public bool IsActive { get; set; }
 
-        // Trường mở rộng cho OrderDiscount (tự động bind khi Backend expose)
+        public PosPromotionOrderDiscountDto? OrderDiscount { get; set; }
+        public List<PosPromotionProductDiscountDto> ProductDiscounts { get; set; } = new();
+
+        // Trường mở rộng tương thích ngược cho Mock/Flat bind
         public decimal? MinOrderValue { get; set; }
         public decimal DiscountAmount { get; set; }
 
+        // Thuộc tính trợ lực hiển thị UI
+        public decimal? EffectiveMinOrderValue => OrderDiscount?.MinOrderValue ?? MinOrderValue;
+        public decimal EffectiveDiscountAmount => OrderDiscount?.DiscountAmount ?? DiscountAmount;
+
         public bool IsEffectiveNow => IsActive && DateTime.UtcNow >= StartDate && DateTime.UtcNow <= EndDate;
-        public string SummaryText => !string.IsNullOrWhiteSpace(Description) 
-            ? Description 
-            : (MinOrderValue.HasValue ? $"Giảm {DiscountAmount:N0} ₫ cho đơn từ {MinOrderValue.Value:N0} ₫" : $"Giảm {DiscountAmount:N0} ₫");
+
+        public string SummaryText
+        {
+            get
+            {
+                if (PromotionType == BookKiosk.Domain.Enums.PromotionType.ProductDiscount)
+                {
+                    var count = ProductDiscounts?.Count ?? 0;
+                    return count > 0 ? $"Giảm theo sách: {count} đầu sách" : "Giảm theo sách";
+                }
+
+                // Type 1: OrderDiscount
+                var discount = EffectiveDiscountAmount;
+                var minOrder = EffectiveMinOrderValue;
+
+                if (discount > 0)
+                {
+                    return (minOrder.HasValue && minOrder.Value > 0)
+                        ? $"Giảm {discount:N0} ₫ cho đơn từ {minOrder.Value:N0} ₫"
+                        : $"Giảm {discount:N0} ₫";
+                }
+
+                // Thiếu dữ liệu / discount <= 0: dùng Description nếu có, hoặc nhãn an toàn (không bao giờ in "Giảm 0 ₫")
+                return !string.IsNullOrWhiteSpace(Description) ? Description : "Chi tiết theo thể lệ";
+            }
+        }
     }
 
     // --- 5. DTO Tạo đơn Counter (Checkout) ---
@@ -103,6 +146,9 @@ namespace BookKiosk.CMS.Models.Api.Pos
         public BookKiosk.CMS.Models.Api.Orders.OrderStatus OrderStatus { get; set; } = BookKiosk.CMS.Models.Api.Orders.OrderStatus.Pending;
 
         public decimal SubTotal { get; set; }
+        public int? PromotionId { get; set; }
+        public string? PromotionName { get; set; }
+        public BookKiosk.Domain.Enums.PromotionType? PromotionType { get; set; }
         public decimal DiscountAmount { get; set; }
         public int PointsUsed { get; set; }
         public decimal PointsUsedAmount { get; set; }
@@ -124,7 +170,10 @@ namespace BookKiosk.CMS.Models.Api.Pos
         public string Title { get; set; } = string.Empty;
         public int Quantity { get; set; }
         public decimal UnitPriceAtTime { get; set; }
+        public decimal DiscountPerUnit { get; set; }
         public decimal LineTotal { get; set; }
+        public decimal LineDiscountAmount { get; set; }
+        public decimal NetLineTotal { get; set; }
     }
 
     // --- 6. DTO Trạng thái đơn (Polling Status) ---
@@ -160,6 +209,12 @@ namespace BookKiosk.CMS.Models.Api.Pos
         public int? PointsEarned { get; set; }
         public List<PosReceiptItemDto> Items { get; set; } = new();
         public decimal SubTotal { get; set; }
+        public int? PromotionId { get; set; }
+        public string? PromotionName { get; set; }
+
+        [JsonConverter(typeof(BookKiosk.CMS.Models.Common.FlexibleNullableEnumConverter<BookKiosk.Domain.Enums.PromotionType>))]
+        public BookKiosk.Domain.Enums.PromotionType? PromotionType { get; set; }
+
         public decimal DiscountAmount { get; set; }
         public int PointsUsed { get; set; }
         public decimal PointsUsedAmount { get; set; }
@@ -179,6 +234,9 @@ namespace BookKiosk.CMS.Models.Api.Pos
         public string Title { get; set; } = string.Empty;
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
+        public decimal DiscountPerUnit { get; set; }
         public decimal LineTotal { get; set; }
+        public decimal LineDiscountAmount { get; set; }
+        public decimal NetLineTotal { get; set; }
     }
 }

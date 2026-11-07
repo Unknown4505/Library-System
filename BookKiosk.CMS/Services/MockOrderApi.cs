@@ -72,8 +72,10 @@ namespace BookKiosk.CMS.Services
                     OrderStatus = OrderStatus.Paid,
                     PaymentMethod = PaymentMethod.Cash,
                     SubTotal = 200000,
-                    DiscountAmount = 30000,
+                    PromotionId = 1,
                     PromotionName = "KM Giảm 30K đơn từ 200K",
+                    PromotionType = BookKiosk.Domain.Enums.PromotionType.OrderDiscount,
+                    DiscountAmount = 30000,
                     PointsUsed = 20,
                     PointsUsedAmount = 20000,
                     TotalAmount = 150000,
@@ -85,10 +87,43 @@ namespace BookKiosk.CMS.Services
                     CompletedAt = baseDate.AddHours(9).AddMinutes(32),
                     Items = new List<OrderDetailItemDto>
                     {
-                        new() { BookId = 9304, BookTitle = "Đắc Nhân Tâm", Quantity = 2, UnitPriceAtTime = 85000, LineTotal = 170000 },
-                        new() { BookId = 9303, BookTitle = "Số Đỏ", Quantity = 1, UnitPriceAtTime = 60000, LineTotal = 60000 }
+                        new() { BookId = 9304, BookTitle = "Đắc Nhân Tâm", Quantity = 2, UnitPriceAtTime = 85000, LineTotal = 170000, NetLineTotal = 170000 },
+                        new() { BookId = 9303, BookTitle = "Số Đỏ", Quantity = 1, UnitPriceAtTime = 60000, LineTotal = 60000, NetLineTotal = 60000 }
                     },
                     Payments = new List<OrderPaymentTransactionDto>()
+                },
+
+                // 7. Đơn Quầy - Paid với ProductDiscount V7.1
+                new OrderDetailDto
+                {
+                    OrderId = 1007,
+                    OrderCode = "ORD-20261101-0111",
+                    SaleChannel = SaleChannel.Counter,
+                    OrderStatus = OrderStatus.Paid,
+                    PaymentMethod = PaymentMethod.QR,
+                    SubTotal = 230000,
+                    PromotionId = 2,
+                    PromotionName = "Giảm 10k/cuốn Đắc Nhân Tâm",
+                    PromotionType = BookKiosk.Domain.Enums.PromotionType.ProductDiscount,
+                    DiscountAmount = 20000,
+                    PointsUsed = 0,
+                    PointsUsedAmount = 0,
+                    TotalAmount = 210000,
+                    CashierName = "Thu ngân 02",
+                    MemberName = "Phạm Hồng Ngọc",
+                    MemberPhone = "0981110005",
+                    PointsEarned = 21,
+                    CreatedAt = baseDate.AddHours(16).AddMinutes(0),
+                    CompletedAt = baseDate.AddHours(16).AddMinutes(2),
+                    Items = new List<OrderDetailItemDto>
+                    {
+                        new() { BookId = 9304, BookTitle = "Đắc Nhân Tâm", Quantity = 2, UnitPriceAtTime = 85000, DiscountPerUnit = 10000, LineTotal = 170000, LineDiscountAmount = 20000, NetLineTotal = 150000 },
+                        new() { BookId = 9303, BookTitle = "Số Đỏ", Quantity = 1, UnitPriceAtTime = 60000, DiscountPerUnit = 0, LineTotal = 60000, LineDiscountAmount = 0, NetLineTotal = 60000 }
+                    },
+                    Payments = new List<OrderPaymentTransactionDto>
+                    {
+                        new() { TransactionId = 5004, ReferenceCode = "VCB.998811", Gateway = "Vietcombank (SePay)", Amount = 210000, CreatedAt = baseDate.AddHours(16).AddMinutes(2) }
+                    }
                 },
 
                 // 3. Đơn Kiosk - LỆCH TIỀN (Cần hỗ trợ 1: Khách chuyển thiếu tiền, đơn Pending)
@@ -338,6 +373,9 @@ namespace BookKiosk.CMS.Services
                 MemberDisplayName = memberDisplayName,
                 PointsEarned = order.PointsEarned,
                 SubTotal = order.SubTotal,
+                PromotionId = order.PromotionId,
+                PromotionName = order.PromotionName,
+                PromotionType = order.PromotionType,
                 DiscountAmount = order.DiscountAmount,
                 PointsUsed = order.PointsUsed,
                 PointsUsedAmount = order.PointsUsedAmount,
@@ -353,7 +391,10 @@ namespace BookKiosk.CMS.Services
                     Title = i.BookTitle,
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPriceAtTime,
-                    LineTotal = i.LineTotal
+                    DiscountPerUnit = i.DiscountPerUnit,
+                    LineTotal = i.LineTotal,
+                    LineDiscountAmount = i.LineDiscountAmount,
+                    NetLineTotal = i.NetLineTotal
                 }).ToList()
             };
 

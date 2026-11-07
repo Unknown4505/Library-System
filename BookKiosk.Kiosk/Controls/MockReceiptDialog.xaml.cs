@@ -10,6 +10,7 @@ namespace BookKiosk.Kiosk.Controls
         public DateTime DisplayCompletedAt { get; }
         public bool HasPromotionDiscount => Receipt.DiscountAmount > 0;
         public bool HasPointsDiscount => Receipt.PointsUsedAmount > 0;
+        public bool HasPromotionType => Receipt.PromotionType.HasValue;
         public string PromotionDisplayName => !string.IsNullOrWhiteSpace(Receipt.PromotionName)
             ? Receipt.PromotionName
             : "Khuyến mãi";

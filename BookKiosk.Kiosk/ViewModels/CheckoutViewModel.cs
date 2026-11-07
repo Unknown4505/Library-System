@@ -1,6 +1,9 @@
 using System;
+using System.Collections.ObjectModel;
 using System.Windows.Input;
 using System.Windows.Threading;
+using BookKiosk.Application.DTOs.Order;
+using BookKiosk.Domain.Enums;
 using BookKiosk.Kiosk.Services;
 using BookKiosk.Kiosk.Pages;
 using BookKiosk.Kiosk.Services.Api;
@@ -29,9 +32,30 @@ namespace BookKiosk.Kiosk.ViewModels
             set { _totalAmount = value; OnPropertyChanged(); }
         }
 
-        public System.Collections.ObjectModel.ObservableCollection<CartItemModel> CartItems => _cartService.Items;
+        public ObservableCollection<CartItemModel> CartItems => _cartService.Items;
         
-        public decimal SubTotal => _cartService.GetTotalAmount();
+        public ObservableCollection<CheckoutItemDiscountDto> Items { get; } = new();
+
+        private decimal _subTotal;
+        public decimal SubTotal
+        {
+            get => _subTotal;
+            set { _subTotal = value; OnPropertyChanged(); }
+        }
+
+        private string? _promotionName;
+        public string? PromotionName
+        {
+            get => _promotionName;
+            set { _promotionName = value; OnPropertyChanged(); }
+        }
+
+        private PromotionType? _promotionType;
+        public PromotionType? PromotionType
+        {
+            get => _promotionType;
+            set { _promotionType = value; OnPropertyChanged(); }
+        }
         
         private decimal _promotionDiscount;
         public decimal PromotionDiscount
@@ -180,9 +204,21 @@ namespace BookKiosk.Kiosk.ViewModels
                 TotalAmount = p.TotalAmount;
                 PromotionDiscount = p.DiscountAmount;
                 PointsDiscount = p.PointsUsedAmount;
+                SubTotal = p.SubTotal;
+                PromotionName = p.PromotionName;
+                PromotionType = p.PromotionType;
                 _orderId = p.OrderId;
                 _orderCode = p.OrderCode;
                 SepayQrCodeUrl = p.SepayQrCodeUrl;
+
+                Items.Clear();
+                if (p.Items != null)
+                {
+                    foreach (var item in p.Items)
+                    {
+                        Items.Add(item);
+                    }
+                }
             }
 
             _timeRemainingSeconds = 180;

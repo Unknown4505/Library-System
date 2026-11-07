@@ -443,21 +443,7 @@ namespace BookKiosk.CMS.Services
 
         public async Task<ApiResult<PromotionDto>> UpdatePromotionAsync(int id, UpdatePromotionDto dto)
         {
-            var updatePayload = new PromotionDto
-            {
-                PromotionId = id,
-                Name = dto.Name,
-                Description = dto.Description,
-                PromotionType = dto.PromotionType,
-                StartDate = dto.StartDate,
-                EndDate = dto.EndDate,
-                IsActive = dto.IsActive,
-                MinOrderValue = dto.MinOrderValue,
-                DiscountAmount = dto.DiscountAmount,
-                BookId = dto.BookId
-            };
-
-            return await PutAsync<PromotionDto, PromotionDto>($"/api/promotions/{id}", updatePayload);
+            return await PutAsync<UpdatePromotionDto, PromotionDto>($"/api/promotions/{id}", dto);
         }
 
         public async Task<ApiResult<bool>> TogglePromotionActiveAsync(int id, bool isActive)

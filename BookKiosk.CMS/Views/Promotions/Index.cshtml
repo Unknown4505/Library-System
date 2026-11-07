@@ -203,9 +203,18 @@
 
                                 <!-- Mức giảm cố định VNĐ -->
                                 <td>
-                                    <span class="fw-bold text-success fs-6">
-                                        -@promo.DiscountAmount.ToString("N0") ₫
-                                    </span>
+                                    @if (promo.PromotionType == 2 && promo.ProductDiscounts.Count > 1)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                            Theo từng sách
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="fw-bold text-success fs-6">
+                                            -@promo.DiscountAmount.ToString("N0") ₫
+                                        </span>
+                                    }
                                 </td>
 
                                 <!-- Điều kiện áp dụng -->
@@ -214,7 +223,14 @@
                                     {
                                         <div class="small">
                                             <span class="text-muted">Áp dụng:</span>
-                                            <strong class="text-dark d-block">@(string.IsNullOrWhiteSpace(promo.BookTitle) ? $"Ấn phẩm #{promo.BookId}" : promo.BookTitle)</strong>
+                                            @if (promo.ProductDiscounts.Count > 1)
+                                            {
+                                                <strong class="text-dark d-block">@promo.ProductDiscounts.Count ấn phẩm sách</strong>
+                                            }
+                                            else
+                                            {
+                                                <strong class="text-dark d-block">@(string.IsNullOrWhiteSpace(promo.BookTitle) ? $"Ấn phẩm #{promo.BookId}" : promo.BookTitle)</strong>
+                                            }
                                         </div>
                                     }
                                     else

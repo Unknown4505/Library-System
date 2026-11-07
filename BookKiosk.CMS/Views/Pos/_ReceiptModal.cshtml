@@ -76,6 +76,11 @@
 
                     <div class="receipt-divider"></div>
 
+                    <!-- Thông báo chỉ hiện trên màn hình khi chi tiết từng sách chưa có từ Backend -->
+                    <div id="receiptUnassignedNotice" class="alert alert-info py-1 px-2 my-2 small d-none d-print-none text-muted">
+                        <i class="fas fa-info-circle me-1"></i>Chi tiết giảm giá từng sách chưa có từ máy chủ
+                    </div>
+
                     <!-- Bảng tổng tiền -->
                     <div class="receipt-totals">
                         <div class="receipt-total-row">
@@ -83,7 +88,7 @@
                             <span id="receiptSubTotal">0 ₫</span>
                         </div>
                         <div class="receipt-total-row" id="receiptDiscountRow">
-                            <span>Giảm khuyến mãi:</span>
+                            <span id="receiptDiscountLabel">Giảm khuyến mãi:</span>
                             <span id="receiptDiscountAmount">-0 ₫</span>
                         </div>
                         <div class="receipt-total-row" id="receiptPointsUsedRow">

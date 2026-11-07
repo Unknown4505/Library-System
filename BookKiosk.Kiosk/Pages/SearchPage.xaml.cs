@@ -87,11 +87,19 @@ namespace BookKiosk.Kiosk.Pages
             }
         }
 
+        private void Page_Loaded(object sender, System.Windows.RoutedEventArgs e)
+        {
+            if (this.DataContext is SearchViewModel vm)
+            {
+                vm.Activate();
+            }
+        }
+
         private void Page_Unloaded(object sender, System.Windows.RoutedEventArgs e)
         {
-            if (this.DataContext is System.IDisposable disposableVm)
+            if (this.DataContext is SearchViewModel vm)
             {
-                disposableVm.Dispose();
+                vm.Deactivate();
             }
         }
     }
