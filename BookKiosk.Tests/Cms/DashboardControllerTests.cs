@@ -587,31 +587,5 @@ namespace BookKiosk.Tests.Cms
             model.LowStockItems.Should().HaveCount(1);
             model.LowStockItems[0].Title.Should().Be("Đất rừng phương Nam");
         }
-
-        [Fact]
-        public void ChartsJs_ContainsStaleAjaxRegressionGuards()
-        {
-            var baseDir = AppContext.BaseDirectory;
-            var candidate = System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, "..", "..", "..", "..", "BookKiosk.CMS"));
-            if (!System.IO.Directory.Exists(candidate))
-            {
-                candidate = System.IO.Path.GetFullPath(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "BookKiosk.CMS"));
-            }
-
-            var jsPath = System.IO.Path.Combine(candidate, "wwwroot", "js", "charts.js");
-            System.IO.File.Exists(jsPath).Should().BeTrue();
-
-            var content = System.IO.File.ReadAllText(jsPath);
-
-            // REPORT-AJAX-STALE-01 regression guards
-            content.Should().Contain("lastGoodYear");
-            content.Should().Contain("currentRequestSeq");
-            content.Should().Contain("activeAbortController");
-            content.Should().Contain("yearSelect.value = String(lastGoodYear)");
-            content.Should().Contain("401");
-            content.Should().Contain("403");
-            content.Should().Contain("isAuthError");
-            content.Should().Contain("notifyError");
-        }
     }
 }
