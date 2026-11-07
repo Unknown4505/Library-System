@@ -106,8 +106,15 @@ namespace BookKiosk.Kiosk
                 
                 if (!string.IsNullOrEmpty(barcode))
                 {
-                    // Chuyển mã vạch sang Service để các màn hình xử lý
-                    if (_barcodeScanner is MockBarcodeScanner mock) mock.SimulateScan(barcode);
+                    // Chuyển mã vạch sang Service qua cổng chung IKeyboardWedgeBarcodeSink
+                    if (_barcodeScanner is IKeyboardWedgeBarcodeSink sink)
+                    {
+                        sink.ProcessKeyboardWedgeInput(barcode);
+                    }
+                    else if (_barcodeScanner is MockBarcodeScanner mock)
+                    {
+                        mock.SimulateScan(barcode);
+                    }
                     e.Handled = true;
                 }
             }
@@ -141,8 +148,15 @@ namespace BookKiosk.Kiosk
                 string barcode = DevBarcodeTextBox.Text.Trim();
                 if (!string.IsNullOrEmpty(barcode))
                 {
-                    // Đẩy barcode y hệt như máy quét thật
-                    if (_barcodeScanner is MockBarcodeScanner mock) mock.SimulateScan(barcode);
+                    // Đẩy barcode y hệt như máy quét thật qua cổng chung
+                    if (_barcodeScanner is IKeyboardWedgeBarcodeSink sink)
+                    {
+                        sink.ProcessKeyboardWedgeInput(barcode);
+                    }
+                    else if (_barcodeScanner is MockBarcodeScanner mock)
+                    {
+                        mock.SimulateScan(barcode);
+                    }
                     DevBarcodeTextBox.Clear();
                     
                     // Giấu đi sau khi nhập xong

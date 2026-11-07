@@ -42,7 +42,7 @@
                             </Grid.ColumnDefinitions>
                             
                             <Grid Grid.Column="0">
-                                <TextBlock Text="Nhập tên sách cần tìm..." FontSize="32" Foreground="#95a5a6" VerticalAlignment="Center" Margin="20,0,0,0">
+                                <TextBlock Text="Nhập tên sách, tác giả, mã vạch, khu vực..." FontSize="32" Foreground="#95a5a6" VerticalAlignment="Center" Margin="20,0,0,0">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Visibility" Value="Collapsed"/>

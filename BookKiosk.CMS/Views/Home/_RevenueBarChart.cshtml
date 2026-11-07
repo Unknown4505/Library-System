@@ -37,7 +37,7 @@
                 <canvas id="revenueBarChart"
                         role="img"
                         aria-label="Biểu đồ cột thể hiện doanh thu 12 tháng trong năm @Model.SelectedYear"
-                        data-revenue='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.RevenueReport?.MonthlyData ?? new()))'
+                        data-revenue='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.NormalizedMonthlyRows))'
                         data-year="@Model.SelectedYear">
                     <p>Trình duyệt của bạn không hỗ trợ canvas. Vui lòng xem bảng đối chiếu số liệu bên dưới.</p>
                 </canvas>
@@ -69,9 +69,9 @@
                                 </tr>
                             </thead>
                             <tbody id="revenueTableBody">
-                                @if (Model.RevenueReport?.MonthlyData != null && Model.RevenueReport.MonthlyData.Any())
+                                @if (Model.NormalizedMonthlyRows != null && Model.NormalizedMonthlyRows.Any())
                                 {
-                                    @foreach (var item in Model.RevenueReport.MonthlyData)
+                                    @foreach (var item in Model.NormalizedMonthlyRows)
                                     {
                                         <tr>
                                             <td class="text-center fw-semibold">Tháng @item.Month</td>

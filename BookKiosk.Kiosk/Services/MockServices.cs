@@ -23,14 +23,14 @@ namespace BookKiosk.Kiosk.Models
 
         public static List<BookModel> Books { get; } = new List<BookModel>
         {
-            new BookModel { BookId = 1, Barcode = "10000001", Title = "Đắc Nhân Tâm", Author = "Dale Carnegie", SellingPrice = 85000, ImageUrl = "https://picsum.photos/seed/book1/300/450", CategoryId = 4, AreaName = "Kệ A1", AvailableStock = 15 },
-            new BookModel { BookId = 2, Barcode = "10000002", Title = "Nhà Giả Kim", Author = "Paulo Coelho", SellingPrice = 79000, ImageUrl = "https://picsum.photos/seed/book2/300/450", CategoryId = 1, AreaName = "Kệ B2", AvailableStock = 0 },
-            new BookModel { BookId = 3, Barcode = "10000003", Title = "Dế Mèn Phiêu Lưu Ký", Author = "Tô Hoài", SellingPrice = 45000, ImageUrl = "https://picsum.photos/seed/book3/300/450", CategoryId = 3, AreaName = "Kệ C1", AvailableStock = 20 },
-            new BookModel { BookId = 4, Barcode = "10000004", Title = "Sapiens - Lược sử loài người", Author = "Yuval Noah Harari", SellingPrice = 150000, ImageUrl = "https://picsum.photos/seed/book4/300/450", CategoryId = 5, AreaName = "Kệ A2", AvailableStock = 5 },
-            new BookModel { BookId = 5, Barcode = "10000005", Title = "Tư Duy Nhanh Và Chậm", Author = "Daniel Kahneman", SellingPrice = 125000, ImageUrl = "https://picsum.photos/seed/book5/300/450", CategoryId = 4, AreaName = "Kệ A1", AvailableStock = 10 },
-            new BookModel { BookId = 6, Barcode = "10000006", Title = "Cha Giàu Cha Nghèo", Author = "Robert Kiyosaki", SellingPrice = 110000, ImageUrl = "https://picsum.photos/seed/book6/300/450", CategoryId = 2, AreaName = "Kệ D1", AvailableStock = 30 },
-            new BookModel { BookId = 7, Barcode = "10000007", Title = "Tôi Thấy Hoa Vàng Trên Cỏ Xanh", Author = "Nguyễn Nhật Ánh", SellingPrice = 95000, ImageUrl = "https://picsum.photos/seed/book7/300/450", CategoryId = 1, AreaName = "Kệ B1", AvailableStock = 12 },
-            new BookModel { BookId = 8, Barcode = "10000008", Title = "Nghĩ Giàu Làm Giàu", Author = "Napoleon Hill", SellingPrice = 89000, ImageUrl = "https://picsum.photos/seed/book8/300/450", CategoryId = 2, AreaName = "Kệ D2", AvailableStock = 8 }
+            new BookModel { BookId = 1, Barcode = "10000001", Title = "Đắc Nhân Tâm", Author = "Dale Carnegie", Publisher = "NXB Tổng Hợp TP.HCM", SellingPrice = 85000, ImageUrl = "https://picsum.photos/seed/book1/300/450", CategoryId = 4, CategoryName = "Tâm lý học", AreaName = "Kệ A1", AvailableStock = 15 },
+            new BookModel { BookId = 2, Barcode = "10000002", Title = "Nhà Giả Kim", Author = "Paulo Coelho", Publisher = "NXB Hội Nhà Văn", SellingPrice = 79000, ImageUrl = "https://picsum.photos/seed/book2/300/450", CategoryId = 1, CategoryName = "Văn học", AreaName = "Kệ B2", AvailableStock = 0 },
+            new BookModel { BookId = 3, Barcode = "10000003", Title = "Dế Mèn Phiêu Lưu Ký", Author = "Tô Hoài", Publisher = "NXB Kim Đồng", SellingPrice = 45000, ImageUrl = "https://picsum.photos/seed/book3/300/450", CategoryId = 3, CategoryName = "Thiếu nhi", AreaName = "Kệ C1", AvailableStock = 20 },
+            new BookModel { BookId = 4, Barcode = "10000004", Title = "Sapiens - Lược sử loài người", Author = "Yuval Noah Harari", Publisher = "NXB Tri Thức", SellingPrice = 150000, ImageUrl = "https://picsum.photos/seed/book4/300/450", CategoryId = 5, CategoryName = "Khoa học", AreaName = "Kệ A2", AvailableStock = 5 },
+            new BookModel { BookId = 5, Barcode = "10000005", Title = "Tư Duy Nhanh Và Chậm", Author = "Daniel Kahneman", Publisher = "NXB Thế Giới", SellingPrice = 125000, ImageUrl = "https://picsum.photos/seed/book5/300/450", CategoryId = 4, CategoryName = "Tâm lý học", AreaName = "Kệ A1", AvailableStock = 10 },
+            new BookModel { BookId = 6, Barcode = "10000006", Title = "Cha Giàu Cha Nghèo", Author = "Robert Kiyosaki", Publisher = "NXB Trẻ", SellingPrice = 110000, ImageUrl = "https://picsum.photos/seed/book6/300/450", CategoryId = 2, CategoryName = "Kinh tế", AreaName = "Kệ D1", AvailableStock = 30 },
+            new BookModel { BookId = 7, Barcode = "10000007", Title = "Tôi Thấy Hoa Vàng Trên Cỏ Xanh", Author = "Nguyễn Nhật Ánh", Publisher = "NXB Trẻ", SellingPrice = 95000, ImageUrl = "https://picsum.photos/seed/book7/300/450", CategoryId = 1, CategoryName = "Văn học", AreaName = "Kệ B1", AvailableStock = 12 },
+            new BookModel { BookId = 8, Barcode = "10000008", Title = "Nghĩ Giàu Làm Giàu", Author = "Napoleon Hill", Publisher = "NXB Trẻ", SellingPrice = 89000, ImageUrl = "https://picsum.photos/seed/book8/300/450", CategoryId = 2, CategoryName = "Kinh tế", AreaName = "Kệ D2", AvailableStock = 8 }
         };
 
         public static List<MemberDto> Members { get; } = new List<MemberDto>
@@ -96,7 +96,7 @@ namespace BookKiosk.Kiosk.Services
 
 namespace BookKiosk.Kiosk.Services.Hardware
 {
-    public class MockBarcodeScanner : IBarcodeScanner
+    public class MockBarcodeScanner : IBarcodeScanner, IKeyboardWedgeBarcodeSink
     {
         public event EventHandler<string>? BarcodeScanned;
 
@@ -108,6 +108,11 @@ namespace BookKiosk.Kiosk.Services.Hardware
         public void StopListening()
         {
             Debug.WriteLine("[Mock Scanner] Đã tắt chế độ lắng nghe mã vạch.");
+        }
+
+        public void ProcessKeyboardWedgeInput(string barcode)
+        {
+            SimulateScan(barcode);
         }
 
         /// <summary>
