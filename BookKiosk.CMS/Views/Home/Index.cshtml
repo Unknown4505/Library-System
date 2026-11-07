@@ -42,9 +42,23 @@
                         Tổng doanh thu năm (<span id="kpiAnnualRevenueYearLabel">@Model.SelectedYear</span>)
                     </div>
                     <div class="h4 mb-0 fw-bold text-dark" id="kpiAnnualRevenue">
-                        @Model.TotalAnnualRevenue.ToString("N0") đ
+                        @if (Model.IsRevenueUnavailable)
+                        {
+                            <span class="badge bg-warning-subtle text-warning border px-2 py-1 fs-6">Không khả dụng</span>
+                        }
+                        else
+                        {
+                            @($"{Model.TotalAnnualRevenue:N0} đ")
+                        }
                     </div>
-                    <div class="text-muted small mt-1">Tổng hợp 12 tháng từ hệ thống</div>
+                    @if (Model.IsRevenueUnavailable)
+                    {
+                        <div class="text-muted small mt-1">Dữ liệu doanh thu không hợp lệ</div>
+                    }
+                    else
+                    {
+                        <div class="text-muted small mt-1">Tổng hợp 12 tháng từ hệ thống</div>
+                    }
                 </div>
                 <div class="text-primary opacity-50">
                     <i class="fas fa-coins fa-2x"></i>
@@ -62,9 +76,23 @@
                         Tổng đơn năm (<span id="kpiAnnualOrdersYearLabel">@Model.SelectedYear</span>)
                     </div>
                     <div class="h4 mb-0 fw-bold text-dark" id="kpiAnnualOrders">
-                        @Model.TotalAnnualOrders.ToString("N0")
+                        @if (Model.IsRevenueUnavailable)
+                        {
+                            <span class="badge bg-warning-subtle text-warning border px-2 py-1 fs-6">Không khả dụng</span>
+                        }
+                        else
+                        {
+                            @Model.TotalAnnualOrders.ToString("N0")
+                        }
                     </div>
-                    <div class="text-muted small mt-1">Đơn hàng hoàn tất</div>
+                    @if (Model.IsRevenueUnavailable)
+                    {
+                        <div class="text-muted small mt-1">Dữ liệu doanh thu không hợp lệ</div>
+                    }
+                    else
+                    {
+                        <div class="text-muted small mt-1">Đơn hàng hoàn tất</div>
+                    }
                 </div>
                 <div class="text-success opacity-50">
                     <i class="fas fa-receipt fa-2x"></i>

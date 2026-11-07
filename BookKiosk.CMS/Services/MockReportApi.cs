@@ -30,6 +30,25 @@ namespace BookKiosk.CMS.Services
 
         public Task<ApiResult<RevenueReportResponseDto>> GetRevenueByMonthAsync(int year)
         {
+            // Trường hợp năm 2021: Giả lập vi phạm hợp đồng (trùng lặp tháng 3) để test cơ chế từ chối payload
+            if (year == 2021)
+            {
+                var duplicateItems = new List<MonthlyRevenueItemDto>
+                {
+                    new() { Month = 1, Revenue = 15_000_000m, TotalOrders = 50 },
+                    new() { Month = 2, Revenue = 20_000_000m, TotalOrders = 60 },
+                    new() { Month = 3, Revenue = 25_000_000m, TotalOrders = 70 },
+                    new() { Month = 3, Revenue = 15_000_000m, TotalOrders = 50 }, // Trùng lặp tháng 3
+                    new() { Month = 4, Revenue = 10_000_000m, TotalOrders = 30 }
+                };
+
+                return Task.FromResult(ApiResult<RevenueReportResponseDto>.Ok(new RevenueReportResponseDto
+                {
+                    Year = year,
+                    MonthlyData = duplicateItems
+                }));
+            }
+
             // Doanh thu mô phỏng 12 tháng theo mùa vụ (cuối năm và hè cao điểm)
             var monthlyRevenues = new[]
             {
