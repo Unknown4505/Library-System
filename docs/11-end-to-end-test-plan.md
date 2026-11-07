@@ -52,26 +52,26 @@ Các kết quả dưới đây bổ sung trường Input, Actual và Owner cho t
 
 ### 2.1 Targeted acceptance — REVENUE-MONTHLY-01
 
-Các ca dưới đây là acceptance requirements theo quyết định Leader ngày 2026-11-06, không phải kết quả test đã chạy. Evidence lịch sử của E2E-13 phía trên được giữ nguyên; chỉ chuyển trạng thái sau khi FE correction được retest trên exact HEAD.
+Các ca dưới đây là acceptance requirements theo quyết định Leader ngày 2026-11-06. Evidence lịch sử của E2E-13 phía trên được giữ nguyên. Các trạng thái FE PASS được cập nhật từ independent QA tại exact PR #64 HEAD `ea010e34`; chúng không thay thế real CMS↔Backend↔SQL E2E.
 
 | ID | Input | Expected | Trạng thái |
 |---|---|---|---|
-| REV-MONTH-01 | 12 tháng duy nhất, hợp lệ | Render đúng 12 tháng theo `month ASC` | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-02 | Thiếu Month 4 | Zero-fill Month 4; các tháng còn lại không đổi | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-03 | Hai row Month 3 | Reject toàn bộ response; không `GroupBy + Sum` | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-04 | Month 0 hoặc 13 | Reject toàn bộ response | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-05 | Empty monthly list thành công | Chuẩn hóa thành 12 tháng bằng 0 | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-06 | Payload null/malformed | Hiển thị unavailable/invalid, không coi là doanh thu 0 | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-07 | Initial Dashboard nhận dữ liệu invalid | Không hiển thị chart/table/KPI gây hiểu nhầm; widget độc lập vẫn an toàn | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-08 | Initial Reports nhận dữ liệu invalid | Không hiển thị totals chưa tin cậy | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-09 | AJAX invalid sau một năm hợp lệ | Rollback dropdown và giữ nguyên toàn bộ dữ liệu năm gần nhất thành công | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-10 | HTTP 401/403 hoặc network error | Giữ last-good year, dữ liệu/labels đồng bộ và hiển thị lỗi | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-11 | Success → failure → success | Chart/table/KPI/dropdown/labels luôn cùng năm được chấp nhận | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-12 | Response AJAX cũ về muộn | Không ghi đè kết quả mới nhất đã được chấp nhận | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-13 | Revenue data hợp lệ | Chart/table/KPI và annual totals khớp cùng normalized dataset | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-14 | Admin và non-Admin | Giữ authorization hiện hữu: Admin được phép, non-Admin bị từ chối | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-01 | 12 tháng duy nhất, hợp lệ | Render đúng 12 tháng theo `month ASC` | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-02 | Thiếu Month 4 | Zero-fill Month 4; các tháng còn lại không đổi | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-03 | Hai row Month 3 | Reject toàn bộ response; không `GroupBy + Sum` | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-04 | Month 0 hoặc 13 | Reject toàn bộ response | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-05 | Empty monthly list thành công | Chuẩn hóa thành 12 tháng bằng 0 | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-06 | Payload null/malformed | Hiển thị unavailable/invalid, không coi là doanh thu 0 | PARTIAL — null/unavailable PASS; malformed transport payload chưa có ánh xạ độc lập riêng |
+| REV-MONTH-07 | Initial Dashboard nhận dữ liệu invalid | Không hiển thị chart/table/KPI gây hiểu nhầm; widget độc lập vẫn an toàn | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-08 | Initial Reports nhận dữ liệu invalid | Không hiển thị totals chưa tin cậy | NOT RUN / SEPARATE TARGETED EVIDENCE PENDING |
+| REV-MONTH-09 | AJAX invalid sau một năm hợp lệ | Rollback dropdown và giữ nguyên toàn bộ dữ liệu năm gần nhất thành công | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-10 | HTTP 401/403 hoặc network error | Giữ last-good year, dữ liệu/labels đồng bộ và hiển thị lỗi | PARTIAL — HTTP 401 và network PASS @ `ea010e34`; 403 chưa ánh xạ riêng |
+| REV-MONTH-11 | Success → failure → success | Chart/table/KPI/dropdown/labels luôn cùng năm được chấp nhận | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-12 | Response AJAX cũ về muộn | Không ghi đè kết quả mới nhất đã được chấp nhận | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-13 | Revenue data hợp lệ | Chart/table/KPI và annual totals khớp cùng normalized dataset | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-14 | Admin và non-Admin | Giữ authorization hiện hữu: Admin được phép, non-Admin bị từ chối | NOT RUN / SEPARATE AUTH EVIDENCE PENDING |
 
-Evidence nghiệm thu phải gồm exact PR HEAD, targeted .NET TRX, JavaScript DOM/runtime log, rendered HTML evidence, Debug/Release build logs và `git diff --check`. Final E2E còn phải đối chiếu API thật với SQL QA disposable để xác nhận Paid-only aggregation; targeted mock/DOM evidence không thay thế bước này.
+Evidence independent tại `ea010e34`: 44/44 Leader-owned Dashboard baseline tests, 28 browser/localhost assertions, 8/8 production Revenue-normalizer cases, CMS Debug/Release 0 errors và clean diff/worktree. `DASHBOARD-REVENUE-UNAVAILABLE-01` đã chuyển từ **FAIL P2** tại HEAD cũ `b161554` sang **PASS**; `DASHBOARD-INITIAL-UNAVAILABLE-INTERACTION-01` chuyển từ **NOT RUN** sang **PASS**, gồm Top Books independence và Revenue recovery. Final E2E còn phải đối chiếu API thật với SQL QA disposable để xác nhận Paid-only aggregation; targeted browser/contract evidence không thay thế bước này.
 
 #### REVENUE-NEGATIVE-01 — targeted acceptance
 
@@ -81,10 +81,10 @@ Các ca sau thuộc contract Leader đã duyệt ngày 2026-11-06. Trạng thái
 |---|---|---|---|
 | REV-NEG-01 | Valid Paid Order with positive amount | Accepted; đóng góp đúng vào Revenue | NOT RUN / LEADER E2E PENDING |
 | REV-NEG-02 | Valid year with no Paid Orders | Monthly Revenue 0, count 0; vẫn là response thành công | NOT RUN / LEADER E2E PENDING |
-| REV-NEG-03 | Backend monthly Revenue negative | `InvalidContract`; toàn bộ Revenue UI unavailable/invalid, không clamp | NOT RUN / PR #64 FIX & QA |
-| REV-NEG-04 | Backend TotalOrders negative | `InvalidContract`; không render totals chưa tin cậy | NOT RUN / PR #64 QA |
-| REV-NEG-05 | Initial Dashboard receives negative Revenue | Không hiển thị revenue/order KPI gây hiểu nhầm; trạng thái unavailable | **QA FAIL P2 / FIX REQUIRED** tại `b161554` |
-| REV-NEG-06 | AJAX negative response after valid year | Reject nguyên tử; rollback dropdown và giữ last-good year | NOT RUN / PR #64 QA |
+| REV-NEG-03 | Backend monthly Revenue negative | `InvalidContract`; toàn bộ Revenue UI unavailable/invalid, không clamp | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-NEG-04 | Backend TotalOrders negative | `InvalidContract`; không render totals chưa tin cậy | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-NEG-05 | Initial Dashboard receives negative Revenue | Không hiển thị revenue/order KPI gây hiểu nhầm; trạng thái unavailable | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34`; lịch sử FAIL P2 tại `b161554` |
+| REV-NEG-06 | AJAX negative response after valid year | Reject nguyên tử; rollback dropdown và giữ last-good year | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
 | REV-NEG-07 | Kiosk/POS payable 0 or negative | Checkout bị từ chối và rollback; không Pending/QR hoặc mutation một phần | PASS — historical Backend targeted QA; xem PD-E2E-10 |
 | REV-NEG-08 | Preexisting Order amount `<= 0` attempts Pending → Paid | Transition bị từ chối; không partial mutation | NOT RUN / ISSUE #71 PENDING |
 | REV-NEG-09 | Negative Paid Order masked by positive monthly sum | Backend phát hiện invalid source data, không chỉ kiểm aggregate tháng | NOT RUN / ISSUE #71 PENDING |
