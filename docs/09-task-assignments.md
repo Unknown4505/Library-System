@@ -112,7 +112,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 8.1 | Kiosk: Gắn UI xử lý dữ liệu từ Camera/Máy quét ([Issue #61](https://github.com/Unknown4505/Library-System/issues/61)) | | | @lehuukhang | `[ ]` — camera/scanner UI và mock/runtime isolation đã có implementation; Issue OPEN, physical camera/WPF visual acceptance và real Backend Search E2E chưa PASS |
 | 8.2 | Kiosk: Sinh file PDF Hóa đơn với QuestPDF | | | @lehuukhang | `[ ]` |
 | 8.2.1 | Tích hợp Receipt API vào màn hình hóa đơn, Mock Printer và PDF; dùng ReceiptDto từ Backend ([Issue #29](https://github.com/Unknown4505/Library-System/issues/29), phụ thuộc #28) | <br> | <br> | @lehuukhang | `[ ]` |
-| 8.3 | Kiosk: `MaintenancePage` Báo lỗi thiết bị, khóa Kiosk | | | @lehuukhang | `[ ]` |
+| 8.3 | Kiosk: `MaintenancePage` Báo lỗi thiết bị, khóa Kiosk | | | @lehuukhang | `[ ]` — **OUT OF SCOPE / NOT IMPLEMENTED THIS ITERATION** theo quyết định Leader 08/11/2026; không thuộc phạm vi cần hoàn thiện của dự án lần này |
 | 8.4 | **[Leader]** Khởi tạo Interface phần cứng (`IBarcodeScanner`, `IReceiptPrinter`) và Class Mock | @Unknown4505 | | | `[x]` |
 | 8.4.1 | **[Ghi chú Kiosk]** FE bắt buộc dùng interface `BookKiosk.Kiosk.Services.Hardware.IBarcodeScanner` đã được Leader mock sẵn, KHÔNG tự tạo service quét mã mới. | | | @lehuukhang | `[x]` |
 | 8.4.2 | Tự định nghĩa dữ liệu Mock (Mock Data) cho Bill in ra màn hình để nắm rõ cấu trúc dữ liệu | | | @lehuukhang | `[ ]` |
@@ -132,7 +132,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
 | 10.1 | Admin API: CRUD Khuyến mãi, Nhập kho | | @thien33 | | `[x]` |
-| 10.2 | Trang Nhập kho (Inventory) | | | @lehuukhang | `[ ]` |
+| 10.2 | Trang Nhập kho (Inventory) | | | @lehuukhang | `[ ]` — không phải Kiosk Management; source CMS và kết nối Inventory/Supplier API đã có, còn targeted QA/acceptance trước khi đánh dấu hoàn thành |
 | 10.3 | Trang Quản lý Khuyến mãi | | | @lehuukhang | `[x]` — PR #58 targeted QA PASS; merge pending |
 | 10.4 | Trang POS Bán tại quầy (Áp mã thủ công) | | | @lehuukhang | `[x]` — PR #58 targeted QA PASS; merge pending |
 
@@ -179,7 +179,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 - **Task 8.2.1 / Issue #29 — @lehuukhang:** **[x] MERGED / TARGETED QA PASS — PR #40** — Receipt UI, Mock Printer và QuestPDF dùng cùng `ReceiptDto`; network/404/409, lifecycle và PDF retry đã được targeted QA. WPF visual/UI E2E vẫn **NOT RUN**.
 - **Task 12.1.1 — @Unknown4505:** E2E trên SQL QA disposable và SePay test mode. Nếu thiếu SQL/SePay/endpoint thì ghi `BLOCKED — ENV`, không mô phỏng rồi tự báo PASS.
 - #19/#20 đã closed/completed và PR #26 đã merge; không mở lại. Chi tiết file ownership, acceptance và draft comment ở `12-workflow-handoff-and-scope.md`.
-- **Handoff cập nhật:** [Issue #60](https://github.com/Unknown4505/Library-System/issues/60) BE-01 và [#66](https://github.com/Unknown4505/Library-System/issues/66) BE-01/BE-03 đã **TARGETED BACKEND QA PASS** tại PR #68 HEAD `829a46b`; PR vẫn OPEN và chưa merge. #60 BE-02 tiếp tục HOLD. #66 BE-02 đã được Leader duyệt policy theo `USER-MGMT-BE02-01`, nhưng vẫn chưa IMPLEMENTED/PASS và phải làm trong PR riêng. [#61](https://github.com/Unknown4505/Library-System/issues/61) giữ FE dependency; [#65](https://github.com/Unknown4505/Library-System/issues/65) **CLOSED — NOT PLANNED**. Employee/Salary/NCC vẫn theo approval/dependency ở docs/12; Leader giữ Domain/EF schema, shared contract và integration QA.
+- **Handoff cập nhật:** [Issue #60](https://github.com/Unknown4505/Library-System/issues/60) BE-01 và [#66](https://github.com/Unknown4505/Library-System/issues/66) BE-01/BE-03 đã **TARGETED BACKEND QA PASS** tại PR #68; PR vẫn OPEN và chưa merge. Ngày 08/11/2026, #60 BE-02 được duyệt thiết kế theo `BOOK-BARCODE-BE02-01` cho `@thien33` triển khai direct cutover có kiểm soát trong **PR riêng**; hiện vẫn **NOT STARTED / NOT TESTED**. #66 BE-02 dùng quyết định riêng `USER-MGMT-BE02-01`, không phải bằng chứng approval cho Barcode. [#61](https://github.com/Unknown4505/Library-System/issues/61) giữ FE dependency; [#65](https://github.com/Unknown4505/Library-System/issues/65) **CLOSED — NOT PLANNED**. Employee/Salary/NCC vẫn theo approval/dependency ở docs/12; Leader giữ Domain/EF schema, shared contract và integration QA.
 - **Salary APPROVED DESIGN (HR-DEC-01/02/03):** PayYear 2000..2100; Admin xem all và pay; Manager/Staff chỉ xem own Paid qua JWT→Employee; Backend enforce công thức NetSalary, Draft/Paid actor-time, transaction/concurrency và immutable Paid. API/UI vẫn `[ ]` PLANNED; migration giữ nguyên và SQL QA vẫn `BLOCKED — ENV`.
 
 ### Handoff Kiosk Advertising & Navigation — flow và Contract V1 đã duyệt (2026-10-21)
@@ -214,7 +214,7 @@ Rule QA: chỉ đánh dấu `[x]` khi toàn bộ scope tương ứng có evidenc
 | Feature | BE Owner | Issue | Backend status | FE dependency |
 |---|---|---|---|---|
 | #60 BE-01 Extended Search | `@thien33` | [#60](https://github.com/Unknown4505/Library-System/issues/60) | **[x] QA PASS — PR #68 OPEN / PENDING LEADER MERGE GATE** | Kiosk Search trong [#61](https://github.com/Unknown4505/Library-System/issues/61); full FE/Kiosk E2E chưa PASS |
-| #60 BE-02 Barcode | `@thien33` | [#60](https://github.com/Unknown4505/Library-System/issues/60) | **[ ] HOLD — LEADER DECISION REQUIRED** | Không triển khai/đổi DTO/schema khi còn HOLD |
+| #60 BE-02 Controlled Barcode Modification | `@thien33` | [#60](https://github.com/Unknown4505/Library-System/issues/60) | **[ ] APPROVED DESIGN / TODO / NOT STARTED / QA NOT TESTED** — `BOOK-BARCODE-BE02-01`, 08/11/2026 | Direct cutover qua planned `POST /api/books/{id}/change-barcode`; Admin-only; giữ BookId; không alias/schema; PR riêng, không mở rộng #68 |
 | #65 Monitoring | — | [#65](https://github.com/Unknown4505/Library-System/issues/65) | **OUT OF SCOPE / CLOSED — NOT PLANNED**; không yêu cầu GET list/summary | Không phải FE/BE dependency bắt buộc; phần Monitoring trong PR [#64](https://github.com/Unknown4505/Library-System/pull/64) cần loại/tách khỏi scope chính |
 | #66 BE-01 Users Read | `@thien33` | [#66](https://github.com/Unknown4505/Library-System/issues/66) | **[x] QA PASS — PR #68 OPEN / PENDING LEADER MERGE GATE** | CMS E2E chưa nghiệm thu |
 | #66 BE-03 Auth/Security | `@thien33` | [#66](https://github.com/Unknown4505/Library-System/issues/66) | **[x] TARGETED QA PASS** — Admin auth, JWT 401/403, DTO secrecy, read-only GET, login/inactive-login regression | Không suy rộng thành full security regression PASS |
@@ -224,6 +224,8 @@ Rule QA: chỉ đánh dấu `[x]` khi toàn bộ scope tương ứng có evidenc
 **Scope boundary:** Issue #61 chỉ bao gồm Kiosk WPF. CMS Reports/User Management trong PR #64 không tự trở thành scope #61 và cần tách hoặc có Leader approval; CMS Kiosk Monitoring đã OUT OF SCOPE / NOT REQUIRED và không được dùng làm Backend blocker. `@lehuukhang` không tự sửa Backend/SQL để unblock FE; `@thien33` chỉ handoff route/DTO/evidence còn hiệu lực qua #60/#66 trước khi claim cross-layer PASS.
 
 **Leader decision — USER-MGMT-BE02-01 (2026-11-04):** Duyệt `@thien33` triển khai BE-02 trong PR riêng, Admin-only: tạo User; sửa `fullName`/`role`; activate/deactivate; reset password. Không đổi username, không hard-delete, không thêm `Email`/`CreatedAt`/migration. Cấm self-deactivate và khóa Admin active cuối cùng; username unique case-insensitive/concurrency-safe; password tối thiểu 8 ký tự có hoa/thường/số, phải hash và không được trả/log. Trạng thái chỉ chuyển sang IMPLEMENTED sau code + targeted authorization/duplicate/concurrency/inactive-login/reset-password tests; hiện tại chưa được đánh dấu DONE.
+
+**Leader decision — BOOK-BARCODE-BE02-01 (2026-11-08):** Duyệt `@thien33` triển khai Issue #60 BE-02 trong PR riêng theo **direct cutover có kiểm soát**. Planned endpoint `POST /api/books/{id}/change-barcode` nhận `newBarcode` và `reason`, chỉ Admin; giữ nguyên `BookId`, không Barcode Alias/PreviousBarcode và không migration/schema. Bắt buộc trim/validate mã `1..50`, uniqueness do application check + DB unique index, chặn khi `ReservedQuantity > 0`, conditional atomic update chống race, safe `400/404/409`, structured audit actor/old/new/reason/time/correlation và `requiresLabelReprint=true`. Order/Payment/Inventory/ProductDiscount tiếp tục tham chiếu BookId; mã cũ không còn resolve sau cutover. Rollback dùng cùng endpoint và vẫn chịu mọi conflict rule. Acceptance gồm unit + independent API/SQL/concurrency tests và regression Books/Inventory/Checkout/Order/Payment; hiện **IMPLEMENTATION TODO / QA NOT TESTED / MERGE NOT READY**. Không sửa `UpdateBookDto`, Kiosk/CMS UI, lịch sử giao dịch hoặc PR #68 trong scope này.
 
 ---
 
