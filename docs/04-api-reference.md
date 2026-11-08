@@ -85,7 +85,7 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - **Extended Search — IMPLEMENTED IN PR #68 / TARGETED QA PASS / NOT MERGED:** [Issue #60](https://github.com/Unknown4505/Library-System/issues/60) BE-01 tại exact QA HEAD `829a46b27327d3dceb98c93b521cd4779bb65fbd` mở rộng `keyword` theo OR trên `Title`, `Author`, `Barcode`, `Publisher`, `Category.Name`, `Area.Name`; kết hợp được với `categoryId`, giữ pagination và sort ổn định `Title ASC, BookId ASC`. Extreme-page overflow đã FIX VERIFIED; HTTP/SQL targeted QA PASS. PR #68 còn OPEN nên API mở rộng **chưa có trên `main`** và chưa có full FE/Kiosk E2E evidence.
 - [x] #60 BE-01 implementation và targeted Backend QA.
 - [ ] #60 BE-01 merge/full FE-Kiosk E2E — chưa hoàn thành.
-- [ ] #60 BE-02 sửa Barcode — **HOLD / LEADER DECISION REQUIRED**; không tự thêm khả năng đổi Barcode vào update contract.
+- [ ] #60 BE-02 sửa Barcode — **APPROVED DESIGN / READY TO IMPLEMENT / NOT IMPLEMENTED** theo `BOOK-BARCODE-BE02-01` ngày 08/11/2026; triển khai trong PR riêng, không mở rộng PR #68.
 - **Response (Success - 200 OK):**
 ```json
 {
@@ -115,6 +115,29 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 #### Lấy chi tiết 1 cuốn sách (khi quét mã vạch)
 - **Endpoint:** `GET /api/books/barcode/{barcode}`
 - **Response:** Trả về Object giống 1 item trong mảng `items` ở trên. Lỗi `404 Not Found` nếu mã không tồn tại.
+
+#### Đổi Barcode có kiểm soát — PLANNED / APPROVED SPECIFICATION / NOT IMPLEMENTED
+
+**Leader decision `BOOK-BARCODE-BE02-01` (08/11/2026):** Issue #60 BE-02 được duyệt cho `@thien33` triển khai theo phương án **direct cutover có kiểm soát**, giữ nguyên `BookId`, không lưu Barcode Alias và không thêm migration/schema. Đây là contract đã duyệt, **không phải endpoint đang hoạt động**.
+
+- **Planned endpoint:** `POST /api/books/{id:int}/change-barcode`
+- **Authorization:** JWT role `Admin` duy nhất; unauthenticated trả `401`, Manager/Staff trả `403`.
+- **Request:**
+```json
+{
+  "newBarcode": "9786043652874",
+  "reason": "Tem cũ bị hỏng, cần cấp mã thay thế"
+}
+```
+- `newBarcode`: bắt buộc, trim trước khi lưu, dài `1..50`, tương thích `varchar(50)`, không chứa control character; không giả định mọi mã là EAN-13. Mã sau normalize phải khác mã hiện tại và không trùng Barcode của sách khác theo unique index/collation của database.
+- `reason`: bắt buộc, trim, dài `5..500`; chỉ dùng cho audit, không được chứa secret.
+- **Success `200`:** shared `ApiResponseDto`, `data` gồm `bookId`, `oldBarcode`, `newBarcode`, `requiresLabelReprint=true`, `changedAtUtc`; message yêu cầu in và dán tem mới ngay.
+- **Errors:** `400 BAD_REQUEST` cho contract/format hoặc mã không đổi; `404 NOT_FOUND` khi Book không tồn tại; `409 CONFLICT` khi mã mới đã được dùng, `ReservedQuantity > 0`, hoặc conditional update mất race. Không trả raw provider/SQL exception.
+- **Transaction/concurrency:** kiểm tra Book, `ReservedQuantity == 0`, uniqueness và cập nhật trong một transaction. Update phải có điều kiện trên `BookId + old Barcode + ReservedQuantity == 0`; affected row khác 1 trả `409`. Unique index là chốt cuối cho hai request cùng chọn một mã; chỉ provider unique violation thật được map thành `409`.
+- **Audit/rollback:** sau commit ghi structured security audit gồm actor UserId, BookId, old/new Barcode, reason, UTC timestamp và correlation id; không log token. Rollback nghiệp vụ dùng lại chính endpoint với mã cũ và reason mới, vẫn chịu uniqueness/reservation/concurrency rules; nếu mã cũ đã được cấp cho sách khác thì trả `409`.
+- **Compatibility:** Order, Payment, Inventory receipt và ProductDiscount tiếp tục tham chiếu `BookId`, nên không đổi FK/lịch sử. Kiosk/CMS phải dùng mã mới ngay; mã cũ trả `404` sau cutover và không được resolve như alias. `requiresLabelReprint=true` là điều kiện vận hành bắt buộc. Source hiện không có module Borrowing/Loan; nếu bổ sung module này về sau phải dùng `BookId` và qua review riêng.
+- **Out of scope:** sửa `PUT /api/books/{id}` để nhận Barcode; Barcode Alias/PreviousBarcode; bảng audit/migration mới; đổi Kiosk/CMS UI; tự động in tem; sửa lịch sử Order/Inventory; mở rộng PR #68.
+- **Acceptance trước merge:** Release build 0 errors; unit/service tests; independent API+SQL tests cho 401/403, validation, 404, success/audit, duplicate tuần tự và đồng thời, hai update đồng thời trên cùng Book, reservation race, rollback khi persistence lỗi, old-code 404/new-code lookup, và regression Books Search/Inventory/Checkout/Order/Payment. Developer tests không thay independent QA evidence.
 
 #### Lấy danh sách Danh mục
 - **Endpoint:** `GET /api/categories`
