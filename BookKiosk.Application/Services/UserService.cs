@@ -35,10 +35,10 @@ public class UserService : IUserService
         var current = ex;
         while (current != null)
         {
-            var typeName = current.GetType().Name;
+            var providerType = current.GetType();
 
             // 1. SQL Server: SqlException Number 2601 hoặc 2627
-            if (typeName == "SqlException")
+            if (providerType == Type.GetType("Microsoft.Data.SqlClient.SqlException, Microsoft.Data.SqlClient", throwOnError: false))
             {
                 var numberProp = current.GetType().GetProperty("Number");
                 if (numberProp?.GetValue(current) is int number && (number == 2601 || number == 2627))
@@ -47,27 +47,15 @@ public class UserService : IUserService
                 }
             }
 
-            // 2. SQLite: ErrorCode 19
-            if (typeName == "SqliteException")
+            // Resolve the actual provider type, not a lookalike exception's short name.
+            // SQLite extended codes distinguish UNIQUE/PRIMARY KEY from FK/NOT NULL/CHECK.
+            if (providerType == Type.GetType("Microsoft.Data.Sqlite.SqliteException, Microsoft.Data.Sqlite", throwOnError: false))
             {
-                var codeProp = current.GetType().GetProperty("SqliteErrorCode");
-                if (codeProp?.GetValue(current) is int code && code == 19 &&
-                    current.Message.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase))
+                var codeProp = providerType.GetProperty("SqliteExtendedErrorCode");
+                if (codeProp?.GetValue(current) is int code && (code == 2067 || code == 1555))
                 {
                     return true;
                 }
-            }
-
-            // 3. Fallback message inspection cho mocked/simulated exceptions
-            var msg = current.Message;
-            if (!string.IsNullOrEmpty(msg) &&
-                (msg.Contains("2601") ||
-                 msg.Contains("2627") ||
-                 msg.Contains("IX_Users_Username", StringComparison.OrdinalIgnoreCase) ||
-                 msg.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) ||
-                 msg.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
             }
 
             current = current.InnerException;
@@ -176,6 +164,11 @@ public class UserService : IUserService
         {
             // Bắt vi phạm Unique Index trong SQL Server khi hai request cùng gửi đồng thời
             throw new InvalidOperationException("Tên đăng nhập đã tồn tại trong hệ thống.", ex);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Persistence failures must not enter the controller's business-error handlers.
+            throw new System.Data.DataException("Không thể lưu tài khoản người dùng.", ex);
         }
 
         return new UserDto

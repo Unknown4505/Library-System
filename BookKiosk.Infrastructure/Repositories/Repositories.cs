@@ -21,37 +21,58 @@ public class UnitOfWork : IUnitOfWork
     public async Task BeginTransactionAsync(System.Data.IsolationLevel isolationLevel) => _transaction = await _context.Database.BeginTransactionAsync(isolationLevel);
     public async Task CommitAsync()
     {
-        if (_transaction != null)
+        var transaction = _transaction;
+        _transaction = null;
+        if (transaction != null)
         {
+            var operationFailed = false;
             try
             {
-                await _transaction.CommitAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                operationFailed = true;
+                throw;
             }
             finally
             {
-                await _transaction.DisposeAsync();
-                _transaction = null;
+                try { await transaction.DisposeAsync(); }
+                catch when (operationFailed) { /* Preserve the primary commit failure. */ }
             }
         }
     }
 
     public async Task RollbackAsync()
     {
-        if (_transaction != null)
+        var transaction = _transaction;
+        _transaction = null;
+        if (transaction != null)
         {
+            var operationFailed = false;
             try
             {
-                await _transaction.RollbackAsync();
+                await transaction.RollbackAsync();
+            }
+            catch
+            {
+                operationFailed = true;
+                throw;
             }
             finally
             {
-                await _transaction.DisposeAsync();
-                _transaction = null;
+                try { await transaction.DisposeAsync(); }
+                catch when (operationFailed) { /* Preserve the primary rollback failure. */ }
             }
         }
     }
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
-    public void Dispose() => _transaction?.Dispose();
+    public void Dispose()
+    {
+        var transaction = _transaction;
+        _transaction = null;
+        transaction?.Dispose();
+    }
 }
 
 public class MemberRepository : IMemberRepository
