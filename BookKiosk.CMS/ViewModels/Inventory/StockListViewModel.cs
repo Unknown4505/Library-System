@@ -16,6 +16,10 @@ namespace BookKiosk.CMS.ViewModels.Inventory
         public bool LowOnly { get; set; }
         public string? Keyword { get; set; }
 
+        // Trạng thái lỗi / không khả dụng
+        public bool IsUnavailable { get; set; }
+        public string? ErrorMessage { get; set; }
+
         // Model cho popup điều chỉnh kiểm kê
         public AdjustStockDto AdjustModel { get; set; } = new();
     }

@@ -138,7 +138,14 @@
     </div>
 
     <div class="card-body p-0">
-        @if (Model.StockItems == null || !Model.StockItems.Any())
+        @if (Model.IsUnavailable)
+        {
+            <div class="alert alert-warning py-4 text-center m-4">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2 d-block text-warning opacity-75"></i>
+                <div class="fw-semibold">@(Model.ErrorMessage ?? "Không thể tải dữ liệu tồn kho từ máy chủ. Vui lòng thử lại sau.")</div>
+            </div>
+        }
+        else if (Model.StockItems == null || !Model.StockItems.Any())
         {
             <partial name="_EmptyState" model='"Không tìm thấy đầu sách nào theo tiêu chí tồn kho hiện tại."' />
         }
