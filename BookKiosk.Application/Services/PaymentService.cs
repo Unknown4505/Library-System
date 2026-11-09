@@ -121,6 +121,10 @@ public class PaymentService : IPaymentService
             return exists;
         }
 
+        // Validate persisted financial data before replay/reconciliation can write a ledger row.
+        if (order.TotalAmount <= 0)
+            return false;
+
         // BE-NEW-12: Trường hợp webhook đến sau khi đơn hàng đã bị hủy (Cancelled)
         if (order.OrderStatus == OrderStatus.Cancelled)
         {
@@ -195,6 +199,7 @@ public class PaymentService : IPaymentService
                 throw;
             }
         }
+
 
         // Đơn hàng đang Pending -> Hoàn tất thanh toán an toàn
         await _unitOfWork.BeginTransactionAsync();
@@ -287,11 +292,15 @@ public class PaymentService : IPaymentService
         if (order == null)
             return (false, "NotFound", "Không tìm thấy đơn hàng.", null);
 
+        if (order.TotalAmount <= 0)
+            return (false, "Conflict", "Đơn hàng có tổng tiền không hợp lệ, không thể thanh toán.", order);
+
         if (order.OrderStatus == OrderStatus.Cancelled)
             return (false, "Conflict", "Đơn hàng đã bị hủy, không thể mô phỏng thanh toán.", order);
 
         if (order.OrderStatus == OrderStatus.Paid)
             return (true, "Paid", "Đơn hàng đã được thanh toán trước đó.", order);
+
 
         // Đơn đang Pending -> Hoàn tất đúng theo luồng giao dịch an toàn
         var devRefCode = $"DEV_{order.OrderId}_{DateTime.UtcNow.Ticks}";

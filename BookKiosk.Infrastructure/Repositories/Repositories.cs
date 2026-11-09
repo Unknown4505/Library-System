@@ -18,10 +18,60 @@ public class UnitOfWork : IUnitOfWork
     public UnitOfWork(ApplicationDbContext context) => _context = context;
 
     public async Task BeginTransactionAsync() => _transaction = await _context.Database.BeginTransactionAsync();
-    public async Task CommitAsync() { if (_transaction != null) await _transaction.CommitAsync(); }
-    public async Task RollbackAsync() { if (_transaction != null) await _transaction.RollbackAsync(); }
+    public async Task CommitAsync()
+    {
+        var transaction = _transaction;
+        _transaction = null;
+        if (transaction != null)
+        {
+            var operationFailed = false;
+            try
+            {
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                operationFailed = true;
+                throw;
+            }
+            finally
+            {
+                try { await transaction.DisposeAsync(); }
+                catch when (operationFailed) { /* Preserve the primary commit failure. */ }
+            }
+        }
+    }
+
+    public async Task RollbackAsync()
+    {
+        var transaction = _transaction;
+        _transaction = null;
+        if (transaction != null)
+        {
+            var operationFailed = false;
+            try
+            {
+                await transaction.RollbackAsync();
+            }
+            catch
+            {
+                operationFailed = true;
+                throw;
+            }
+            finally
+            {
+                try { await transaction.DisposeAsync(); }
+                catch when (operationFailed) { /* Preserve the primary rollback failure. */ }
+            }
+        }
+    }
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
-    public void Dispose() => _transaction?.Dispose();
+    public void Dispose()
+    {
+        var transaction = _transaction;
+        _transaction = null;
+        transaction?.Dispose();
+    }
 }
 
 public class MemberRepository : IMemberRepository
@@ -144,7 +194,25 @@ public class ReportRepository : IReportRepository
     public ReportRepository(ApplicationDbContext context) => _context = context;
     public async Task<object> GetRevenueByMonthAsync(int year)
     {
-        var rawData = await _context.Orders.Where(o => o.OrderStatus == OrderStatus.Paid && o.CompletedAt.HasValue && o.CompletedAt.Value.Year == year).GroupBy(o => o.CompletedAt!.Value.Month).Select(g => new { Month = g.Key, Revenue = g.Sum(o => o.TotalAmount), TotalOrders = g.Count() }).ToListAsync();
+        // Inspect each contributing row in the same SQL query as the sums. A separate
+        // precheck could race; a positive monthly SUM can hide a negative Paid order.
+        var rawData = await _context.Orders
+            .Where(o => o.OrderStatus == OrderStatus.Paid && o.CompletedAt.HasValue && o.CompletedAt.Value.Year == year)
+            .GroupBy(o => o.CompletedAt!.Value.Month)
+            .Select(g => new
+            {
+                Month = g.Key,
+                Revenue = g.Sum(o => o.TotalAmount),
+                TotalOrders = g.Count(),
+                InvalidOrders = g.Count(o => o.TotalAmount <= 0)
+            }).ToListAsync();
+
+        if (rawData.Any(m => m.InvalidOrders > 0))
+        {
+            // GlobalExceptionHandlerMiddleware logs this exception and returns the
+            // existing safe 500 INTERNAL_ERROR wrapper, never partial monthly totals.
+            throw new System.Data.DataException($"Revenue integrity violation for year {year}: Paid order amount must be positive.");
+        }
         return Enumerable.Range(1, 12).Select(m => new { Month = m, Revenue = rawData.FirstOrDefault(d => d.Month == m)?.Revenue ?? 0, TotalOrders = rawData.FirstOrDefault(d => d.Month == m)?.TotalOrders ?? 0 }).ToList();
     }
     public async Task<object> GetTopSellingBooksAsync(int top)
@@ -251,6 +319,9 @@ public class OrderRepository : IOrderRepository
     public async Task<bool> TryTransitionOrderStatusAsync(int orderId, OrderStatus fromStatus, OrderStatus toStatus, DateTime? completedAt = null)
     {
         var query = _context.Orders.Where(o => o.OrderId == orderId && o.OrderStatus == fromStatus);
+        // Recheck persisted amount in the same SQL UPDATE as the Paid transition.
+        if (toStatus == OrderStatus.Paid)
+            query = query.Where(o => o.TotalAmount > 0);
         int affected;
         if (completedAt.HasValue)
         {
@@ -366,4 +437,3 @@ public class KioskRepository : IKioskRepository
     public async Task AddIncidentAsync(KioskIncident incident) => await _context.KioskIncidents.AddAsync(incident);
     public async Task<KioskIncident?> GetOpenIncidentAsync(int kioskId, string errorCode) => await _context.KioskIncidents.FirstOrDefaultAsync(i => i.KioskId == kioskId && i.ErrorCode == errorCode && i.ResolvedAt == null);
 }
-

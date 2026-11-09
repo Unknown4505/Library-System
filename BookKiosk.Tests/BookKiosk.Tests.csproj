@@ -13,6 +13,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.13" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="Moq" Version="4.21.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.12" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>
@@ -25,6 +26,8 @@
     <ProjectReference Include="..\BookKiosk.CMS\BookKiosk.CMS.csproj" />
     <ProjectReference Include="..\BookKiosk.Application\BookKiosk.Application.csproj" />
     <ProjectReference Include="..\BookKiosk.Domain\BookKiosk.Domain.csproj" />
+    <ProjectReference Include="..\BookKiosk.Infrastructure\BookKiosk.Infrastructure.csproj" />
+    <ProjectReference Include="..\BookKiosk.API\BookKiosk.API.csproj" Aliases="BackendApi" />
   </ItemGroup>
 
 </Project>
