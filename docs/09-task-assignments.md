@@ -132,7 +132,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
 | 10.1 | Admin API: CRUD Khuyến mãi, Nhập kho | | @thien33 | | `[x]` |
-| 10.2 | Trang Nhập kho (Inventory) | | | @lehuukhang | `[ ]` — không phải Kiosk Management; source CMS và kết nối Inventory/Supplier API đã có, còn targeted QA/acceptance trước khi đánh dấu hoàn thành |
+| 10.2 | Trang Nhập kho (Inventory) | | | @lehuukhang | `[x]` — **IMPLEMENTED / INDEPENDENT TARGETED QA ACCEPTED — PR #77 HEAD `7920663e`**; `FE-INVENTORY-EMPTY-01` và `INV-KPI-UNAVAILABLE-01` đã PASS, Inventory controller/Razor + service đạt 24 PASS / 0 FAIL; 3 HTTP/SQL tests vẫn SKIP do thiếu disposable SQL Server và không được tính là full Backend/SQL E2E PASS; PR merge pending |
 | 10.3 | Trang Quản lý Khuyến mãi | | | @lehuukhang | `[x]` — PR #58 targeted QA PASS; merge pending |
 | 10.4 | Trang POS Bán tại quầy (Áp mã thủ công) | | | @lehuukhang | `[x]` — PR #58 targeted QA PASS; merge pending |
 
