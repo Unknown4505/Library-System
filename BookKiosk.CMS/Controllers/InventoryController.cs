@@ -158,42 +158,47 @@ namespace BookKiosk.CMS.Controllers
                 Keyword = keyword?.Trim()
             };
 
-            // 1. Gọi API lấy dữ liệu tồn kho
-            var stockResult = await _apiClient.GetStockAsync(lowOnly, vm.Keyword);
-            if (stockResult.Success && stockResult.Data != null && stockResult.Data.Any())
+            // 1. Gọi API lấy dữ liệu tồn kho (nguồn thẩm quyền duy nhất)
+            try
             {
-                vm.StockItems = stockResult.Data;
-            }
-            else
-            {
-                // Fallback: Đồng bộ từ Catalog sách nếu backend chưa kích hoạt endpoint riêng
-                var booksResult = await _apiClient.GetBooksAsync(page: 1, pageSize: 100, keyword: vm.Keyword);
-                if (booksResult.Success && booksResult.Data?.Items != null)
+                var stockResult = await _apiClient.GetStockAsync(lowOnly, vm.Keyword);
+                if (stockResult.Success && stockResult.Data != null)
                 {
-                    var items = booksResult.Data.Items.Select(b => new StockItemDto
-                    {
-                        BookId = b.BookId,
-                        Barcode = b.Barcode,
-                        Title = b.Title,
-                        Author = b.Author,
-                        ImageUrl = b.ImageUrl,
-                        CategoryName = b.CategoryName,
-                        AreaName = b.AreaName,
-                        StockQuantity = b.StockQuantity,
-                        ReservedQuantity = b.ReservedQuantity,
-                        AvailableStock = b.AvailableStock,
-                        CostPrice = b.CostPrice,
-                        SellingPrice = b.SellingPrice,
-                        IsActive = b.IsActive
-                    }).ToList();
-
-                    if (lowOnly)
-                    {
-                        items = items.Where(s => s.IsLowStock).ToList();
-                    }
-
-                    vm.StockItems = items;
+                    vm.StockItems = stockResult.Data;
+                    vm.IsUnavailable = false;
                 }
+                else if (stockResult.Success && stockResult.Data == null)
+                {
+                    vm.StockItems = Enumerable.Empty<StockItemDto>();
+                    vm.IsUnavailable = true;
+                    vm.ErrorMessage = "Dữ liệu tồn kho từ máy chủ không hợp lệ.";
+                    TempData["Error"] = vm.ErrorMessage;
+                    _logger.LogWarning("API tồn kho trả về thành công nhưng dữ liệu null.");
+                }
+                else if (stockResult.IsEndpointUnavailable)
+                {
+                    vm.StockItems = Enumerable.Empty<StockItemDto>();
+                    vm.IsUnavailable = true;
+                    vm.ErrorMessage = "Dịch vụ quản lý tồn kho hiện chưa sẵn sàng. Vui lòng liên hệ quản trị viên.";
+                    TempData["Error"] = vm.ErrorMessage;
+                    _logger.LogWarning("Endpoint tồn kho chưa sẵn sàng: {Message}", stockResult.Message);
+                }
+                else
+                {
+                    vm.StockItems = Enumerable.Empty<StockItemDto>();
+                    vm.IsUnavailable = true;
+                    vm.ErrorMessage = stockResult.Message ?? "Không thể tải dữ liệu tồn kho từ máy chủ. Vui lòng thử lại sau.";
+                    TempData["Error"] = vm.ErrorMessage;
+                    _logger.LogWarning("Không tải được dữ liệu tồn kho: {Message}", stockResult.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                vm.StockItems = Enumerable.Empty<StockItemDto>();
+                vm.IsUnavailable = true;
+                vm.ErrorMessage = "Đã xảy ra lỗi khi kết nối đến dịch vụ tồn kho.";
+                TempData["Error"] = vm.ErrorMessage;
+                _logger.LogError(ex, "Lỗi ngoại lệ khi gọi GetStockAsync");
             }
 
             return View(vm);

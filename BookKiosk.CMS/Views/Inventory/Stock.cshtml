@@ -32,7 +32,7 @@
                 </div>
                 <div>
                     <div class="text-muted small fw-semibold text-uppercase">Đầu sách trong kho</div>
-                    <h4 class="mb-0 fw-bold text-dark">@Model.TotalItems</h4>
+                    <h4 class="mb-0 fw-bold text-dark">@(Model.IsUnavailable ? "—" : Model.TotalItems.ToString())</h4>
                 </div>
             </div>
         </div>
@@ -47,7 +47,7 @@
                 </div>
                 <div>
                     <div class="text-muted small fw-semibold text-uppercase">Tổng số cuốn tồn</div>
-                    <h4 class="mb-0 fw-bold text-dark">@Model.TotalStockQuantity.ToString("N0")</h4>
+                    <h4 class="mb-0 fw-bold text-dark">@(Model.IsUnavailable ? "—" : Model.TotalStockQuantity.ToString("N0"))</h4>
                 </div>
             </div>
         </div>
@@ -62,7 +62,7 @@
                 </div>
                 <div>
                     <div class="text-muted small fw-semibold text-uppercase">Sắp hết (≤ 5 cuốn)</div>
-                    <h4 class="mb-0 fw-bold text-warning">@Model.LowStockCount</h4>
+                    <h4 class="mb-0 fw-bold text-warning">@(Model.IsUnavailable ? "—" : Model.LowStockCount.ToString())</h4>
                 </div>
             </div>
         </div>
@@ -77,7 +77,7 @@
                 </div>
                 <div>
                     <div class="text-muted small fw-semibold text-uppercase">Đã hết hàng (0)</div>
-                    <h4 class="mb-0 fw-bold text-danger">@Model.OutOfStockCount</h4>
+                    <h4 class="mb-0 fw-bold text-danger">@(Model.IsUnavailable ? "—" : Model.OutOfStockCount.ToString())</h4>
                 </div>
             </div>
         </div>
@@ -131,14 +131,30 @@
     <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-2">
             <h6 class="mb-0 fw-bold text-dark">Dữ liệu kiểm kê kho</h6>
-            <span class="badge bg-primary-subtle text-primary rounded-pill px-2">
-                @Model.TotalItems bản ghi
-            </span>
+            @if (Model.IsUnavailable)
+            {
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2">
+                    Không khả dụng
+                </span>
+            }
+            else
+            {
+                <span class="badge bg-primary-subtle text-primary rounded-pill px-2">
+                    @Model.TotalItems bản ghi
+                </span>
+            }
         </div>
     </div>
 
     <div class="card-body p-0">
-        @if (Model.StockItems == null || !Model.StockItems.Any())
+        @if (Model.IsUnavailable)
+        {
+            <div class="alert alert-warning py-4 text-center m-4">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2 d-block text-warning opacity-75"></i>
+                <div class="fw-semibold">@(Model.ErrorMessage ?? "Không thể tải dữ liệu tồn kho từ máy chủ. Vui lòng thử lại sau.")</div>
+            </div>
+        }
+        else if (Model.StockItems == null || !Model.StockItems.Any())
         {
             <partial name="_EmptyState" model='"Không tìm thấy đầu sách nào theo tiêu chí tồn kho hiện tại."' />
         }
