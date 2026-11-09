@@ -234,7 +234,25 @@ public class ReportRepository : IReportRepository
     public ReportRepository(ApplicationDbContext context) => _context = context;
     public async Task<object> GetRevenueByMonthAsync(int year)
     {
-        var rawData = await _context.Orders.Where(o => o.OrderStatus == OrderStatus.Paid && o.CompletedAt.HasValue && o.CompletedAt.Value.Year == year).GroupBy(o => o.CompletedAt!.Value.Month).Select(g => new { Month = g.Key, Revenue = g.Sum(o => o.TotalAmount), TotalOrders = g.Count() }).ToListAsync();
+        // Inspect each contributing row in the same SQL query as the sums. A separate
+        // precheck could race; a positive monthly SUM can hide a negative Paid order.
+        var rawData = await _context.Orders
+            .Where(o => o.OrderStatus == OrderStatus.Paid && o.CompletedAt.HasValue && o.CompletedAt.Value.Year == year)
+            .GroupBy(o => o.CompletedAt!.Value.Month)
+            .Select(g => new
+            {
+                Month = g.Key,
+                Revenue = g.Sum(o => o.TotalAmount),
+                TotalOrders = g.Count(),
+                InvalidOrders = g.Count(o => o.TotalAmount <= 0)
+            }).ToListAsync();
+
+        if (rawData.Any(m => m.InvalidOrders > 0))
+        {
+            // GlobalExceptionHandlerMiddleware logs this exception and returns the
+            // existing safe 500 INTERNAL_ERROR wrapper, never partial monthly totals.
+            throw new System.Data.DataException($"Revenue integrity violation for year {year}: Paid order amount must be positive.");
+        }
         return Enumerable.Range(1, 12).Select(m => new { Month = m, Revenue = rawData.FirstOrDefault(d => d.Month == m)?.Revenue ?? 0, TotalOrders = rawData.FirstOrDefault(d => d.Month == m)?.TotalOrders ?? 0 }).ToList();
     }
     public async Task<object> GetTopSellingBooksAsync(int top)
@@ -342,6 +360,9 @@ public class OrderRepository : IOrderRepository
     public async Task<bool> TryTransitionOrderStatusAsync(int orderId, OrderStatus fromStatus, OrderStatus toStatus, DateTime? completedAt = null)
     {
         var query = _context.Orders.Where(o => o.OrderId == orderId && o.OrderStatus == fromStatus);
+        // Enforce the amount in the same UPDATE as the Paid transition, including races.
+        if (toStatus == OrderStatus.Paid)
+            query = query.Where(o => o.TotalAmount > 0);
         int affected;
         if (completedAt.HasValue)
         {

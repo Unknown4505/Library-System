@@ -196,6 +196,10 @@ public class PaymentService : IPaymentService
             }
         }
 
+        // REVENUE-NEGATIVE-01: reject corrupt persisted Pending amounts before any write.
+        if (order.TotalAmount <= 0)
+            return false;
+
         // Đơn hàng đang Pending -> Hoàn tất thanh toán an toàn
         await _unitOfWork.BeginTransactionAsync();
         try
@@ -292,6 +296,9 @@ public class PaymentService : IPaymentService
 
         if (order.OrderStatus == OrderStatus.Paid)
             return (true, "Paid", "Đơn hàng đã được thanh toán trước đó.", order);
+
+        if (order.TotalAmount <= 0)
+            return (false, "Conflict", "Đơn hàng có tổng tiền không hợp lệ, không thể thanh toán.", order);
 
         // Đơn đang Pending -> Hoàn tất đúng theo luồng giao dịch an toàn
         var devRefCode = $"DEV_{order.OrderId}_{DateTime.UtcNow.Ticks}";
