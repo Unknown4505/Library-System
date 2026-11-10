@@ -50,7 +50,22 @@ Các kết quả dưới đây bổ sung trường Input, Actual và Owner cho t
 | E2E-13 | Revenue/top-books typed DTO | DTO serialization PASS; authorization test FAIL vì ReportsController không giới hạn Admin | FAIL | Thiện Backend, Khang CMS |
 | E2E-14 | API key thiếu/sai; F3/receipt; maintenance | HTTP thiếu key trả 401, key sai trả 403; F3 và receipt trả 404; PR #11 còn password hardcode; Books POST không JWT vẫn trả 201 | FAIL | Thiện auth/#20, Khang Maintenance |
 
-### 2.1 Targeted acceptance — REVENUE-MONTHLY-01
+### 2.1 Backend targeted acceptance — Extended Books Search BE-01
+
+PR #83 (`b13874677e0e8db61cb2478da208909edcc54d88`) đã merge vào `main` ngày 2026-11-10 qua `eeb5ceedeb9326efec9e92196725f5e6e2263738`. Đây là **BACKEND TARGETED QA PASS**, không phải bằng chứng Kiosk WPF, real camera hoặc full E2E PASS.
+
+| ID | Acceptance | Trạng thái |
+|---|---|---|
+| SEARCH-BE01-01 | Keyword OR trên Title, Author, Barcode, Publisher, Category.Name và Area.Name; trim và case-insensitive theo SQL behavior | PASS — PR #83 independent HTTP/SQL QA |
+| SEARCH-BE01-02 | Giữ active-book filter và kết hợp `categoryId`; no-match trả rỗng | PASS — PR #83 independent HTTP/SQL QA |
+| SEARCH-BE01-03 | Keyword dài hơn 500 ký tự trả empty result, `TotalCount=0` | PASS — PR #83 independent HTTP/SQL QA |
+| SEARCH-BE01-04 | Pagination ổn định `Title ASC, BookId ASC`, extreme page không overflow, không duplicate do joins | PASS — PR #83 independent HTTP/SQL QA |
+| SEARCH-BE01-05 | Release build, 7 developer SQL acceptance, 8/8 independent acceptance và disposable SQL cleanup | PASS — zero QA database leftovers |
+| SEARCH-FE-01 | Kiosk WPF/real camera/real Backend integration | **PENDING / NOT PROVEN BY BACKEND TARGETED QA** |
+
+Các trạng thái E2E-01 đến E2E-14 ở trên được giữ nguyên; PR #83 không tự hoàn thành Task 4.5 hoặc Issue #61.
+
+### 2.2 Targeted acceptance — REVENUE-MONTHLY-01
 
 Các ca dưới đây là acceptance requirements theo quyết định Leader ngày 2026-11-06. Evidence lịch sử của E2E-13 phía trên được giữ nguyên. Các trạng thái FE PASS được cập nhật từ independent QA tại exact PR #64 HEAD `ea010e34`; chúng không thay thế real CMS↔Backend↔SQL E2E.
 
