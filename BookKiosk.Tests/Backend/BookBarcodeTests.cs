@@ -49,6 +49,31 @@ public class BookBarcodeTests
         Assert.Single(logger.Invocations, x => x.Method.Name == "Log");
     }
 
+    [Fact]
+    public async Task Committed_change_returns_success_with_operator_warning_when_audit_logger_throws()
+    {
+        var repo = new Mock<IBookBarcodeRepository>();
+        repo.Setup(x => x.ChangeAsync(1, "NEW")).ReturnsAsync(ApiResponseDto<ChangeBarcodeDto>.Ok(new(1, "OLD", "NEW", true, DateTime.UtcNow)));
+        var result = await new BookBarcodeService(repo.Object, new ThrowingBarcodeLogger()).ChangeAsync(1,
+            new() { NewBarcode = "NEW", Reason = "Print new label" }, 33, "audit-failure-test");
+        Assert.True(result.Success);
+        Assert.Equal("SUCCESS", result.Code);
+        Assert.Equal("NEW", result.Data!.NewBarcode);
+        Assert.Contains("nhật ký", result.Message);
+        Assert.DoesNotContain("injected logger failure", result.Message);
+    }
+
+    [Fact]
+    public async Task Failed_transaction_never_attempts_success_audit()
+    {
+        var repo = new Mock<IBookBarcodeRepository>();
+        repo.Setup(x => x.ChangeAsync(1, "NEW")).ThrowsAsync(new System.Data.DataException("rollback"));
+        var logger = new Mock<ILogger<BookBarcodeService>>(MockBehavior.Strict);
+        await Assert.ThrowsAsync<System.Data.DataException>(() => new BookBarcodeService(repo.Object, logger.Object)
+            .ChangeAsync(1, new() { NewBarcode = "NEW", Reason = "Print new label" }, 33, "test"));
+        logger.VerifyNoOtherCalls();
+    }
+
     [Theory]
     [InlineData("NOT_FOUND", 404)]
     [InlineData("CONFLICT", 409)]
@@ -94,4 +119,12 @@ public class BookBarcodeTests
         Assert.Equal("UNAUTHORIZED", result.Code);
         repo.VerifyNoOtherCalls();
     }
+}
+
+internal sealed class ThrowingBarcodeLogger : ILogger<BookBarcodeService>
+{
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+    public bool IsEnabled(LogLevel logLevel) => true;
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+        Func<TState, Exception?, string> formatter) => throw new InvalidOperationException("injected logger failure");
 }

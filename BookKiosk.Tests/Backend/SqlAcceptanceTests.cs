@@ -96,6 +96,13 @@ public sealed class SqlAcceptanceTests(DisposableSqlQa db) : IClassFixture<Dispo
 
     [SqlQaFact]
     public async Task Real_jwt_http_authorization_and_cutover_contract()
+        => await VerifyHttpCutover(false);
+
+    [SqlQaFact]
+    public async Task Throwing_audit_logger_preserves_http_success_and_committed_sql_state()
+        => await VerifyHttpCutover(true);
+
+    private async Task VerifyHttpCutover(bool failAudit)
     {
         var book = await db.AddBookAsync();
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("QA_ONLY_EPHEMERAL_BARCODE_KEY_1234567890123456789"));
@@ -106,6 +113,8 @@ public sealed class SqlAcceptanceTests(DisposableSqlQa db) : IClassFixture<Dispo
             services.AddScoped(_ => db.Context());
             services.AddScoped<IBookBarcodeRepository, BookBarcodeRepository>();
             services.AddScoped<IBookBarcodeService, BookBarcodeService>();
+            if (failAudit)
+                services.AddSingleton<Microsoft.Extensions.Logging.ILogger<BookBarcodeService>, ThrowingBarcodeLogger>();
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(o => o.TokenValidationParameters = new()
             { ValidateIssuer = false, ValidateAudience = false, ValidateLifetime = true, ValidateIssuerSigningKey = true, IssuerSigningKey = key });
             services.AddAuthorization();
@@ -122,6 +131,16 @@ public sealed class SqlAcceptanceTests(DisposableSqlQa db) : IClassFixture<Dispo
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", new JwtSecurityTokenHandler().WriteToken(token));
             using var response = await Change("HTTP" + book.BookId);
             Assert.Equal(role == "Admin" ? HttpStatusCode.OK : HttpStatusCode.Forbidden, response.StatusCode);
+            if (role == "Admin")
+            {
+                using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+                Assert.True(json.RootElement.GetProperty("data").GetProperty("requiresLabelReprint").GetBoolean());
+                if (failAudit) Assert.Contains("nhật ký", json.RootElement.GetProperty("message").GetString());
+                await using var verify = db.Context();
+                Assert.Equal("HTTP" + book.BookId, (await verify.Books.AsNoTracking().SingleAsync(x => x.BookId == book.BookId)).Barcode);
+                Assert.False(await verify.Books.AnyAsync(x => x.Barcode == book.Barcode));
+            }
         }
         using var invalid = await Change("", "bad"); Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
     }
