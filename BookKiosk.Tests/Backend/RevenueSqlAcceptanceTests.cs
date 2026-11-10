@@ -1,4 +1,6 @@
 using System.Data;
+using System.Data.Common;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Text.Json;
 using BookKiosk.Domain.Entities;
 using BookKiosk.Domain.Enums;
@@ -69,6 +71,90 @@ public sealed class RevenueSqlAcceptanceTests(DisposableSqlQa db, Xunit.Abstract
         Assert.Null(context.Database.CurrentTransaction);
         await work.BeginTransactionAsync();await work.RollbackAsync();
         Assert.Null(context.Database.CurrentTransaction);
+    }
+
+    [SqlQaFact]
+    public async Task Amount_races_fail_closed_without_tracked_ledger_and_scope_can_recover()
+    {
+        foreach (var simulate in new[] { false, true })
+        foreach (var invalidAmount in new[] { 0m, -100m })
+        {
+            var book = await db.AddBookAsync();
+            await using var seed = db.Context();
+            await seed.Books.Where(x => x.BookId == book.BookId).ExecuteUpdateAsync(s => s.SetProperty(x => x.ReservedQuantity, 1));
+            var member = new Member { PhoneNumber = Guid.NewGuid().ToString("N")[..10], FullName = "QA race", Points = 7 };
+            var row = new Order { OrderCode = "ORD-" + Guid.NewGuid().ToString("N"), TotalAmount = 10000,
+                OrderStatus = OrderStatus.Pending, SaleChannel = SaleChannel.Counter, PaymentMethod = PaymentMethod.QR,
+                Member = member, OrderDetails = new List<OrderDetail> { new() { BookId = book.BookId, Quantity = 1, UnitPriceAtTime = 10000, LineTotal = 10000 } } };
+            seed.Orders.Add(row); await seed.SaveChangesAsync();
+            var gate = new BeforePaidTransition(async () =>
+            {
+                await using var other = db.Context();
+                await other.Orders.Where(x => x.OrderId == row.OrderId).ExecuteUpdateAsync(s => s.SetProperty(x => x.TotalAmount, invalidAmount));
+            });
+            await using var context = db.Context(gate);
+            using var work = new UnitOfWork(context);
+            var service = new BookKiosk.Application.Services.PaymentService(work, new PaymentRepository(context), new OrderRepository(context), new MemberRepository(context));
+            var payload = new BookKiosk.Application.Services.PaymentWebhookPayload { referenceCode = Guid.NewGuid().ToString("N"),
+                transferType = "in", accountNumber = "QA", code = row.OrderCode, transferAmount = 10000 };
+            Assert.False(simulate ? (await service.SimulateDevSuccessAsync(row.OrderCode)).Success : await service.HandleSePayWebhookAsync(payload));
+            Assert.True(gate.Triggered);
+            Assert.DoesNotContain(context.ChangeTracker.Entries<PaymentTransaction>(), x => x.State == EntityState.Added);
+            // A later SaveChanges in the same scope must not resurrect a rejected ledger entry.
+            await work.SaveChangesAsync(); await work.BeginTransactionAsync(); await work.RollbackAsync();
+            Assert.Null(context.Database.CurrentTransaction);
+            await using var verify = db.Context();
+            var persisted = await verify.Orders.AsNoTracking().SingleAsync(x => x.OrderId == row.OrderId);
+            Assert.Equal(OrderStatus.Pending, persisted.OrderStatus); Assert.Null(persisted.CompletedAt); Assert.Equal(invalidAmount, persisted.TotalAmount);
+            Assert.False(await verify.PaymentTransactions.AnyAsync(x => x.OrderId == row.OrderId));
+            Assert.False(await verify.PointTransactions.AnyAsync(x => x.OrderId == row.OrderId));
+            Assert.Equal(7, (await verify.Members.SingleAsync(x => x.MemberId == member.MemberId)).Points);
+            var stock = await verify.Books.SingleAsync(x => x.BookId == book.BookId);
+            Assert.Equal(10, stock.StockQuantity); Assert.Equal(1, stock.ReservedQuantity);
+        }
+    }
+
+    [SqlQaFact]
+    public async Task Positive_status_races_preserve_reconciliation_and_duplicate_idempotency()
+    {
+        foreach (var status in new[] { OrderStatus.Paid, OrderStatus.Cancelled })
+        {
+            await using var seed = db.Context();
+            var row = new Order { OrderCode = "ORD-" + Guid.NewGuid().ToString("N"), TotalAmount = 1000,
+                OrderStatus = OrderStatus.Pending, SaleChannel = SaleChannel.Counter, PaymentMethod = PaymentMethod.QR };
+            seed.Orders.Add(row); await seed.SaveChangesAsync();
+            var gate = new BeforePaidTransition(async () =>
+            {
+                await using var other = db.Context();
+                await other.Orders.Where(x => x.OrderId == row.OrderId).ExecuteUpdateAsync(s => s.SetProperty(x => x.OrderStatus, status));
+            });
+            await using var context = db.Context(gate);
+            using var work = new UnitOfWork(context);
+            var service = new BookKiosk.Application.Services.PaymentService(work, new PaymentRepository(context), new OrderRepository(context), new MemberRepository(context));
+            var payload = new BookKiosk.Application.Services.PaymentWebhookPayload { referenceCode = Guid.NewGuid().ToString("N"), transferType = "in", accountNumber = "QA", code = row.OrderCode, transferAmount = 1000 };
+            Assert.True(await service.HandleSePayWebhookAsync(payload));
+            Assert.True(gate.Triggered);
+            Assert.True(await service.HandleSePayWebhookAsync(payload));
+            await using var verify = db.Context();
+            Assert.Equal(status, (await verify.Orders.AsNoTracking().SingleAsync(x => x.OrderId == row.OrderId)).OrderStatus);
+            Assert.Equal(1, await verify.PaymentTransactions.CountAsync(x => x.OrderId == row.OrderId));
+            Assert.False(await verify.PointTransactions.AnyAsync(x => x.OrderId == row.OrderId));
+        }
+    }
+
+    private sealed class BeforePaidTransition(Func<Task> action) : DbCommandInterceptor
+    {
+        public bool Triggered { get; private set; }
+        public override async ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(DbCommand command,
+            CommandEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (!Triggered && command.CommandText.Contains("UPDATE") && command.CommandText.Contains("[Orders]") && command.CommandText.Contains("[OrderStatus]"))
+            {
+                Triggered = true;
+                await action();
+            }
+            return result;
+        }
     }
 
     [SqlQaFact]

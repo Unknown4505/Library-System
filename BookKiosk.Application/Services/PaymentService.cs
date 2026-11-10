@@ -220,11 +220,10 @@ public class PaymentService : IPaymentService
                 Amount = actualAmount,
                 Gateway = payload.gateway ?? "SePay"
             };
-            await _paymentRepository.AddTransactionAsync(paymentTx);
-
             if (actualAmount != order.TotalAmount)
             {
                 // Sai số tiền: ghi nhận đối soát, giữ đơn Pending, không đổi trạng thái, không trừ kho
+                await _paymentRepository.AddTransactionAsync(paymentTx);
                 await _unitOfWork.SaveChangesAsync();
                 await _unitOfWork.CommitAsync();
                 return true; 
@@ -235,12 +234,24 @@ public class PaymentService : IPaymentService
             var transitioned = await _orderRepository.TryTransitionOrderStatusAsync(order.OrderId, OrderStatus.Pending, OrderStatus.Paid, completedAt);
             if (!transitioned)
             {
-                // Đơn hàng đã bị hủy hoặc chuyển trạng thái bởi tiến trình khác
+                // A failed transition can mean a status race OR a rejected persisted amount.
+                // Read outside the identity map before tracking any ledger entry. Rollback
+                // alone would leave an Added entry available to a later SaveChanges in scope.
+                var currentOrder = await _orderRepository.GetOrderByCodeNoTrackingAsync(order.OrderCode);
+                if (currentOrder == null || currentOrder.TotalAmount <= 0)
+                {
+                    await _unitOfWork.RollbackAsync();
+                    return false;
+                }
+
+                // Valid positive status races retain the existing reconciliation behavior.
+                await _paymentRepository.AddTransactionAsync(paymentTx);
                 await _unitOfWork.SaveChangesAsync();
                 await _unitOfWork.CommitAsync();
                 return true;
             }
 
+            await _paymentRepository.AddTransactionAsync(paymentTx);
             order.OrderStatus = OrderStatus.Paid;
             order.CompletedAt = completedAt;
 
