@@ -75,6 +75,8 @@ public interface IOrderRepository
     Task AddOrderAsync(Order order);
     Task<bool> TryIncreaseReservedQuantityAsync(int bookId, int quantity);
     Task<bool> TryTransitionOrderStatusAsync(int orderId, BookKiosk.Domain.Enums.OrderStatus fromStatus, BookKiosk.Domain.Enums.OrderStatus toStatus, System.DateTime? completedAt = null);
+    // Atomic Paid transition must bind the persisted total to the amount being paid.
+    Task<bool> TryPayOrderAsync(int orderId, decimal expectedTotalAmount, System.DateTime completedAt);
     Task<Order?> GetPendingOrderByCodeAsync(string orderCode);
     Task<Order?> GetOrderByCodeAsync(string orderCode);
     Task<Order?> GetOrderByIdAsync(int orderId);

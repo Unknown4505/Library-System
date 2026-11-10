@@ -333,6 +333,19 @@ public class OrderRepository : IOrderRepository
         }
         return affected > 0;
     }
+    public async Task<bool> TryPayOrderAsync(int orderId, decimal expectedTotalAmount, DateTime completedAt)
+    {
+        if (expectedTotalAmount <= 0) return false;
+        // One SQL UPDATE performs validation and transition; its write lock remains held
+        // through the caller's transaction, so a later amount edit cannot race the ledger.
+        var affected = await _context.Orders
+            .Where(o => o.OrderId == orderId && o.OrderStatus == OrderStatus.Pending &&
+                o.TotalAmount > 0 && o.TotalAmount == expectedTotalAmount)
+            .ExecuteUpdateAsync(s => s.SetProperty(o => o.OrderStatus, OrderStatus.Paid)
+                .SetProperty(o => o.CompletedAt, completedAt));
+        return affected > 0;
+    }
+
     public async Task<Order?> GetPendingOrderByCodeAsync(string orderCode) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode && o.OrderStatus == OrderStatus.Pending);
     public async Task<Order?> GetOrderByCodeAsync(string orderCode) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode);
     public async Task<Order?> GetOrderByIdAsync(int orderId) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderId == orderId);

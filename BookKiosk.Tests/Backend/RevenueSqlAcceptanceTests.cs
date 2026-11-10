@@ -238,6 +238,117 @@ public sealed class RevenueSqlAcceptanceTests(DisposableSqlQa db, Xunit.Abstract
         }
     }
 
+    [SqlQaFact]
+    public async Task Positive_upward_drift_rejects_matching_webhook_without_side_effects()
+    {
+        await VerifyPositiveDrift("webhook", 1000, 1500);
+        await VerifyPositiveDrift("webhook", 10000, 15000);
+    }
+
+    [SqlQaFact]
+    public async Task Positive_downward_drift_rejects_matching_webhook_without_side_effects()
+    {
+        await VerifyPositiveDrift("webhook", 1000, 500);
+        await VerifyPositiveDrift("webhook", 10000, 5000);
+    }
+
+    [SqlQaFact]
+    public async Task Positive_drift_cannot_pay_through_dev_or_cash_paths()
+    {
+        await VerifyPositiveDrift("dev", 10000, 15000);
+        await VerifyPositiveDrift("cash", 10000, 15000);
+    }
+
+    [SqlQaFact]
+    public Task Snapshot_mismatch_becoming_persisted_match_remains_reconciliation_only()
+        => VerifyPositiveDrift("mismatch", 1000, 1500);
+
+    private async Task VerifyPositiveDrift(string flow, decimal original, decimal changed)
+    {
+        var book = await db.AddBookAsync();
+        await using var seed = db.Context();
+        await seed.Books.Where(x => x.BookId == book.BookId).ExecuteUpdateAsync(s => s.SetProperty(x => x.ReservedQuantity, 1));
+        var member = new Member { PhoneNumber = Guid.NewGuid().ToString("N")[..10], FullName = "Drift QA", Points = 7 };
+        var row = new Order { OrderCode = "ORD-" + Guid.NewGuid().ToString("N"), TotalAmount = original,
+            OrderStatus = OrderStatus.Pending, Member = member, SaleChannel = SaleChannel.Counter,
+            PaymentMethod = flow == "cash" ? PaymentMethod.Cash : PaymentMethod.QR,
+            OrderDetails = new List<OrderDetail> { new() { BookId = book.BookId, Quantity = 1, UnitPriceAtTime = original, LineTotal = original } } };
+        seed.Orders.Add(row); await seed.SaveChangesAsync();
+        async Task Drift()
+        {
+            await using var writer = db.Context();
+            await writer.Orders.Where(x => x.OrderId == row.OrderId).ExecuteUpdateAsync(s => s.SetProperty(x => x.TotalAmount, changed));
+        }
+        var updateGate = new BeforePaidTransition(Drift);
+        var duplicateGate = new BeforeDuplicateCheck(Drift);
+        var reconciliationOnly = flow == "mismatch";
+        await using var context = db.Context(reconciliationOnly ? duplicateGate : updateGate);
+        using var work = new UnitOfWork(context);
+        var orders = new OrderRepository(context);
+        var payments = new BookKiosk.Application.Services.PaymentService(work, new PaymentRepository(context), orders, new MemberRepository(context));
+        if (flow == "cash")
+        {
+            var service = new BookKiosk.Application.Services.OrderService(work, orders, new PromotionRepository(context), new MemberRepository(context), new PaymentRepository(context));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.ConfirmCounterPaymentAsync(row.OrderId, 33));
+        }
+        else if (flow == "dev") Assert.False((await payments.SimulateDevSuccessAsync(row.OrderCode)).Success);
+        else
+        {
+            var payload = new BookKiosk.Application.Services.PaymentWebhookPayload { referenceCode = Guid.NewGuid().ToString("N"), transferType = "in",
+                accountNumber = "QA", code = row.OrderCode, transferAmount = reconciliationOnly ? changed : original };
+            Assert.Equal(reconciliationOnly, await payments.HandleSePayWebhookAsync(payload));
+            Assert.Equal(reconciliationOnly, await payments.HandleSePayWebhookAsync(payload));
+        }
+        Assert.True(reconciliationOnly ? duplicateGate.Triggered : updateGate.Triggered);
+        Assert.DoesNotContain(context.ChangeTracker.Entries<PaymentTransaction>(), x => x.State == EntityState.Added);
+        await work.SaveChangesAsync(); await work.BeginTransactionAsync(); await work.RollbackAsync();
+        Assert.Null(context.Database.CurrentTransaction);
+        await using var verify = db.Context();
+        var persisted = await verify.Orders.AsNoTracking().SingleAsync(x => x.OrderId == row.OrderId);
+        Assert.Equal(OrderStatus.Pending, persisted.OrderStatus); Assert.Null(persisted.CompletedAt); Assert.Equal(changed, persisted.TotalAmount);
+        Assert.Equal(reconciliationOnly ? 1 : 0, await verify.PaymentTransactions.CountAsync(x => x.OrderId == row.OrderId));
+        Assert.False(await verify.PointTransactions.AnyAsync(x => x.OrderId == row.OrderId));
+        Assert.Equal(7, (await verify.Members.SingleAsync(x => x.MemberId == member.MemberId)).Points);
+        var stock = await verify.Books.SingleAsync(x => x.BookId == book.BookId);
+        Assert.Equal(10, stock.StockQuantity); Assert.Equal(1, stock.ReservedQuantity);
+        output.WriteLine($"Positive drift: flow={flow}, original={original}, persisted={changed}, Pending=true, ledger={(reconciliationOnly ? 1 : 0)}, stock=10, reserved=1, points=7");
+    }
+
+    [SqlQaFact]
+    public async Task Atomic_paid_amount_is_locked_through_ledger_commit_or_rollback()
+    {
+        foreach (var commit in new[] { false, true })
+        {
+            await using var context = db.Context();
+            var row = new Order { OrderCode = "ORD-" + Guid.NewGuid().ToString("N"), TotalAmount = 1000,
+                OrderStatus = OrderStatus.Pending, SaleChannel = SaleChannel.Counter, PaymentMethod = PaymentMethod.QR };
+            context.Orders.Add(row); await context.SaveChangesAsync();
+            using var work = new UnitOfWork(context);
+            var orders = new OrderRepository(context);
+            await work.BeginTransactionAsync();
+            Assert.False(await orders.TryPayOrderAsync(row.OrderId, 1500, DateTime.UtcNow));
+            Assert.True(await orders.TryPayOrderAsync(row.OrderId, 1000, DateTime.UtcNow));
+            await new PaymentRepository(context).AddTransactionAsync(new PaymentTransaction { OrderId = row.OrderId,
+                ReferenceCode = Guid.NewGuid().ToString("N"), Amount = 1000, Gateway = "QA" });
+            await work.SaveChangesAsync();
+            await using var other = db.Context();
+            await other.Database.OpenConnectionAsync();
+            await using var command = other.Database.GetDbConnection().CreateCommand();
+            command.CommandText = "SET LOCK_TIMEOUT 300; UPDATE [Orders] SET [TotalAmount]=1500 WHERE [OrderId]=@id";
+            var id = command.CreateParameter(); id.ParameterName = "@id"; id.Value = row.OrderId; command.Parameters.Add(id);
+            var error = await Assert.ThrowsAsync<Microsoft.Data.SqlClient.SqlException>(() => command.ExecuteNonQueryAsync());
+            Assert.Equal(1222, error.Number);
+            if (commit) await work.CommitAsync(); else await work.RollbackAsync();
+            command.CommandText = "SET LOCK_TIMEOUT 5000; SELECT [TotalAmount] FROM [Orders] WITH (UPDLOCK) WHERE [OrderId]=@id";
+            Assert.Equal(1000m, Convert.ToDecimal(await command.ExecuteScalarAsync()));
+            var persisted = await other.Orders.AsNoTracking().SingleAsync(x => x.OrderId == row.OrderId);
+            Assert.Equal(commit ? OrderStatus.Paid : OrderStatus.Pending, persisted.OrderStatus);
+            Assert.Equal(commit ? 1 : 0, await other.PaymentTransactions.CountAsync(x => x.OrderId == row.OrderId));
+            Assert.Null(context.Database.CurrentTransaction);
+            output.WriteLine($"Atomic Paid equality + ledger: competing amount UPDATE blocked; {(commit ? "commit" : "rollback")} coherent, total=1000");
+        }
+    }
+
     private sealed class BeforeDuplicateCheck(Func<Task> action) : DbCommandInterceptor
     {
         public bool Triggered { get; private set; }

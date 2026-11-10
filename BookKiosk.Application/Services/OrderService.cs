@@ -686,7 +686,7 @@ public class OrderService : IOrderService
         await _unitOfWork.BeginTransactionAsync();
         try
         {
-            var transitioned = await _orderRepository.TryTransitionOrderStatusAsync(orderId, OrderStatus.Pending, OrderStatus.Paid, DateTime.UtcNow);
+            var transitioned = await _orderRepository.TryPayOrderAsync(orderId, order.TotalAmount, DateTime.UtcNow);
             if (!transitioned)
             {
                 var checkOrder = await _orderRepository.GetOrderByCodeNoTrackingAsync(order.OrderCode);

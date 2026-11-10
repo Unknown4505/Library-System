@@ -61,7 +61,7 @@ public class RevenueIntegrityTests
         var order = new Order { OrderId = 1, OrderCode = "ORD-TEST", TotalAmount = 50000, OrderStatus = OrderStatus.Pending };
         var orders = new Mock<IOrderRepository>();
         orders.Setup(x => x.GetOrderByCodeAsync(order.OrderCode)).ReturnsAsync(order);
-        orders.Setup(x => x.TryTransitionOrderStatusAsync(1, OrderStatus.Pending, OrderStatus.Paid, It.IsAny<DateTime?>())).ReturnsAsync(true);
+        orders.Setup(x => x.TryPayOrderAsync(1, 50000, It.IsAny<DateTime>())).ReturnsAsync(true);
         var work = new Mock<IUnitOfWork>();
         var payments = new Mock<IPaymentRepository>();
         payments.SetupSequence(x => x.CheckTransactionExistsAsync("ref-test")).ReturnsAsync(false).ReturnsAsync(true);
@@ -165,7 +165,7 @@ public class RevenueIntegrityTests
         var order = new Order { OrderId = 1, OrderCode = "ORD-TEST", TotalAmount = 50000, OrderStatus = OrderStatus.Pending };
         var orders = new Mock<IOrderRepository>();
         orders.Setup(x => x.GetOrderByCodeAsync(order.OrderCode)).ReturnsAsync(order);
-        orders.Setup(x => x.TryTransitionOrderStatusAsync(1, OrderStatus.Pending, OrderStatus.Paid, It.IsAny<DateTime?>())).ReturnsAsync(true);
+        orders.Setup(x => x.TryPayOrderAsync(1, 50000, It.IsAny<DateTime>())).ReturnsAsync(true);
         var work = new Mock<IUnitOfWork>();
         var payments = new Mock<IPaymentRepository>();
         var service = new PaymentService(work.Object, payments.Object, orders.Object, Mock.Of<IMemberRepository>());

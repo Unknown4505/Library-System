@@ -238,6 +238,8 @@ public class PaymentService : IPaymentService
                     await _unitOfWork.RollbackAsync();
                     return false;
                 }
+                // Preserve mismatch intent from the original quote: reconciliation only,
+                // even if an intervening total edit now matches the received amount.
                 // Sai số tiền hợp lệ: chỉ ghi đối soát, giữ trạng thái/kho/điểm.
                 await _paymentRepository.AddTransactionAsync(paymentTx);
                 await _unitOfWork.SaveChangesAsync();
@@ -247,13 +249,14 @@ public class PaymentService : IPaymentService
 
             // Atomic state transition sang Paid (BE-NEW-02)
             var completedAt = DateTime.UtcNow;
-            var transitioned = await _orderRepository.TryTransitionOrderStatusAsync(order.OrderId, OrderStatus.Pending, OrderStatus.Paid, completedAt);
+            var transitioned = await _orderRepository.TryPayOrderAsync(order.OrderId, actualAmount, completedAt);
             if (!transitioned)
             {
-                // A failed transition can mean a status race OR a rejected persisted amount.
-                // Read outside the identity map before tracking any ledger entry. Rollback
-                // alone would leave an Added entry available to a later SaveChanges in scope.
-                if (!await HasValidReconciliationOrderAsync(order.OrderCode))
+                // Fail closed if the quote drifted, even to another positive amount.
+                // Only an already Paid/Cancelled order at the same amount is a status race.
+                var current = await _orderRepository.GetOrderForPaymentReconciliationAsync(order.OrderCode);
+                if (current == null || current.TotalAmount <= 0 || current.TotalAmount != actualAmount ||
+                    current.OrderStatus == OrderStatus.Pending)
                 {
                     await _unitOfWork.RollbackAsync();
                     return false;
@@ -340,7 +343,7 @@ public class PaymentService : IPaymentService
         try
         {
             var completedAt = DateTime.UtcNow;
-            var transitioned = await _orderRepository.TryTransitionOrderStatusAsync(order.OrderId, OrderStatus.Pending, OrderStatus.Paid, completedAt);
+            var transitioned = await _orderRepository.TryPayOrderAsync(order.OrderId, order.TotalAmount, completedAt);
             if (!transitioned)
             {
                 await _unitOfWork.RollbackAsync();
