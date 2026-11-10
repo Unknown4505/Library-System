@@ -25,6 +25,7 @@
     <ProjectReference Include="..\BookKiosk.CMS\BookKiosk.CMS.csproj" />
     <ProjectReference Include="..\BookKiosk.Application\BookKiosk.Application.csproj" />
     <ProjectReference Include="..\BookKiosk.Domain\BookKiosk.Domain.csproj" />
+    <ProjectReference Include="..\BookKiosk.Infrastructure\BookKiosk.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
