@@ -338,6 +338,17 @@ public class OrderRepository : IOrderRepository
     public async Task<Order?> GetOrderByIdAsync(int orderId) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderId == orderId);
     // F01: Đọc trực tiếp từ DB bỏ qua EF tracking cache, dùng sau rollback để xác định trạng thái thật
     public async Task<Order?> GetOrderByCodeNoTrackingAsync(string orderCode) => await _context.Orders.AsNoTracking().Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode);
+    public async Task<Order?> GetOrderForPaymentReconciliationAsync(string orderCode)
+    {
+        if (_context.Database.CurrentTransaction == null)
+            throw new InvalidOperationException("Payment reconciliation requires an active transaction.");
+
+        // SQL Server update/range locks are retained until the surrounding transaction ends.
+        // A plain AsNoTracking reread would allow amount changes between validation and INSERT.
+        return await _context.Orders
+            .FromSqlInterpolated($"SELECT * FROM [Orders] WITH (UPDLOCK, HOLDLOCK) WHERE [OrderCode] = {orderCode}")
+            .AsNoTracking().SingleOrDefaultAsync();
+    }
     public async Task<Order?> GetReceiptOrderByIdAsync(int orderId) =>
         await _context.Orders
             .AsNoTracking()

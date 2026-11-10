@@ -65,6 +65,7 @@ public class RevenueIntegrityTests
         var work = new Mock<IUnitOfWork>();
         var payments = new Mock<IPaymentRepository>();
         payments.SetupSequence(x => x.CheckTransactionExistsAsync("ref-test")).ReturnsAsync(false).ReturnsAsync(true);
+        orders.Setup(x => x.GetOrderForPaymentReconciliationAsync(order.OrderCode)).ReturnsAsync(order);
         var service = new PaymentService(work.Object, payments.Object, orders.Object, Mock.Of<IMemberRepository>());
         var payload = new PaymentWebhookPayload { referenceCode = "ref-test", transferType = "in", accountNumber = "test-account", code = order.OrderCode, transferAmount = 50000 };
         Assert.True(await service.HandleSePayWebhookAsync(payload));

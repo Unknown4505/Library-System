@@ -142,6 +142,117 @@ public sealed class RevenueSqlAcceptanceTests(DisposableSqlQa db, Xunit.Abstract
         }
     }
 
+    [SqlQaFact]
+    public Task Mismatched_webhook_rejects_zero_persisted_amount_race() => VerifyMismatchRace(0);
+
+    [SqlQaFact]
+    public Task Mismatched_webhook_rejects_negative_persisted_amount_race() => VerifyMismatchRace(-100);
+
+    private async Task VerifyMismatchRace(decimal invalidAmount)
+    {
+        foreach (var status in new[] { OrderStatus.Pending, OrderStatus.Paid, OrderStatus.Cancelled })
+        {
+            var book = await db.AddBookAsync();
+            await using var seed = db.Context();
+            await seed.Books.Where(x => x.BookId == book.BookId).ExecuteUpdateAsync(s => s.SetProperty(x => x.ReservedQuantity, 1));
+            var member = new Member { PhoneNumber = Guid.NewGuid().ToString("N")[..10], FullName = "Mismatch QA", Points = 9 };
+            var row = new Order { OrderCode = "ORD-" + Guid.NewGuid().ToString("N"), TotalAmount = 1000,
+                OrderStatus = status, Member = member, SaleChannel = SaleChannel.Counter, PaymentMethod = PaymentMethod.QR,
+                CompletedAt = status == OrderStatus.Paid ? DateTime.UtcNow : null,
+                OrderDetails = new List<OrderDetail> { new() { BookId = book.BookId, Quantity = 1, UnitPriceAtTime = 1000, LineTotal = 1000 } } };
+            seed.Orders.Add(row); await seed.SaveChangesAsync();
+            var gate = new BeforeDuplicateCheck(async () =>
+            {
+                await using var other = db.Context();
+                await other.Orders.Where(x => x.OrderId == row.OrderId).ExecuteUpdateAsync(s => s.SetProperty(x => x.TotalAmount, invalidAmount));
+            });
+            await using var context = db.Context(gate);
+            using var work = new UnitOfWork(context);
+            var service = new BookKiosk.Application.Services.PaymentService(work, new PaymentRepository(context), new OrderRepository(context), new MemberRepository(context));
+            Assert.False(await service.HandleSePayWebhookAsync(new() { referenceCode = Guid.NewGuid().ToString("N"),
+                transferType = "in", accountNumber = "QA", code = row.OrderCode, transferAmount = 1500 }));
+            Assert.True(gate.Triggered);
+            Assert.DoesNotContain(context.ChangeTracker.Entries<PaymentTransaction>(), x => x.State == EntityState.Added);
+            await work.SaveChangesAsync(); await work.BeginTransactionAsync(); await work.RollbackAsync();
+            Assert.Null(context.Database.CurrentTransaction);
+            await using var verify = db.Context();
+            var persisted = await verify.Orders.AsNoTracking().SingleAsync(x => x.OrderId == row.OrderId);
+            Assert.Equal(status, persisted.OrderStatus); Assert.Equal(invalidAmount, persisted.TotalAmount); Assert.Equal(row.CompletedAt, persisted.CompletedAt);
+            Assert.False(await verify.PaymentTransactions.AnyAsync(x => x.OrderId == row.OrderId));
+            Assert.False(await verify.PointTransactions.AnyAsync(x => x.OrderId == row.OrderId));
+            Assert.Equal(9, (await verify.Members.SingleAsync(x => x.MemberId == member.MemberId)).Points);
+            var stock = await verify.Books.SingleAsync(x => x.BookId == book.BookId);
+            Assert.Equal(10, stock.StockQuantity); Assert.Equal(1, stock.ReservedQuantity);
+            output.WriteLine($"Invalid mismatch race: status={status}, persistedAmount={invalidAmount}, accepted=false, ledger=0, stock=10, reserved=1, points=9");
+        }
+    }
+
+    [SqlQaFact]
+    public async Task Valid_mismatch_reconciles_once_without_mutating_pending_stock_or_points()
+    {
+        var book = await db.AddBookAsync();
+        await using var context = db.Context();
+        var member = new Member { PhoneNumber = Guid.NewGuid().ToString("N")[..10], FullName = "Valid mismatch", Points = 9 };
+        var row = new Order { OrderCode = "ORD-" + Guid.NewGuid().ToString("N"), TotalAmount = 1000, OrderStatus = OrderStatus.Pending,
+            Member = member, SaleChannel = SaleChannel.Counter, PaymentMethod = PaymentMethod.QR,
+            OrderDetails = new List<OrderDetail> { new() { BookId = book.BookId, Quantity = 1, UnitPriceAtTime = 1000, LineTotal = 1000 } } };
+        context.Orders.Add(row); await context.SaveChangesAsync();
+        using var work = new UnitOfWork(context);
+        var service = new BookKiosk.Application.Services.PaymentService(work, new PaymentRepository(context), new OrderRepository(context), new MemberRepository(context));
+        var payload = new BookKiosk.Application.Services.PaymentWebhookPayload { referenceCode = Guid.NewGuid().ToString("N"), transferType = "in", accountNumber = "QA", code = row.OrderCode, transferAmount = 1500 };
+        Assert.True(await service.HandleSePayWebhookAsync(payload)); Assert.True(await service.HandleSePayWebhookAsync(payload));
+        await using var verify = db.Context();
+        var tx = Assert.Single(await verify.PaymentTransactions.Where(x => x.OrderId == row.OrderId).ToListAsync()); Assert.Equal(1500, tx.Amount);
+        Assert.Equal(OrderStatus.Pending, (await verify.Orders.AsNoTracking().SingleAsync(x => x.OrderId == row.OrderId)).OrderStatus);
+        Assert.Equal(10, (await verify.Books.SingleAsync(x => x.BookId == book.BookId)).StockQuantity);
+        Assert.Equal(9, (await verify.Members.SingleAsync(x => x.MemberId == member.MemberId)).Points);
+        Assert.False(await verify.PointTransactions.AnyAsync(x => x.OrderId == row.OrderId));
+    }
+
+    [SqlQaFact]
+    public async Task Reconciliation_lock_blocks_amount_update_and_releases_after_commit_or_rollback()
+    {
+        foreach (var commit in new[] { false, true })
+        {
+            await using var context = db.Context();
+            var row = new Order { OrderCode = "ORD-" + Guid.NewGuid().ToString("N"), TotalAmount = 1000,
+                OrderStatus = OrderStatus.Pending, SaleChannel = SaleChannel.Counter, PaymentMethod = PaymentMethod.QR };
+            context.Orders.Add(row); await context.SaveChangesAsync();
+            using var work = new UnitOfWork(context);
+            var orders = new OrderRepository(context);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => orders.GetOrderForPaymentReconciliationAsync(row.OrderCode));
+            await work.BeginTransactionAsync();
+            Assert.Equal(1000, (await orders.GetOrderForPaymentReconciliationAsync(row.OrderCode))!.TotalAmount);
+            await using var other = db.Context();
+            await other.Database.OpenConnectionAsync();
+            await using var command = other.Database.GetDbConnection().CreateCommand();
+            command.CommandText = "SET LOCK_TIMEOUT 300; UPDATE [Orders] SET [TotalAmount]=0 WHERE [OrderId]=@id";
+            var id = command.CreateParameter(); id.ParameterName = "@id"; id.Value = row.OrderId; command.Parameters.Add(id);
+            var exception = await Assert.ThrowsAsync<Microsoft.Data.SqlClient.SqlException>(() => command.ExecuteNonQueryAsync());
+            Assert.Equal(1222, exception.Number);
+            if (commit) await work.CommitAsync(); else await work.RollbackAsync();
+            command.CommandText = "SET LOCK_TIMEOUT 5000; UPDATE [Orders] SET [TotalAmount]=0 WHERE [OrderId]=@id";
+            Assert.Equal(1, await command.ExecuteNonQueryAsync());
+            Assert.Null(context.Database.CurrentTransaction);
+            output.WriteLine($"Reconciliation lock: concurrent invalidation blocked; released after {(commit ? "commit" : "rollback")}");
+        }
+    }
+
+    private sealed class BeforeDuplicateCheck(Func<Task> action) : DbCommandInterceptor
+    {
+        public bool Triggered { get; private set; }
+        public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
+            CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            if (!Triggered && command.CommandText.Contains("SELECT") && command.CommandText.Contains("[PaymentTransactions]"))
+            {
+                Triggered = true;
+                await action();
+            }
+            return result;
+        }
+    }
+
     private sealed class BeforePaidTransition(Func<Task> action) : DbCommandInterceptor
     {
         public bool Triggered { get; private set; }

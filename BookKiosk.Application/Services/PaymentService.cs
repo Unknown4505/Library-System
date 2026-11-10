@@ -134,6 +134,11 @@ public class PaymentService : IPaymentService
                 bool isDuplicate = await _paymentRepository.CheckTransactionExistsAsync(refCode);
                 if (!isDuplicate)
                 {
+                    if (!await HasValidReconciliationOrderAsync(order.OrderCode))
+                    {
+                        await _unitOfWork.RollbackAsync();
+                        return false;
+                    }
                     // Lưu vết giao dịch để đối soát và xử lý hoàn tiền thủ công
                     var latePaymentTx = new PaymentTransaction
                     {
@@ -172,6 +177,11 @@ public class PaymentService : IPaymentService
                 bool isDuplicate = await _paymentRepository.CheckTransactionExistsAsync(refCode);
                 if (!isDuplicate)
                 {
+                    if (!await HasValidReconciliationOrderAsync(order.OrderCode))
+                    {
+                        await _unitOfWork.RollbackAsync();
+                        return false;
+                    }
                     var additionalTx = new PaymentTransaction
                     {
                         OrderId = order.OrderId,
@@ -222,7 +232,13 @@ public class PaymentService : IPaymentService
             };
             if (actualAmount != order.TotalAmount)
             {
-                // Sai số tiền: ghi nhận đối soát, giữ đơn Pending, không đổi trạng thái, không trừ kho
+                // Validate the persisted amount under a lock held through ledger commit.
+                if (!await HasValidReconciliationOrderAsync(order.OrderCode))
+                {
+                    await _unitOfWork.RollbackAsync();
+                    return false;
+                }
+                // Sai số tiền hợp lệ: chỉ ghi đối soát, giữ trạng thái/kho/điểm.
                 await _paymentRepository.AddTransactionAsync(paymentTx);
                 await _unitOfWork.SaveChangesAsync();
                 await _unitOfWork.CommitAsync();
@@ -237,8 +253,7 @@ public class PaymentService : IPaymentService
                 // A failed transition can mean a status race OR a rejected persisted amount.
                 // Read outside the identity map before tracking any ledger entry. Rollback
                 // alone would leave an Added entry available to a later SaveChanges in scope.
-                var currentOrder = await _orderRepository.GetOrderByCodeNoTrackingAsync(order.OrderCode);
-                if (currentOrder == null || currentOrder.TotalAmount <= 0)
+                if (!await HasValidReconciliationOrderAsync(order.OrderCode))
                 {
                     await _unitOfWork.RollbackAsync();
                     return false;
@@ -295,6 +310,12 @@ public class PaymentService : IPaymentService
             // Lỗi database thực sự (FK, Check Constraint, data invalid) -> tuyệt đối không nuốt lỗi
             throw;
         }
+    }
+
+    private async Task<bool> HasValidReconciliationOrderAsync(string orderCode)
+    {
+        var current = await _orderRepository.GetOrderForPaymentReconciliationAsync(orderCode);
+        return current != null && current.TotalAmount > 0;
     }
 
     public async Task<(bool Success, string Status, string? Message, Order? Order)> SimulateDevSuccessAsync(string orderCode)

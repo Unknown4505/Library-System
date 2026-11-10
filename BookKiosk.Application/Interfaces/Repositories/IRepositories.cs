@@ -80,6 +80,8 @@ public interface IOrderRepository
     Task<Order?> GetOrderByIdAsync(int orderId);
     /// <summary>Đọc trạng thái order mới nhất từ DB, bỏ qua EF tracking cache. Dùng sau rollback để xác định trạng thái thật (F01).</summary>
     Task<Order?> GetOrderByCodeNoTrackingAsync(string orderCode);
+    // Requires an active transaction; lock persisted amount until reconciliation commits/rolls back.
+    Task<Order?> GetOrderForPaymentReconciliationAsync(string orderCode);
     /// <summary>Đọc dữ liệu hóa đơn snapshot cho đơn hàng đã thanh toán kèm OrderDetails và Book (AsNoTracking).</summary>
     Task<Order?> GetReceiptOrderByIdAsync(int orderId);
     Task ReleaseReservedQuantityAsync(int bookId, int quantity);
