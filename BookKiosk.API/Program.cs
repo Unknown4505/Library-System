@@ -21,11 +21,16 @@ try
     // 2. Add services to the container (Dependency Injection)
     builder.Services.AddControllers();
 
-    // Cấu hình chuẩn hóa phản hồi lỗi Model Validation theo hợp đồng ApiResponseDto
+    // Users owns its validation wrapper; preserve existing contracts for other controllers.
     builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
     {
+        var fallback = options.InvalidModelStateResponseFactory;
         options.InvalidModelStateResponseFactory = context =>
         {
+            if (context.ActionDescriptor is not Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor action ||
+                action.ControllerTypeInfo.AsType() != typeof(BookKiosk.API.Controllers.UsersController))
+                return fallback(context);
+
             var errorMessage = context.ModelState.Values
                 .SelectMany(v => v.Errors)
                 .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage) ? "Dữ liệu đầu vào không hợp lệ." : e.ErrorMessage)
