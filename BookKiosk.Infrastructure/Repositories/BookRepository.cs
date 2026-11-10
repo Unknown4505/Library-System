@@ -34,13 +34,24 @@ public class BookRepository : IBookRepository
             .Where(b => b.IsActive) // Kiosk chỉ thấy sách đang kinh doanh
             .AsNoTracking();
 
-        // Lọc theo từ khoá (tiêu đề hoặc tác giả)
+        // Lọc theo từ khoá tìm kiếm mở rộng (kết hợp OR trên 6 trường: Title, Author, Barcode, Publisher, Category.Name, Area.Name)
         if (!string.IsNullOrWhiteSpace(keyword))
         {
-            var kw = keyword.Trim().ToLower();
+            var trimmed = keyword.Trim();
+            // Guard: Nếu chuỗi tìm kiếm vượt quá 500 ký tự, trả về rỗng ngay lập tức để chống DoS và tránh cắt cụt sai lệch
+            if (trimmed.Length > 500)
+            {
+                return (Enumerable.Empty<Book>(), 0);
+            }
+
+            var kwLower = trimmed.ToLower();
             query = query.Where(b =>
-                b.Title.ToLower().Contains(kw) ||
-                b.Author.ToLower().Contains(kw));
+                b.Title.ToLower().Contains(kwLower) ||
+                b.Author.ToLower().Contains(kwLower) ||
+                b.Barcode.ToLower().Contains(kwLower) ||
+                (b.Publisher != null && b.Publisher.ToLower().Contains(kwLower)) ||
+                (b.Category != null && b.Category.Name.ToLower().Contains(kwLower)) ||
+                (b.Area != null && b.Area.Name.ToLower().Contains(kwLower)));
         }
 
         // Lọc theo danh mục
@@ -48,9 +59,17 @@ public class BookRepository : IBookRepository
             query = query.Where(b => b.CategoryId == categoryId.Value);
 
         var totalCount = await query.CountAsync();
+
+        // Fix DEFECT-01: Chống tràn số kiểu int khi page cực lớn (ví dụ: page = int.MaxValue)
+        long skip = (long)Math.Max(0, page - 1) * pageSize;
+        if (skip >= totalCount || totalCount == 0)
+        {
+            return (new List<Book>(), totalCount);
+        }
         var items = await query
             .OrderBy(b => b.Title) // Sắp xếp nhất quán — tránh random order mỗi lần load
-            .Skip((page - 1) * pageSize)
+            .ThenBy(b => b.BookId)
+            .Skip((int)skip)
             .Take(pageSize)
             .ToListAsync();
 
