@@ -94,6 +94,15 @@ Khi khách dùng app ngân hàng quét mã QR và chuyển khoản thành công,
     - Cảnh báo ra màn hình Kiosk ("Chờ nhân viên hỗ trợ") và bắn Notification cho Staff Admin. KHÔNG nhả sách.
   - **Trường hợp ĐÚNG:** Sang Bước 3.
 
+### POLICY-REV-01 — Snapshot-authoritative mismatch classification — APPROVED 2026-11-11
+
+- Lần đọc `Order` đầu tiên của request là snapshot dùng để **phân loại** webhook. Nếu `webhook.amount != initial Order.TotalAmount`, request đó giữ nguyên nhánh mismatch/reconciliation; việc `TotalAmount` persisted đổi sau lần đọc đầu không tự biến request thành thanh toán hợp lệ.
+- Trước khi ghi reconciliation ledger, Backend phải đọc lại Order trong transaction và giữ consistency bằng SQL lock thích hợp (implementation PR #86 dùng `UPDLOCK, HOLDLOCK`). Persisted `TotalAmount` phải `> 0`, `ReferenceCode` chưa tồn tại và Order không được phát sinh Paid transition. Nếu persisted amount `<= 0`, reject mà không ghi ledger hoặc mutation nghiệp vụ.
+- Reconciliation thành công chỉ ghi đúng một `PaymentTransaction`, giữ nguyên `OrderStatus`, `StockQuantity`, `ReservedQuantity` và điểm. Kết quả nhận webhook/`accepted = true` ở nhánh này **không có nghĩa Order đã Paid**; Staff vẫn phải đối soát thủ công.
+- Nếu webhook khớp initial snapshot và đi vào nhánh Paid, Backend phải kiểm tra `webhook.amount == current persisted Order.TotalAmount` và amount `> 0` trong cùng atomic SQL transition. Positive drift làm amount không còn khớp phải reject Paid, không ghi ledger mới cho nhánh bị từ chối và không để lại tracked transaction/tác dụng phụ.
+- Trường hợp chuẩn đã duyệt: initial amount `1000`, webhook `1500`, persisted amount đổi thành `1500` sau initial read → ghi một reconciliation ledger, Order vẫn `Pending`, không đổi stock/reserved/points; replay cùng `ReferenceCode` không tạo ledger thứ hai.
+- Dev simulation và POS Cash cũng phải bind Paid transition với current persisted amount. Valid Paid/Cancelled race và idempotency hiện hữu được giữ nguyên; policy này không thêm tự động sửa amount, refund, reversal hoặc thanh toán bổ sung.
+
 > **💡 LƯU Ý QUAN TRỌNG VỀ VIỆC KHÓA CỨNG SỐ TIỀN QR (CHỐNG GIAN LẬN)**
 > - Nếu hệ thống dùng **Mã VietQR Chuyển khoản cá nhân** (như gói miễn phí của SePay/Casso), mã QR mang cờ lệnh "Chuyển tiền". Nhiều App ngân hàng sẽ cho phép khách chạm vào và sửa số tiền. Do đó bắt buộc phải có luồng bắt lỗi **"Trường hợp LỆCH"** như trên.
 > - **Khuyến nghị nâng cấp:** Để khóa cứng 100% ô nhập tiền khiến khách tuyệt đối không thể sửa, dự án nên sử dụng API của các **Cổng thanh toán Merchant QR** hoặc **Tài khoản ảo (Virtual Account)**:
