@@ -85,7 +85,7 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - **Extended Search — IMPLEMENTED / MERGED — PR #83 — 2026-11-10:** [Issue #60](https://github.com/Unknown4505/Library-System/issues/60) BE-01 được merge vào `main` qua commit `eeb5ceedeb9326efec9e92196725f5e6e2263738` từ exact HEAD `b13874677e0e8db61cb2478da208909edcc54d88`. API giữ nguyên route, DTO, response wrapper, active-book filter, `categoryId` và pagination; sort ổn định `Title ASC, BookId ASC`, chống overflow ở extreme page và không tạo duplicate từ Category/Area joins. Release build PASS; developer SQL acceptance 7 PASS và independent HTTP/SQL acceptance **8/8 PASS**, cleanup database disposable còn 0 leftover.
 - [x] #60 BE-01 implementation, independent Backend QA và merge PR #83.
 - [ ] #60 full FE/Kiosk WPF/real-camera E2E — chưa hoàn thành; merge Backend targeted không thay thế acceptance #61.
-- [ ] #60 BE-02 sửa Barcode — **IMPLEMENTED IN PR #84 / STANDALONE QA PASS / PR OPEN / NOT MERGED** theo `BOOK-BARCODE-BE02-01`; chưa có trên `main`, Issue #60 vẫn OPEN.
+- [x] #60 BE-02 sửa Barcode — **MERGED / INDEPENDENT TARGETED QA PASS — PR #84** theo `BOOK-BARCODE-BE02-01`; exact HEAD `f853733759d70cfa95ddaa1b672d673d8a066881` đã merge vào `main` qua `7edf343f6456091ec326c8646869f6ad5ab8a08b` ngày 2026-11-11. Issue #60 và FE/Kiosk E2E vẫn OPEN.
 - **Response (Success - 200 OK):**
 ```json
 {
@@ -116,11 +116,11 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - **Endpoint:** `GET /api/books/barcode/{barcode}`
 - **Response:** Trả về Object giống 1 item trong mảng `items` ở trên. Lỗi `404 Not Found` nếu mã không tồn tại.
 
-#### Đổi Barcode có kiểm soát — IMPLEMENTED IN PR #84 / STANDALONE QA PASS / OPEN / NOT MERGED
+#### Đổi Barcode có kiểm soát — MERGED / INDEPENDENT TARGETED QA PASS — PR #84
 
-**Leader decision `BOOK-BARCODE-BE02-01` (08/11/2026):** Issue #60 BE-02 được duyệt cho `@thien33` theo phương án **direct cutover có kiểm soát**, giữ nguyên `BookId`, không lưu Barcode Alias và không thêm migration/schema. PR #84 đã triển khai và standalone independent QA PASS, nhưng PR vẫn OPEN nên endpoint **chưa có trên `main`**.
+**Leader decision `BOOK-BARCODE-BE02-01` (08/11/2026):** Issue #60 BE-02 được duyệt cho `@thien33` theo phương án **direct cutover có kiểm soát**, giữ nguyên `BookId`, không lưu Barcode Alias và không thêm migration/schema. PR #84 exact HEAD `f853733759d70cfa95ddaa1b672d673d8a066881` đã independent targeted QA PASS và merge vào `main` qua commit `7edf343f6456091ec326c8646869f6ad5ab8a08b` ngày 2026-11-11.
 
-- **Endpoint trong PR #84:** `POST /api/books/{id:int}/change-barcode`
+- **Endpoint:** `POST /api/books/{id:int}/change-barcode`
 - **Authorization:** JWT role `Admin` duy nhất; unauthenticated trả `401`, Manager/Staff trả `403`.
 - **Request:**
 ```json
@@ -137,7 +137,7 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - **Audit/rollback:** sau commit ghi structured security audit gồm actor UserId, BookId, old/new Barcode, reason, UTC timestamp và correlation id; không log token. Rollback nghiệp vụ dùng lại chính endpoint với mã cũ và reason mới, vẫn chịu uniqueness/reservation/concurrency rules; nếu mã cũ đã được cấp cho sách khác thì trả `409`.
 - **Compatibility:** Order, Payment, Inventory receipt và ProductDiscount tiếp tục tham chiếu `BookId`, nên không đổi FK/lịch sử. Kiosk/CMS phải dùng mã mới ngay; mã cũ trả `404` sau cutover và không được resolve như alias. `requiresLabelReprint=true` là điều kiện vận hành bắt buộc. Source hiện không có module Borrowing/Loan; nếu bổ sung module này về sau phải dùng `BookId` và qua review riêng.
 - **Out of scope:** sửa `PUT /api/books/{id}` để nhận Barcode; Barcode Alias/PreviousBarcode; bảng audit/migration mới; đổi Kiosk/CMS UI; tự động in tem; sửa lịch sử Order/Inventory; mở rộng PR #68.
-- **Acceptance trước merge:** Release build 0 errors; unit/service tests; independent API+SQL tests cho 401/403, validation, 404, success/audit, duplicate tuần tự và đồng thời, hai update đồng thời trên cùng Book, reservation race, rollback khi persistence lỗi, old-code 404/new-code lookup, và regression Books Search/Inventory/Checkout/Order/Payment. Developer tests không thay independent QA evidence.
+- **QA evidence trước merge:** Release build 0 errors; unit/service tests; independent API+SQL tests cho 401/403, validation, 404, success/audit, duplicate tuần tự và đồng thời, hai update đồng thời trên cùng Book, reservation race, rollback khi persistence lỗi, old-code 404/new-code lookup, và regression Books Search/Inventory/Checkout/Order/Payment. Developer tests không thay independent QA evidence; merge không thay thế FE/Kiosk/full E2E acceptance.
 
 #### Lấy danh sách Danh mục
 - **Endpoint:** `GET /api/categories`
