@@ -357,6 +357,14 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
     - **Nếu ĐÚNG:** Cập nhật Order -> `Paid`. Trừ kho thật sự (`StockQuantity -= qty`, `ReservedQuantity -= qty`). Cộng điểm cho Member.
     - **Nếu LỆCH (Khách tự sửa số tiền):** Vẫn giữ Order -> `Pending`. Insert `PaymentTransactions` để lưu vết giao dịch lệch. Gửi Notification cho Staff kiểm tra và xử lý thủ công. Kiosk hiển thị màn hình "Chờ nhân viên hỗ trợ". Không nhả sách.
 
+**POLICY-REV-01 — APPROVED, snapshot-authoritative (2026-11-11):**
+
+- Nhánh mismatch/reconciliation được phân loại theo `Order.TotalAmount` ở lần đọc đầu tiên và không tự đổi sang Paid nếu persisted amount thay đổi sau đó, kể cả khi giá trị mới bằng webhook amount.
+- Trước khi insert reconciliation ledger, Backend đọc lại và khóa persisted Order trong transaction; amount hiện tại phải `> 0`. Nhánh này giữ nguyên Order status/kho/reserved/points và idempotent theo `referenceCode`.
+- Response webhook thành công hoặc giá trị xử lý nội bộ `accepted = true` trong nhánh mismatch chỉ xác nhận webhook đã được ghi nhận để đối soát; **không biểu thị Order đã `Paid`**. Client phải dựa vào persisted `OrderStatus`/polling, không suy diễn từ response nhận webhook.
+- Nhánh webhook khớp initial snapshot chỉ được Paid khi amount hiện tại trong database vẫn dương và đúng bằng webhook amount; guard amount và `Pending → Paid` phải atomic, giữ lock đến commit/rollback. Drift dương/0/âm làm điều kiện không còn đúng phải reject không ledger, không stock/reserved/points mutation và không stale tracked `PaymentTransaction`.
+- Policy không tạo endpoint, HTTP status hoặc DTO mới; chi tiết nghiệp vụ xem [Business Pipeline](05-business-pipeline.md#policy-rev-01--snapshot-authoritative-mismatch-classification--approved-2026-11-11).
+
 #### F3 mô phỏng thanh toán thành công trong Development (contract đã chốt, Backend chưa implement)
 - **Endpoint:** `POST /api/payments/dev-simulate-success/{orderCode}`
 - **Auth:** `X-Api-Key` theo cùng `ApiSettings:ApiKey` của Kiosk; endpoint phải tự áp dụng xác thực nếu middleware hiện tại chưa bao phủ `/api/payments/*`.
@@ -433,8 +441,8 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - Monthly Revenue âm là response Backend vi phạm contract (`InvalidContract`). CMS phải reject toàn bộ response nguyên tử, không clamp số âm về 0, không cập nhật chart/table/KPI từng phần và phải biểu diễn unavailable/invalid khác với tháng thành công có doanh thu 0. AJAX invalid phải giữ last-good year theo `REVENUE-MONTHLY-01`.
 - Refund, reversal và negative adjustment chưa thuộc Revenue contract hiện hành. Mọi mô hình net revenue/refund tương lai cần contract và phê duyệt Leader riêng; quyết định này không thêm route, DTO field hoặc HTTP error code.
 - **Implementation đã xác minh:** Kiosk/POS checkout từ chối và rollback khi payable `<= 0`; Revenue repository cộng `TotalAmount` của order `Paid`; `totalOrders` được lấy từ `Count()`.
-- **Backend hardening chưa hoàn thành:** Domain setter chưa tự enforce số tiền dương; EF migrations/model snapshot chưa xác nhận database CHECK `Order.TotalAmount > 0`; các transition của order có sẵn sang `Paid` chưa revalidate positivity; report có thể cộng dữ liệu `Paid` âm đã bypass checkout và aggregate tháng dương vẫn có thể che một order âm. [Issue #71](https://github.com/Unknown4505/Library-System/issues/71) theo dõi phần này.
-- `CONTRACT APPROVED` không đồng nghĩa `BACKEND HARDENING IMPLEMENTED`. Chưa có bằng chứng Production/runtime database chứa order âm; trạng thái đó là **UNVERIFIED**, và `docs/init.sql` không phải bằng chứng schema đang deploy.
+- **PR #86 hardening — technical QA PASS / OPEN / NOT MERGED:** exact HEAD `65bef55026c5a624abd441c4402cc6ae282da84b` đã Release build PASS (0 errors, 99 warnings), Developer Revenue/UnitOfWork **50/50 PASS** và independent Revenue SQL **19/19 PASS** cho positive drift, amount 0/-100 race, atomic Paid amount equality, reconciliation lock/rollback, replay/idempotency và masked negative-source protection. [Issue #71](https://github.com/Unknown4505/Library-System/issues/71) vẫn OPEN; kết quả này không xác nhận PR đã merge hoặc database Production có constraint mới.
+- `CONTRACT/POLICY APPROVED` và exact-head targeted QA PASS không đồng nghĩa Production merge hoặc full CMS/Kiosk E2E PASS. Không có migration/CHECK mới được phê duyệt trong quyết định này; `docs/init.sql` không phải bằng chứng schema đang deploy.
 - `KioskStatusSummaryDto { online, offline, error, openIncidents }` vẫn tồn tại ở mức contract lịch sử, nhưng CMS Kiosk Monitoring đã **OUT OF SCOPE / NOT REQUIRED**; Issue #65 **CLOSED — NOT PLANNED** và không yêu cầu Backend triển khai endpoint tổng hợp.
 
 ### 3.8 Auth đã triển khai; Users ở PR #85 OPEN / NOT MERGED; Employees và SalaryPayments còn PLANNED
