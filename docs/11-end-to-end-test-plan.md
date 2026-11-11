@@ -101,9 +101,25 @@ Các ca sau thuộc contract Leader đã duyệt ngày 2026-11-06. Trạng thái
 | REV-NEG-05 | Initial Dashboard receives negative Revenue | Không hiển thị revenue/order KPI gây hiểu nhầm; trạng thái unavailable | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34`; lịch sử FAIL P2 tại `b161554` |
 | REV-NEG-06 | AJAX negative response after valid year | Reject nguyên tử; rollback dropdown và giữ last-good year | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
 | REV-NEG-07 | Kiosk/POS payable 0 or negative | Checkout bị từ chối và rollback; không Pending/QR hoặc mutation một phần | PASS — historical Backend targeted QA; xem PD-E2E-10 |
-| REV-NEG-08 | Preexisting Order amount `<= 0` attempts Pending → Paid | Transition bị từ chối; không partial mutation | NOT RUN / ISSUE #71 PENDING |
-| REV-NEG-09 | Negative Paid Order masked by positive monthly sum | Backend phát hiện invalid source data, không chỉ kiểm aggregate tháng | NOT RUN / ISSUE #71 PENDING |
-| REV-NEG-10 | Normal valid Paid orders | Revenue không đổi sau hardening | NOT RUN / ISSUE #71 PENDING |
+| REV-NEG-08 | Preexisting Order amount `<= 0` attempts Pending → Paid | Transition bị từ chối; không partial mutation | PASS — PR #86 INDEPENDENT SQL @ `65bef550`, amount 0/-100 |
+| REV-NEG-09 | Negative Paid Order masked by positive monthly sum | Backend phát hiện invalid source data, không chỉ kiểm aggregate tháng | PASS — PR #86 INDEPENDENT SQL @ `65bef550` |
+| REV-NEG-10 | Normal valid Paid orders | Revenue không đổi sau hardening | PASS — PR #86 DEVELOPER + INDEPENDENT SQL @ `65bef550` |
+
+#### POLICY-REV-01 — snapshot-authoritative targeted acceptance
+
+Leader đã APPROVE policy ngày 2026-11-11. Các PASS dưới đây là Backend targeted SQL evidence tại PR #86 exact HEAD `65bef55026c5a624abd441c4402cc6ae282da84b`; không thay thế WPF UI, SePay sandbox hoặc full E2E.
+
+| ID | Scenario | Expected | Trạng thái |
+|---|---|---|---|
+| REV-POL-01 | Webhook 1000; persisted amount drift 1000 → 1500 | Reject Paid; Pending, ledger 0, không đổi stock/reserved/points | PASS — INDEPENDENT SQL |
+| REV-POL-02 | Webhook 1000; persisted amount drift 1000 → 500 | Reject Paid; không ledger hoặc mutation | PASS — DEVELOPER + INDEPENDENT SQL |
+| REV-POL-03 | Initial 1000; webhook 1500; persisted đổi thành 1500 | Giữ mismatch classification; đúng một reconciliation ledger; Pending; không mutation | PASS — INDEPENDENT SQL; approved expected behavior |
+| REV-POL-04 | Persisted amount đổi thành 0 hoặc -100 trước write | Reject; không Paid/ledger/stock/reserved/points mutation | PASS — INDEPENDENT SQL |
+| REV-POL-05 | Dev simulation và POS Cash positive upward/downward drift | Atomic expected/current amount guard từ chối; transaction sạch và reusable | PASS — INDEPENDENT SQL |
+| REV-POL-06 | Reconciliation lock commit/rollback | Concurrent amount update bị block; lock được nhả sau commit/rollback | PASS — INDEPENDENT SQL |
+| REV-POL-07 | Duplicate/replay cùng ReferenceCode | Không tạo duplicate ledger hoặc lặp stock/points mutation | PASS — DEVELOPER + INDEPENDENT SQL |
+
+Exact-head evidence: Release build PASS — 0 errors, 99 warnings; Developer Revenue/UnitOfWork **50/50 PASS**; independent Revenue SQL **19/19 PASS**; QA-only Stage C build PASS, developer **89/89**, Revenue **19/19**, validation **4/4**; disposable SQL cleanup còn 0 database. PR #86 và Issue #71 vẫn OPEN; full CMS/Kiosk E2E vẫn PENDING.
 
 Tối ưu test: mở rộng các suite checkout/payment/report và CMS normalizer hiện có; chỉ bổ sung fixture dữ liệu âm tối thiểu cho transition và aggregation. Không tạo harness mới hoặc chạy full regression ngoài dependency bị thay đổi.
 

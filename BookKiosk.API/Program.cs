@@ -20,6 +20,20 @@ try
 
     // 2. Add services to the container (Dependency Injection)
     builder.Services.AddControllers();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IBookBarcodeService, BookKiosk.Application.Services.BookBarcodeService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IBookBarcodeRepository, BookKiosk.Infrastructure.Repositories.BookBarcodeRepository>();
+    builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+    {
+        var fallback = options.InvalidModelStateResponseFactory;
+        options.InvalidModelStateResponseFactory = context =>
+            context.ActionDescriptor is Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor action &&
+            action.ControllerTypeInfo.AsType() == typeof(BookKiosk.API.Controllers.BooksBarcodeController)
+                ? new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(
+                    BookKiosk.Application.DTOs.Common.ApiResponseDto<BookKiosk.Application.DTOs.Books.ChangeBarcodeDto>
+                        .Error("BAD_REQUEST", "Dữ liệu yêu cầu không hợp lệ."))
+                : fallback(context);
+    });
+
 
     // Users owns its validation wrapper; preserve existing contracts for other controllers.
     builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
