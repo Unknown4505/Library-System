@@ -661,6 +661,9 @@ public class OrderService : IOrderService
         if (order.SaleChannel != SaleChannel.Counter)
             throw new InvalidOperationException("Chỉ cho phép xác nhận thanh toán tiền mặt cho đơn hàng tại quầy thu ngân.");
 
+        if (order.TotalAmount <= 0)
+            throw new InvalidOperationException("Đơn hàng có tổng tiền không hợp lệ, không thể xác nhận thanh toán.");
+
         // Idempotency: nếu đơn đã Paid, trả về hóa đơn hiện tại
         if (order.OrderStatus == OrderStatus.Paid && order.CompletedAt.HasValue)
         {
@@ -683,7 +686,7 @@ public class OrderService : IOrderService
         await _unitOfWork.BeginTransactionAsync();
         try
         {
-            var transitioned = await _orderRepository.TryTransitionOrderStatusAsync(orderId, OrderStatus.Pending, OrderStatus.Paid, DateTime.UtcNow);
+            var transitioned = await _orderRepository.TryPayOrderAsync(orderId, order.TotalAmount, DateTime.UtcNow);
             if (!transitioned)
             {
                 var checkOrder = await _orderRepository.GetOrderByCodeNoTrackingAsync(order.OrderCode);
@@ -1006,4 +1009,3 @@ public class OrderService : IOrderService
         return (0m, bookDiscounts);
     }
 }
-

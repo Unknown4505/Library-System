@@ -83,11 +83,15 @@ public interface IOrderRepository
     Task AddOrderAsync(Order order);
     Task<bool> TryIncreaseReservedQuantityAsync(int bookId, int quantity);
     Task<bool> TryTransitionOrderStatusAsync(int orderId, BookKiosk.Domain.Enums.OrderStatus fromStatus, BookKiosk.Domain.Enums.OrderStatus toStatus, System.DateTime? completedAt = null);
+    // Atomic Paid transition must bind the persisted total to the amount being paid.
+    Task<bool> TryPayOrderAsync(int orderId, decimal expectedTotalAmount, System.DateTime completedAt);
     Task<Order?> GetPendingOrderByCodeAsync(string orderCode);
     Task<Order?> GetOrderByCodeAsync(string orderCode);
     Task<Order?> GetOrderByIdAsync(int orderId);
     /// <summary>Đọc trạng thái order mới nhất từ DB, bỏ qua EF tracking cache. Dùng sau rollback để xác định trạng thái thật (F01).</summary>
     Task<Order?> GetOrderByCodeNoTrackingAsync(string orderCode);
+    // Requires an active transaction; lock persisted amount until reconciliation commits/rolls back.
+    Task<Order?> GetOrderForPaymentReconciliationAsync(string orderCode);
     /// <summary>Đọc dữ liệu hóa đơn snapshot cho đơn hàng đã thanh toán kèm OrderDetails và Book (AsNoTracking).</summary>
     Task<Order?> GetReceiptOrderByIdAsync(int orderId);
     Task ReleaseReservedQuantityAsync(int bookId, int quantity);
