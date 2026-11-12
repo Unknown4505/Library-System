@@ -147,7 +147,7 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
   * Monthly Revenue hoặc TotalOrders âm là response `InvalidContract`. CMS phải reject nguyên tử, không clamp về 0 và không hiển thị số âm như một financial total hợp lệ.
   * Initial Dashboard/Reports nhận dữ liệu âm phải hiển thị unavailable/invalid thay vì chart, table, revenue/order KPI mang dáng vẻ authoritative hoặc giá trị 0 gây hiểu nhầm. AJAX invalid phải rollback dropdown và giữ toàn bộ last-good-year state.
   * Refund, reversal và negative adjustment không thuộc contract đang triển khai; mọi mô hình net revenue/refund tương lai cần quyết định Leader riêng.
-  * **Trạng thái triển khai:** Contract đã APPROVED. Backend checkout đang reject payable `<= 0`, nhưng hardening Domain/DB/Paid-transition/aggregation theo [Issue #71](https://github.com/Unknown4505/Library-System/issues/71) vẫn **NOT DONE**. FE PR #64 strict negative rejection và Dashboard unavailable KPI đã **INDEPENDENT TARGETED QA PASS** tại `ea010e34`; mốc **QA FAIL P2** tại `b161554` là lịch sử trước fix. Leader cross-layer E2E vẫn **PENDING**.
+  * **Trạng thái triển khai:** Contract đã APPROVED. Hardening Backend theo [Issue #71](https://github.com/Unknown4505/Library-System/issues/71) đã **IMPLEMENTED / INDEPENDENT QA PASS** tại PR #86 exact HEAD `c341077b922cdba67ebc0ed0eae7ef924dbc90a2`: positive Paid guard, atomic amount equality, reconciliation lock/replay và invalid-source Revenue detection đều PASS. PR vẫn **OPEN / NOT MERGED** nên không được mô tả đã có trên Production. FE PR #64 strict negative rejection và Dashboard unavailable KPI đã **INDEPENDENT TARGETED QA PASS** tại `ea010e34`; mốc **QA FAIL P2** tại `b161554` là lịch sử trước fix. Leader cross-layer E2E vẫn **PENDING**.
 
 ---
 

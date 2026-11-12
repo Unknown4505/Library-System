@@ -101,13 +101,13 @@ Các ca sau thuộc contract Leader đã duyệt ngày 2026-11-06. Trạng thái
 | REV-NEG-05 | Initial Dashboard receives negative Revenue | Không hiển thị revenue/order KPI gây hiểu nhầm; trạng thái unavailable | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34`; lịch sử FAIL P2 tại `b161554` |
 | REV-NEG-06 | AJAX negative response after valid year | Reject nguyên tử; rollback dropdown và giữ last-good year | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
 | REV-NEG-07 | Kiosk/POS payable 0 or negative | Checkout bị từ chối và rollback; không Pending/QR hoặc mutation một phần | PASS — historical Backend targeted QA; xem PD-E2E-10 |
-| REV-NEG-08 | Preexisting Order amount `<= 0` attempts Pending → Paid | Transition bị từ chối; không partial mutation | PASS — PR #86 INDEPENDENT SQL @ `65bef550`, amount 0/-100 |
-| REV-NEG-09 | Negative Paid Order masked by positive monthly sum | Backend phát hiện invalid source data, không chỉ kiểm aggregate tháng | PASS — PR #86 INDEPENDENT SQL @ `65bef550` |
-| REV-NEG-10 | Normal valid Paid orders | Revenue không đổi sau hardening | PASS — PR #86 DEVELOPER + INDEPENDENT SQL @ `65bef550` |
+| REV-NEG-08 | Preexisting Order amount `<= 0` attempts Pending → Paid | Transition bị từ chối; không partial mutation | PASS — PR #86 INDEPENDENT SQL @ `c341077b`, amount 0/-100 |
+| REV-NEG-09 | Negative Paid Order masked by positive monthly sum | Backend phát hiện invalid source data, không chỉ kiểm aggregate tháng | PASS — PR #86 INDEPENDENT SQL @ `c341077b` |
+| REV-NEG-10 | Normal valid Paid orders | Revenue không đổi sau hardening | PASS — PR #86 DEVELOPER + INDEPENDENT SQL @ `c341077b` |
 
 #### POLICY-REV-01 — snapshot-authoritative targeted acceptance
 
-Leader đã APPROVE policy ngày 2026-11-11. Các PASS dưới đây là Backend targeted SQL evidence tại PR #86 exact HEAD `65bef55026c5a624abd441c4402cc6ae282da84b`; không thay thế WPF UI, SePay sandbox hoặc full E2E.
+Leader đã APPROVE policy ngày 2026-11-11. Các PASS dưới đây đã được retest trên Backend PR #86 exact HEAD `c341077b922cdba67ebc0ed0eae7ef924dbc90a2`, trực tiếp chứa `main@3503737d52245378cbeafab6c7f3cd1aff179126` sau merge PR #85; không thay thế WPF UI, SePay sandbox hoặc full E2E.
 
 | ID | Scenario | Expected | Trạng thái |
 |---|---|---|---|
@@ -119,7 +119,7 @@ Leader đã APPROVE policy ngày 2026-11-11. Các PASS dưới đây là Backend
 | REV-POL-06 | Reconciliation lock commit/rollback | Concurrent amount update bị block; lock được nhả sau commit/rollback | PASS — INDEPENDENT SQL |
 | REV-POL-07 | Duplicate/replay cùng ReferenceCode | Không tạo duplicate ledger hoặc lặp stock/points mutation | PASS — DEVELOPER + INDEPENDENT SQL |
 
-Exact-head evidence: Release build PASS — 0 errors, 99 warnings; Developer Revenue/UnitOfWork **50/50 PASS**; independent Revenue SQL **19/19 PASS**; QA-only Stage C build PASS, developer **89/89**, Revenue **19/19**, validation **4/4**; disposable SQL cleanup còn 0 database. PR #86 và Issue #71 vẫn OPEN; full CMS/Kiosk E2E vẫn PENDING.
+Exact-head evidence ngày 2026-11-12: clean Release build **PASS — 0 errors, 99 warnings**; full Backend/CMS developer **212/212 PASS**; independent Revenue SQL **18/18 PASS** và cleanup **1/1 PASS**; Users **5/5**, Barcode **8/8**, HTTP validation **4/4**, Checkout/Order/Payment/Inventory **10/10**. Tổng independent unique **46/46 PASS**, không mandatory SKIP; cleanup xác nhận còn **0** database `BookKiosk_QA_*`. PR #86 `OPEN / MERGEABLE / NOT MERGED`, Issue #71 vẫn OPEN; full CMS/Kiosk E2E vẫn PENDING.
 
 Tối ưu test: mở rộng các suite checkout/payment/report và CMS normalizer hiện có; chỉ bổ sung fixture dữ liệu âm tối thiểu cho transition và aggregation. Không tạo harness mới hoặc chạy full regression ngoài dependency bị thay đổi.
 
