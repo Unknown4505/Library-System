@@ -1,4 +1,5 @@
 using BookKiosk.Domain.Entities;
+using BookKiosk.Domain.Enums;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -7,6 +8,7 @@ namespace BookKiosk.Application.Interfaces.Repositories;
 public interface IUnitOfWork : System.IDisposable
 {
     Task BeginTransactionAsync();
+    Task BeginTransactionAsync(System.Data.IsolationLevel isolationLevel);
     Task CommitAsync();
     Task RollbackAsync();
     Task<int> SaveChangesAsync();
@@ -16,6 +18,12 @@ public interface IUserRepository
 {
     Task<User?> GetByUsernameAsync(string username);
     Task<User?> GetByIdAsync(int id);
+    Task<(IEnumerable<User> Items, int TotalCount)> GetUsersPagedAsync(
+        int page, int pageSize, string? keyword, UserRole? role, bool? isActive);
+    Task AddAsync(User user);
+    Task UpdateAsync(User user);
+    Task<bool> ExistsByUsernameAsync(string username);
+    Task<int> CountActiveAdminsAsync();
 }
 
 public interface ISupplierRepository
@@ -100,4 +108,3 @@ public interface IKioskRepository
     Task AddIncidentAsync(KioskIncident incident);
     Task<KioskIncident?> GetOpenIncidentAsync(int kioskId, string errorCode);
 }
-
