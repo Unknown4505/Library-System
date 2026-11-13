@@ -55,6 +55,18 @@ try
         };
     });
     
+    // Books auto-validation must use the same wrapper as its controller actions.
+    builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+    {
+        var fallback = options.InvalidModelStateResponseFactory;
+        options.InvalidModelStateResponseFactory = context =>
+            context.ActionDescriptor is Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor action &&
+            action.ControllerTypeInfo.AsType() == typeof(BookKiosk.API.Controllers.BooksController)
+                ? new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(
+                    BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("VALIDATION_ERROR", "Dữ liệu sách không hợp lệ."))
+                : fallback(context);
+    });
+
     // Đăng ký DbContext với SQL Server
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
