@@ -27,7 +27,7 @@
 <partial name="_Alert" />
 
 <!-- Form Cập nhật -->
-<form asp-action="Edit" asp-route-id="@Model.BookId" method="post">
+<form asp-action="Edit" asp-route-id="@Model.BookId" method="post" enctype="multipart/form-data">
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="BookId" />
     <partial name="_BookForm" model="Model" />

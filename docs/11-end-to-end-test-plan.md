@@ -50,28 +50,78 @@ Các kết quả dưới đây bổ sung trường Input, Actual và Owner cho t
 | E2E-13 | Revenue/top-books typed DTO | DTO serialization PASS; authorization test FAIL vì ReportsController không giới hạn Admin | FAIL | Thiện Backend, Khang CMS |
 | E2E-14 | API key thiếu/sai; F3/receipt; maintenance | HTTP thiếu key trả 401, key sai trả 403; F3 và receipt trả 404; PR #11 còn password hardcode; Books POST không JWT vẫn trả 201 | FAIL | Thiện auth/#20, Khang Maintenance |
 
-### 2.1 Targeted acceptance — REVENUE-MONTHLY-01
+### 2.1 Backend targeted acceptance — Extended Books Search BE-01
 
-Các ca dưới đây là acceptance requirements theo quyết định Leader ngày 2026-11-06, không phải kết quả test đã chạy. Evidence lịch sử của E2E-13 phía trên được giữ nguyên; chỉ chuyển trạng thái sau khi FE correction được retest trên exact HEAD.
+PR #83 (`b13874677e0e8db61cb2478da208909edcc54d88`) đã merge vào `main` ngày 2026-11-10 qua `eeb5ceedeb9326efec9e92196725f5e6e2263738`. Đây là **BACKEND TARGETED QA PASS**, không phải bằng chứng Kiosk WPF, real camera hoặc full E2E PASS.
+
+| ID | Acceptance | Trạng thái |
+|---|---|---|
+| SEARCH-BE01-01 | Keyword OR trên Title, Author, Barcode, Publisher, Category.Name và Area.Name; trim và case-insensitive theo SQL behavior | PASS — PR #83 independent HTTP/SQL QA |
+| SEARCH-BE01-02 | Giữ active-book filter và kết hợp `categoryId`; no-match trả rỗng | PASS — PR #83 independent HTTP/SQL QA |
+| SEARCH-BE01-03 | Keyword dài hơn 500 ký tự trả empty result, `TotalCount=0` | PASS — PR #83 independent HTTP/SQL QA |
+| SEARCH-BE01-04 | Pagination ổn định `Title ASC, BookId ASC`, extreme page không overflow, không duplicate do joins | PASS — PR #83 independent HTTP/SQL QA |
+| SEARCH-BE01-05 | Release build, 7 developer SQL acceptance, 8/8 independent acceptance và disposable SQL cleanup | PASS — zero QA database leftovers |
+| SEARCH-FE-01 | Kiosk WPF/real camera/real Backend integration | **PENDING / NOT PROVEN BY BACKEND TARGETED QA** |
+
+Các trạng thái E2E-01 đến E2E-14 ở trên được giữ nguyên; PR #83 không tự hoàn thành Task 4.5 hoặc Issue #61.
+
+### 2.2 Targeted acceptance — REVENUE-MONTHLY-01
+
+Các ca dưới đây là acceptance requirements theo quyết định Leader ngày 2026-11-06. Evidence lịch sử của E2E-13 phía trên được giữ nguyên. Các trạng thái FE PASS được cập nhật từ independent QA tại exact PR #64 HEAD `ea010e34`; chúng không thay thế real CMS↔Backend↔SQL E2E.
 
 | ID | Input | Expected | Trạng thái |
 |---|---|---|---|
-| REV-MONTH-01 | 12 tháng duy nhất, hợp lệ | Render đúng 12 tháng theo `month ASC` | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-02 | Thiếu Month 4 | Zero-fill Month 4; các tháng còn lại không đổi | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-03 | Hai row Month 3 | Reject toàn bộ response; không `GroupBy + Sum` | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-04 | Month 0 hoặc 13 | Reject toàn bộ response | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-05 | Empty monthly list thành công | Chuẩn hóa thành 12 tháng bằng 0 | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-06 | Payload null/malformed | Hiển thị unavailable/invalid, không coi là doanh thu 0 | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-07 | Initial Dashboard nhận dữ liệu invalid | Không hiển thị chart/table/KPI gây hiểu nhầm; widget độc lập vẫn an toàn | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-08 | Initial Reports nhận dữ liệu invalid | Không hiển thị totals chưa tin cậy | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-09 | AJAX invalid sau một năm hợp lệ | Rollback dropdown và giữ nguyên toàn bộ dữ liệu năm gần nhất thành công | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-10 | HTTP 401/403 hoặc network error | Giữ last-good year, dữ liệu/labels đồng bộ và hiển thị lỗi | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-11 | Success → failure → success | Chart/table/KPI/dropdown/labels luôn cùng năm được chấp nhận | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-12 | Response AJAX cũ về muộn | Không ghi đè kết quả mới nhất đã được chấp nhận | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-13 | Revenue data hợp lệ | Chart/table/KPI và annual totals khớp cùng normalized dataset | NOT RUN / PENDING FE FIX & QA |
-| REV-MONTH-14 | Admin và non-Admin | Giữ authorization hiện hữu: Admin được phép, non-Admin bị từ chối | NOT RUN / PENDING FE FIX & QA |
+| REV-MONTH-01 | 12 tháng duy nhất, hợp lệ | Render đúng 12 tháng theo `month ASC` | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-02 | Thiếu Month 4 | Zero-fill Month 4; các tháng còn lại không đổi | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-03 | Hai row Month 3 | Reject toàn bộ response; không `GroupBy + Sum` | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-04 | Month 0 hoặc 13 | Reject toàn bộ response | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-05 | Empty monthly list thành công | Chuẩn hóa thành 12 tháng bằng 0 | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-06 | Payload null/malformed | Hiển thị unavailable/invalid, không coi là doanh thu 0 | PARTIAL — null/unavailable PASS; malformed transport payload chưa có ánh xạ độc lập riêng |
+| REV-MONTH-07 | Initial Dashboard nhận dữ liệu invalid | Không hiển thị chart/table/KPI gây hiểu nhầm; widget độc lập vẫn an toàn | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-08 | Initial Reports nhận dữ liệu invalid | Không hiển thị totals chưa tin cậy | NOT RUN / SEPARATE TARGETED EVIDENCE PENDING |
+| REV-MONTH-09 | AJAX invalid sau một năm hợp lệ | Rollback dropdown và giữ nguyên toàn bộ dữ liệu năm gần nhất thành công | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-10 | HTTP 401/403 hoặc network error | Giữ last-good year, dữ liệu/labels đồng bộ và hiển thị lỗi | PARTIAL — HTTP 401 và network PASS @ `ea010e34`; 403 chưa ánh xạ riêng |
+| REV-MONTH-11 | Success → failure → success | Chart/table/KPI/dropdown/labels luôn cùng năm được chấp nhận | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-12 | Response AJAX cũ về muộn | Không ghi đè kết quả mới nhất đã được chấp nhận | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-13 | Revenue data hợp lệ | Chart/table/KPI và annual totals khớp cùng normalized dataset | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-MONTH-14 | Admin và non-Admin | Giữ authorization hiện hữu: Admin được phép, non-Admin bị từ chối | NOT RUN / SEPARATE AUTH EVIDENCE PENDING |
 
-Evidence nghiệm thu phải gồm exact PR HEAD, targeted .NET TRX, JavaScript DOM/runtime log, rendered HTML evidence, Debug/Release build logs và `git diff --check`. Final E2E còn phải đối chiếu API thật với SQL QA disposable để xác nhận Paid-only aggregation; targeted mock/DOM evidence không thay thế bước này.
+Evidence independent tại `ea010e34`: 44/44 Leader-owned Dashboard baseline tests, 28 browser/localhost assertions, 8/8 production Revenue-normalizer cases, CMS Debug/Release 0 errors và clean diff/worktree. `DASHBOARD-REVENUE-UNAVAILABLE-01` đã chuyển từ **FAIL P2** tại HEAD cũ `b161554` sang **PASS**; `DASHBOARD-INITIAL-UNAVAILABLE-INTERACTION-01` chuyển từ **NOT RUN** sang **PASS**, gồm Top Books independence và Revenue recovery. Final E2E còn phải đối chiếu API thật với SQL QA disposable để xác nhận Paid-only aggregation; targeted browser/contract evidence không thay thế bước này.
+
+#### REVENUE-NEGATIVE-01 — targeted acceptance
+
+Các ca sau thuộc contract Leader đã duyệt ngày 2026-11-06. Trạng thái tách riêng evidence checkout lịch sử khỏi hardening mới; không suy diễn static review thành runtime PASS.
+
+| ID | Scenario | Expected | Trạng thái |
+|---|---|---|---|
+| REV-NEG-01 | Valid Paid Order with positive amount | Accepted; đóng góp đúng vào Revenue | NOT RUN / LEADER E2E PENDING |
+| REV-NEG-02 | Valid year with no Paid Orders | Monthly Revenue 0, count 0; vẫn là response thành công | NOT RUN / LEADER E2E PENDING |
+| REV-NEG-03 | Backend monthly Revenue negative | `InvalidContract`; toàn bộ Revenue UI unavailable/invalid, không clamp | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-NEG-04 | Backend TotalOrders negative | `InvalidContract`; không render totals chưa tin cậy | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-NEG-05 | Initial Dashboard receives negative Revenue | Không hiển thị revenue/order KPI gây hiểu nhầm; trạng thái unavailable | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34`; lịch sử FAIL P2 tại `b161554` |
+| REV-NEG-06 | AJAX negative response after valid year | Reject nguyên tử; rollback dropdown và giữ last-good year | PASS — INDEPENDENT FE TARGETED QA @ `ea010e34` |
+| REV-NEG-07 | Kiosk/POS payable 0 or negative | Checkout bị từ chối và rollback; không Pending/QR hoặc mutation một phần | PASS — historical Backend targeted QA; xem PD-E2E-10 |
+| REV-NEG-08 | Preexisting Order amount `<= 0` attempts Pending → Paid | Transition bị từ chối; không partial mutation | PASS — PR #86 INDEPENDENT SQL @ `c341077b`, amount 0/-100 |
+| REV-NEG-09 | Negative Paid Order masked by positive monthly sum | Backend phát hiện invalid source data, không chỉ kiểm aggregate tháng | PASS — PR #86 INDEPENDENT SQL @ `c341077b` |
+| REV-NEG-10 | Normal valid Paid orders | Revenue không đổi sau hardening | PASS — PR #86 DEVELOPER + INDEPENDENT SQL @ `c341077b` |
+
+#### POLICY-REV-01 — snapshot-authoritative targeted acceptance
+
+Leader đã APPROVE policy ngày 2026-11-11. Các PASS dưới đây đã được retest trên Backend PR #86 exact HEAD `c341077b922cdba67ebc0ed0eae7ef924dbc90a2`, trực tiếp chứa `main@3503737d52245378cbeafab6c7f3cd1aff179126` sau merge PR #85; không thay thế WPF UI, SePay sandbox hoặc full E2E.
+
+| ID | Scenario | Expected | Trạng thái |
+|---|---|---|---|
+| REV-POL-01 | Webhook 1000; persisted amount drift 1000 → 1500 | Reject Paid; Pending, ledger 0, không đổi stock/reserved/points | PASS — INDEPENDENT SQL |
+| REV-POL-02 | Webhook 1000; persisted amount drift 1000 → 500 | Reject Paid; không ledger hoặc mutation | PASS — DEVELOPER + INDEPENDENT SQL |
+| REV-POL-03 | Initial 1000; webhook 1500; persisted đổi thành 1500 | Giữ mismatch classification; đúng một reconciliation ledger; Pending; không mutation | PASS — INDEPENDENT SQL; approved expected behavior |
+| REV-POL-04 | Persisted amount đổi thành 0 hoặc -100 trước write | Reject; không Paid/ledger/stock/reserved/points mutation | PASS — INDEPENDENT SQL |
+| REV-POL-05 | Dev simulation và POS Cash positive upward/downward drift | Atomic expected/current amount guard từ chối; transaction sạch và reusable | PASS — INDEPENDENT SQL |
+| REV-POL-06 | Reconciliation lock commit/rollback | Concurrent amount update bị block; lock được nhả sau commit/rollback | PASS — INDEPENDENT SQL |
+| REV-POL-07 | Duplicate/replay cùng ReferenceCode | Không tạo duplicate ledger hoặc lặp stock/points mutation | PASS — DEVELOPER + INDEPENDENT SQL |
+
+Exact-head evidence ngày 2026-11-12: clean Release build **PASS — 0 errors, 99 warnings**; full Backend/CMS developer **212/212 PASS**; independent Revenue SQL **18/18 PASS** và cleanup **1/1 PASS**; Users **5/5**, Barcode **8/8**, HTTP validation **4/4**, Checkout/Order/Payment/Inventory **10/10**. Tổng independent unique **46/46 PASS**, không mandatory SKIP; cleanup xác nhận còn **0** database `BookKiosk_QA_*`. PR #86 `OPEN / MERGEABLE / NOT MERGED`, Issue #71 vẫn OPEN; full CMS/Kiosk E2E vẫn PENDING.
+
+Tối ưu test: mở rộng các suite checkout/payment/report và CMS normalizer hiện có; chỉ bổ sung fixture dữ liệu âm tối thiểu cho transition và aggregation. Không tạo harness mới hoặc chạy full regression ngoài dependency bị thay đổi.
 
 ## 3. Đối chiếu bắt buộc sau mỗi order
 
@@ -208,8 +258,8 @@ Acceptance bắt buộc:
 - Preview không vượt quá 10 mục và ưu tiên `AvailableStock` thấp nhất theo thứ tự tăng dần.
 - Mỗi đầu sách chỉ được tính một lần trong KPI và preview.
 - Empty response hợp lệ được hiển thị là KPI 0; lỗi tải dữ liệu phải là trạng thái không khả dụng, không kết luận KPI 0.
-- Dashboard phải dẫn tới `/Inventory/Stock?lowOnly=true` để xem danh sách cảnh báo đầy đủ. PR HEAD hiện có route `/Inventory/Stock` nhưng link Dashboard chưa truyền bộ lọc; cần targeted retest sau khi sửa link.
-- Chỉ chuyển từng ca sang PASS sau khi chạy targeted tests trên SHA chứa fix và lưu evidence; ca `CMS-LOWSTOCK-05` và link điều hướng vẫn `RETEST REQUIRED`.
+- Dashboard phải dẫn tới `/Inventory/Stock?lowOnly=true` để xem danh sách cảnh báo đầy đủ và nút phải có nhãn **“Xem sách tồn thấp”**; đây là acceptance bắt buộc, không phải UX tùy chọn. Baseline `main@9bfe52d` thiếu tham số; PR #90 đã thêm `asp-route-lowOnly="true"`, nhưng Issue [#92](https://github.com/Unknown4505/Library-System/issues/92) (`@lehuukhang`, P1) vẫn OPEN.
+- Chỉ chuyển từng ca sang PASS sau khi chạy targeted tests trên SHA chứa fix và lưu evidence; ca `CMS-LOWSTOCK-05` và link điều hướng giữ **RETEST REQUIRED**. Không đổi ngưỡng `AvailableStock <= 5`, KPI phải đếm toàn bộ response và preview vẫn tối đa 10.
 
 ## 9. ProductDiscount V7.1 — targeted matrix
 

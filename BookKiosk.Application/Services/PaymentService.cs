@@ -121,6 +121,10 @@ public class PaymentService : IPaymentService
             return exists;
         }
 
+        // Validate persisted financial data before replay/reconciliation can write a ledger row.
+        if (order.TotalAmount <= 0)
+            return false;
+
         // BE-NEW-12: Trường hợp webhook đến sau khi đơn hàng đã bị hủy (Cancelled)
         if (order.OrderStatus == OrderStatus.Cancelled)
         {
@@ -130,6 +134,11 @@ public class PaymentService : IPaymentService
                 bool isDuplicate = await _paymentRepository.CheckTransactionExistsAsync(refCode);
                 if (!isDuplicate)
                 {
+                    if (!await HasValidReconciliationOrderAsync(order.OrderCode))
+                    {
+                        await _unitOfWork.RollbackAsync();
+                        return false;
+                    }
                     // Lưu vết giao dịch để đối soát và xử lý hoàn tiền thủ công
                     var latePaymentTx = new PaymentTransaction
                     {
@@ -168,6 +177,11 @@ public class PaymentService : IPaymentService
                 bool isDuplicate = await _paymentRepository.CheckTransactionExistsAsync(refCode);
                 if (!isDuplicate)
                 {
+                    if (!await HasValidReconciliationOrderAsync(order.OrderCode))
+                    {
+                        await _unitOfWork.RollbackAsync();
+                        return false;
+                    }
                     var additionalTx = new PaymentTransaction
                     {
                         OrderId = order.OrderId,
@@ -196,6 +210,7 @@ public class PaymentService : IPaymentService
             }
         }
 
+
         // Đơn hàng đang Pending -> Hoàn tất thanh toán an toàn
         await _unitOfWork.BeginTransactionAsync();
         try
@@ -215,11 +230,18 @@ public class PaymentService : IPaymentService
                 Amount = actualAmount,
                 Gateway = payload.gateway ?? "SePay"
             };
-            await _paymentRepository.AddTransactionAsync(paymentTx);
-
             if (actualAmount != order.TotalAmount)
             {
-                // Sai số tiền: ghi nhận đối soát, giữ đơn Pending, không đổi trạng thái, không trừ kho
+                // Validate the persisted amount under a lock held through ledger commit.
+                if (!await HasValidReconciliationOrderAsync(order.OrderCode))
+                {
+                    await _unitOfWork.RollbackAsync();
+                    return false;
+                }
+                // Preserve mismatch intent from the original quote: reconciliation only,
+                // even if an intervening total edit now matches the received amount.
+                // Sai số tiền hợp lệ: chỉ ghi đối soát, giữ trạng thái/kho/điểm.
+                await _paymentRepository.AddTransactionAsync(paymentTx);
                 await _unitOfWork.SaveChangesAsync();
                 await _unitOfWork.CommitAsync();
                 return true; 
@@ -227,15 +249,27 @@ public class PaymentService : IPaymentService
 
             // Atomic state transition sang Paid (BE-NEW-02)
             var completedAt = DateTime.UtcNow;
-            var transitioned = await _orderRepository.TryTransitionOrderStatusAsync(order.OrderId, OrderStatus.Pending, OrderStatus.Paid, completedAt);
+            var transitioned = await _orderRepository.TryPayOrderAsync(order.OrderId, actualAmount, completedAt);
             if (!transitioned)
             {
-                // Đơn hàng đã bị hủy hoặc chuyển trạng thái bởi tiến trình khác
+                // Fail closed if the quote drifted, even to another positive amount.
+                // Only an already Paid/Cancelled order at the same amount is a status race.
+                var current = await _orderRepository.GetOrderForPaymentReconciliationAsync(order.OrderCode);
+                if (current == null || current.TotalAmount <= 0 || current.TotalAmount != actualAmount ||
+                    current.OrderStatus == OrderStatus.Pending)
+                {
+                    await _unitOfWork.RollbackAsync();
+                    return false;
+                }
+
+                // Valid positive status races retain the existing reconciliation behavior.
+                await _paymentRepository.AddTransactionAsync(paymentTx);
                 await _unitOfWork.SaveChangesAsync();
                 await _unitOfWork.CommitAsync();
                 return true;
             }
 
+            await _paymentRepository.AddTransactionAsync(paymentTx);
             order.OrderStatus = OrderStatus.Paid;
             order.CompletedAt = completedAt;
 
@@ -281,11 +315,20 @@ public class PaymentService : IPaymentService
         }
     }
 
+    private async Task<bool> HasValidReconciliationOrderAsync(string orderCode)
+    {
+        var current = await _orderRepository.GetOrderForPaymentReconciliationAsync(orderCode);
+        return current != null && current.TotalAmount > 0;
+    }
+
     public async Task<(bool Success, string Status, string? Message, Order? Order)> SimulateDevSuccessAsync(string orderCode)
     {
         var order = await _orderRepository.GetOrderByCodeAsync(orderCode);
         if (order == null)
             return (false, "NotFound", "Không tìm thấy đơn hàng.", null);
+
+        if (order.TotalAmount <= 0)
+            return (false, "Conflict", "Đơn hàng có tổng tiền không hợp lệ, không thể thanh toán.", order);
 
         if (order.OrderStatus == OrderStatus.Cancelled)
             return (false, "Conflict", "Đơn hàng đã bị hủy, không thể mô phỏng thanh toán.", order);
@@ -293,13 +336,14 @@ public class PaymentService : IPaymentService
         if (order.OrderStatus == OrderStatus.Paid)
             return (true, "Paid", "Đơn hàng đã được thanh toán trước đó.", order);
 
+
         // Đơn đang Pending -> Hoàn tất đúng theo luồng giao dịch an toàn
         var devRefCode = $"DEV_{order.OrderId}_{DateTime.UtcNow.Ticks}";
         await _unitOfWork.BeginTransactionAsync();
         try
         {
             var completedAt = DateTime.UtcNow;
-            var transitioned = await _orderRepository.TryTransitionOrderStatusAsync(order.OrderId, OrderStatus.Pending, OrderStatus.Paid, completedAt);
+            var transitioned = await _orderRepository.TryPayOrderAsync(order.OrderId, order.TotalAmount, completedAt);
             if (!transitioned)
             {
                 await _unitOfWork.RollbackAsync();

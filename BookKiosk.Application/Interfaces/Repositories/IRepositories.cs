@@ -1,4 +1,5 @@
 using BookKiosk.Domain.Entities;
+using BookKiosk.Domain.Enums;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -7,6 +8,7 @@ namespace BookKiosk.Application.Interfaces.Repositories;
 public interface IUnitOfWork : System.IDisposable
 {
     Task BeginTransactionAsync();
+    Task BeginTransactionAsync(System.Data.IsolationLevel isolationLevel);
     Task CommitAsync();
     Task RollbackAsync();
     Task<int> SaveChangesAsync();
@@ -16,6 +18,12 @@ public interface IUserRepository
 {
     Task<User?> GetByUsernameAsync(string username);
     Task<User?> GetByIdAsync(int id);
+    Task<(IEnumerable<User> Items, int TotalCount)> GetUsersPagedAsync(
+        int page, int pageSize, string? keyword, UserRole? role, bool? isActive);
+    Task AddAsync(User user);
+    Task UpdateAsync(User user);
+    Task<bool> ExistsByUsernameAsync(string username);
+    Task<int> CountActiveAdminsAsync();
 }
 
 public interface ISupplierRepository
@@ -75,11 +83,15 @@ public interface IOrderRepository
     Task AddOrderAsync(Order order);
     Task<bool> TryIncreaseReservedQuantityAsync(int bookId, int quantity);
     Task<bool> TryTransitionOrderStatusAsync(int orderId, BookKiosk.Domain.Enums.OrderStatus fromStatus, BookKiosk.Domain.Enums.OrderStatus toStatus, System.DateTime? completedAt = null);
+    // Atomic Paid transition must bind the persisted total to the amount being paid.
+    Task<bool> TryPayOrderAsync(int orderId, decimal expectedTotalAmount, System.DateTime completedAt);
     Task<Order?> GetPendingOrderByCodeAsync(string orderCode);
     Task<Order?> GetOrderByCodeAsync(string orderCode);
     Task<Order?> GetOrderByIdAsync(int orderId);
     /// <summary>Đọc trạng thái order mới nhất từ DB, bỏ qua EF tracking cache. Dùng sau rollback để xác định trạng thái thật (F01).</summary>
     Task<Order?> GetOrderByCodeNoTrackingAsync(string orderCode);
+    // Requires an active transaction; lock persisted amount until reconciliation commits/rolls back.
+    Task<Order?> GetOrderForPaymentReconciliationAsync(string orderCode);
     /// <summary>Đọc dữ liệu hóa đơn snapshot cho đơn hàng đã thanh toán kèm OrderDetails và Book (AsNoTracking).</summary>
     Task<Order?> GetReceiptOrderByIdAsync(int orderId);
     Task ReleaseReservedQuantityAsync(int bookId, int quantity);
@@ -100,4 +112,3 @@ public interface IKioskRepository
     Task AddIncidentAsync(KioskIncident incident);
     Task<KioskIncident?> GetOpenIncidentAsync(int kioskId, string errorCode);
 }
-

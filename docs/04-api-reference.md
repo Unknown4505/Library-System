@@ -78,14 +78,14 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 #### Lấy danh sách Sách (Có phân trang, tìm kiếm)
 - **Endpoint:** `GET /api/books`
 - **Query Params:** 
-  - `keyword` (string): Trên `main@3410193`, tìm theo tên hoặc tác giả (tùy chọn); mở rộng 6 trường chỉ có trong open PR #68.
+  - `keyword` (string): Tùy chọn; trim trước khi query và tìm theo OR trên `Books.Title`, `Books.Author`, `Books.Barcode`, `Books.Publisher`, `Category.Name`, `Area.Name`. Search không phân biệt hoa/thường theo SQL behavior đã QA; keyword dài hơn 500 ký tự trả danh sách rỗng với `totalCount=0`.
   - `categoryId` (int): Lọc theo danh mục (tùy chọn).
   - `page` (int): Mặc định `1`.
   - `pageSize` (int): Mặc định `12` theo source hiện tại.
-- **Extended Search — IMPLEMENTED IN PR #68 / TARGETED QA PASS / NOT MERGED:** [Issue #60](https://github.com/Unknown4505/Library-System/issues/60) BE-01 tại exact QA HEAD `829a46b27327d3dceb98c93b521cd4779bb65fbd` mở rộng `keyword` theo OR trên `Title`, `Author`, `Barcode`, `Publisher`, `Category.Name`, `Area.Name`; kết hợp được với `categoryId`, giữ pagination và sort ổn định `Title ASC, BookId ASC`. Extreme-page overflow đã FIX VERIFIED; HTTP/SQL targeted QA PASS. PR #68 còn OPEN nên API mở rộng **chưa có trên `main`** và chưa có full FE/Kiosk E2E evidence.
-- [x] #60 BE-01 implementation và targeted Backend QA.
-- [ ] #60 BE-01 merge/full FE-Kiosk E2E — chưa hoàn thành.
-- [ ] #60 BE-02 sửa Barcode — **HOLD / LEADER DECISION REQUIRED**; không tự thêm khả năng đổi Barcode vào update contract.
+- **Extended Search — IMPLEMENTED / MERGED — PR #83 — 2026-11-10:** [Issue #60](https://github.com/Unknown4505/Library-System/issues/60) BE-01 được merge vào `main` qua commit `eeb5ceedeb9326efec9e92196725f5e6e2263738` từ exact HEAD `b13874677e0e8db61cb2478da208909edcc54d88`. API giữ nguyên route, DTO, response wrapper, active-book filter, `categoryId` và pagination; sort ổn định `Title ASC, BookId ASC`, chống overflow ở extreme page và không tạo duplicate từ Category/Area joins. Release build PASS; developer SQL acceptance 7 PASS và independent HTTP/SQL acceptance **8/8 PASS**, cleanup database disposable còn 0 leftover.
+- [x] #60 BE-01 implementation, independent Backend QA và merge PR #83.
+- [ ] #60 full FE/Kiosk WPF/real-camera E2E — chưa hoàn thành; merge Backend targeted không thay thế acceptance #61.
+- [x] #60 BE-02 sửa Barcode — **MERGED / INDEPENDENT TARGETED QA PASS — PR #84** theo `BOOK-BARCODE-BE02-01`; exact HEAD `f853733759d70cfa95ddaa1b672d673d8a066881` đã merge vào `main` qua `7edf343f6456091ec326c8646869f6ad5ab8a08b` ngày 2026-11-11. Issue #60 và FE/Kiosk E2E vẫn OPEN.
 - **Response (Success - 200 OK):**
 ```json
 {
@@ -115,6 +115,29 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 #### Lấy chi tiết 1 cuốn sách (khi quét mã vạch)
 - **Endpoint:** `GET /api/books/barcode/{barcode}`
 - **Response:** Trả về Object giống 1 item trong mảng `items` ở trên. Lỗi `404 Not Found` nếu mã không tồn tại.
+
+#### Đổi Barcode có kiểm soát — MERGED / INDEPENDENT TARGETED QA PASS — PR #84
+
+**Leader decision `BOOK-BARCODE-BE02-01` (08/11/2026):** Issue #60 BE-02 được duyệt cho `@thien33` theo phương án **direct cutover có kiểm soát**, giữ nguyên `BookId`, không lưu Barcode Alias và không thêm migration/schema. PR #84 exact HEAD `f853733759d70cfa95ddaa1b672d673d8a066881` đã independent targeted QA PASS và merge vào `main` qua commit `7edf343f6456091ec326c8646869f6ad5ab8a08b` ngày 2026-11-11.
+
+- **Endpoint:** `POST /api/books/{id:int}/change-barcode`
+- **Authorization:** JWT role `Admin` duy nhất; unauthenticated trả `401`, Manager/Staff trả `403`.
+- **Request:**
+```json
+{
+  "newBarcode": "9786043652874",
+  "reason": "Tem cũ bị hỏng, cần cấp mã thay thế"
+}
+```
+- `newBarcode`: bắt buộc, trim trước khi lưu, dài `1..50`, tương thích `varchar(50)`, không chứa control character; không giả định mọi mã là EAN-13. Mã sau normalize phải khác mã hiện tại và không trùng Barcode của sách khác theo unique index/collation của database.
+- `reason`: bắt buộc, trim, dài `5..500`; chỉ dùng cho audit, không được chứa secret.
+- **Success `200`:** shared `ApiResponseDto`, `data` gồm `bookId`, `oldBarcode`, `newBarcode`, `requiresLabelReprint=true`, `changedAtUtc`; message yêu cầu in và dán tem mới ngay.
+- **Errors:** `400 BAD_REQUEST` cho contract/format hoặc mã không đổi; `404 NOT_FOUND` khi Book không tồn tại; `409 CONFLICT` khi mã mới đã được dùng, `ReservedQuantity > 0`, hoặc conditional update mất race. Không trả raw provider/SQL exception.
+- **Transaction/concurrency:** kiểm tra Book, `ReservedQuantity == 0`, uniqueness và cập nhật trong một transaction. Update phải có điều kiện trên `BookId + old Barcode + ReservedQuantity == 0`; affected row khác 1 trả `409`. Unique index là chốt cuối cho hai request cùng chọn một mã; chỉ provider unique violation thật được map thành `409`.
+- **Audit/rollback:** sau commit ghi structured security audit gồm actor UserId, BookId, old/new Barcode, reason, UTC timestamp và correlation id; không log token. Rollback nghiệp vụ dùng lại chính endpoint với mã cũ và reason mới, vẫn chịu uniqueness/reservation/concurrency rules; nếu mã cũ đã được cấp cho sách khác thì trả `409`.
+- **Compatibility:** Order, Payment, Inventory receipt và ProductDiscount tiếp tục tham chiếu `BookId`, nên không đổi FK/lịch sử. Kiosk/CMS phải dùng mã mới ngay; mã cũ trả `404` sau cutover và không được resolve như alias. `requiresLabelReprint=true` là điều kiện vận hành bắt buộc. Source hiện không có module Borrowing/Loan; nếu bổ sung module này về sau phải dùng `BookId` và qua review riêng.
+- **Out of scope:** sửa `PUT /api/books/{id}` để nhận Barcode; Barcode Alias/PreviousBarcode; bảng audit/migration mới; đổi Kiosk/CMS UI; tự động in tem; sửa lịch sử Order/Inventory; mở rộng PR #68.
+- **QA evidence trước merge:** Release build 0 errors; unit/service tests; independent API+SQL tests cho 401/403, validation, 404, success/audit, duplicate tuần tự và đồng thời, hai update đồng thời trên cùng Book, reservation race, rollback khi persistence lỗi, old-code 404/new-code lookup, và regression Books Search/Inventory/Checkout/Order/Payment. Developer tests không thay independent QA evidence; merge không thay thế FE/Kiosk/full E2E acceptance.
 
 #### Lấy danh sách Danh mục
 - **Endpoint:** `GET /api/categories`
@@ -334,6 +357,14 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
     - **Nếu ĐÚNG:** Cập nhật Order -> `Paid`. Trừ kho thật sự (`StockQuantity -= qty`, `ReservedQuantity -= qty`). Cộng điểm cho Member.
     - **Nếu LỆCH (Khách tự sửa số tiền):** Vẫn giữ Order -> `Pending`. Insert `PaymentTransactions` để lưu vết giao dịch lệch. Gửi Notification cho Staff kiểm tra và xử lý thủ công. Kiosk hiển thị màn hình "Chờ nhân viên hỗ trợ". Không nhả sách.
 
+**POLICY-REV-01 — APPROVED, snapshot-authoritative (2026-11-11):**
+
+- Nhánh mismatch/reconciliation được phân loại theo `Order.TotalAmount` ở lần đọc đầu tiên và không tự đổi sang Paid nếu persisted amount thay đổi sau đó, kể cả khi giá trị mới bằng webhook amount.
+- Trước khi insert reconciliation ledger, Backend đọc lại và khóa persisted Order trong transaction; amount hiện tại phải `> 0`. Nhánh này giữ nguyên Order status/kho/reserved/points và idempotent theo `referenceCode`.
+- Response webhook thành công hoặc giá trị xử lý nội bộ `accepted = true` trong nhánh mismatch chỉ xác nhận webhook đã được ghi nhận để đối soát; **không biểu thị Order đã `Paid`**. Client phải dựa vào persisted `OrderStatus`/polling, không suy diễn từ response nhận webhook.
+- Nhánh webhook khớp initial snapshot chỉ được Paid khi amount hiện tại trong database vẫn dương và đúng bằng webhook amount; guard amount và `Pending → Paid` phải atomic, giữ lock đến commit/rollback. Drift dương/0/âm làm điều kiện không còn đúng phải reject không ledger, không stock/reserved/points mutation và không stale tracked `PaymentTransaction`.
+- Policy không tạo endpoint, HTTP status hoặc DTO mới; chi tiết nghiệp vụ xem [Business Pipeline](05-business-pipeline.md#policy-rev-01--snapshot-authoritative-mismatch-classification--approved-2026-11-11).
+
 #### F3 mô phỏng thanh toán thành công trong Development (contract đã chốt, Backend chưa implement)
 - **Endpoint:** `POST /api/payments/dev-simulate-success/{orderCode}`
 - **Auth:** `X-Api-Key` theo cùng `ApiSettings:ApiKey` của Kiosk; endpoint phải tự áp dụng xác thực nếu middleware hiện tại chưa bao phủ `/api/payments/*`.
@@ -374,11 +405,12 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 
 ### 3.6 Admin Catalog CRUD (contract nghiệm thu Task 9.1)
 
-- Tất cả endpoint ghi dữ liệu yêu cầu JWT; `Admin` được tạo/sửa/vô hiệu hóa, `Staff` chỉ có quyền được cấp trong `docs/07-security.md`.
+- Theo **BOOKS-RBAC-01 — ADMIN-ONLY**, tất cả Books write endpoint phải yêu cầu JWT role `Admin`; `Staff`/`Manager` chỉ đọc sách active và anonymous write luôn bị chặn. Nhập kho/kiểm kê dùng API nghiệp vụ riêng, không cấp Books PUT cho Staff. Quyết định này giữ implementation PR #90 nhưng authorization chỉ được nghiệm thu sau HTTP `401/403/2xx` evidence theo [#93](https://github.com/Unknown4505/Library-System/issues/93).
 - Categories: `POST /api/categories`, `PUT /api/categories/{id}`, `DELETE /api/categories/{id}` dùng `CreateCategoryDto`/`UpdateCategoryDto` (`name` bắt buộc, tối đa 255 ký tự).
 - Areas: `POST /api/areas`, `PUT /api/areas/{id}`, `DELETE /api/areas/{id}` dùng `CreateAreaDto`/`UpdateAreaDto` (`name` bắt buộc, tối đa 255; `mapCoordinates` tối đa 500 ký tự).
 - Xóa/vô hiệu hóa phải tôn trọng FK: Category đang được Book tham chiếu không được hard-delete; Area bị xóa áp dụng quan hệ `SET NULL` theo schema. Ưu tiên deactivate nếu entity có `IsActive`.
-- Categories/Areas write endpoints đã được bổ sung trên nhánh `c8` với JWT role `Admin`, response wrapper, duplicate-name validation và xử lý FK khi xóa. Books write endpoints trên `main` vẫn chưa có authorization tương ứng, nên Task 9.1 chưa đủ điều kiện nghiệm thu toàn bộ.
+- **Baseline audit `main@9bfe52d`:** list `GetPagedAsync()` lọc `IsActive`; `BookService.GetBookByBarcodeAsync()` cũng chặn `null`/inactive dù repository barcode không lọc; chỉ public GET detail theo ID chưa chặn. Vì vậy barcode là regression cần bảo toàn, không phải bug chưa sửa. Theo dõi detail ID tại [#94](https://github.com/Unknown4505/Library-System/issues/94).
+- **Current implementation after PR #90:** Books write endpoints có Admin authorization; upload giới hạn JPG/PNG/WEBP tối đa 5 MB và dùng tên UUID; detail ID có inactive guard; `test-error` được bọc `#if DEBUG`. Upload vẫn phải xác minh magic bytes/chữ ký nội dung thay vì chỉ tin extension và client `ContentType` trước khi #93 PASS. Theo #95, phải xóa hẳn route `test-error` khỏi application source và chuyển exception-middleware check sang automated test; `#if DEBUG` không bảo vệ khi deploy nhầm Debug build. [#93](https://github.com/Unknown4505/Library-System/issues/93), [#94](https://github.com/Unknown4505/Library-System/issues/94), [#95](https://github.com/Unknown4505/Library-System/issues/95) vẫn OPEN và chưa có HTTP/Release QA evidence. Task 9.1 chưa được đánh dấu acceptance PASS.
 
 #### 3.6.1 Cảnh báo tồn kho thấp cho CMS Dashboard
 
@@ -403,19 +435,29 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - Duplicate month hoặc month ngoài `1..12` làm toàn bộ Revenue response không hợp lệ. CMS không được âm thầm `GroupBy + Sum`, không render totals chưa tin cậy và không cập nhật UI từng phần; Backend phải điều tra nếu API thực tế vi phạm contract.
 - Empty `data[]` thành công được zero-fill thành 12 tháng bằng 0. API unavailable hoặc payload `null`/malformed không phải doanh thu 0 hợp lệ và phải hiển thị trạng thái unavailable/invalid riêng.
 - Backend hiện đã group theo tháng và trả 12 row có thứ tự; đây là contract của endpoint hiện hữu, không phải yêu cầu tạo route hay DTO mới. CMS chịu trách nhiệm validation/normalization và rollback nguyên tử khi response không hợp lệ.
+
+**REVENUE-NEGATIVE-01 — APPROVED (2026-11-06):**
+
+- Mọi order `Paid` hợp lệ phải có `Order.TotalAmount > 0`. Monthly `revenue` và `totalOrders` phải lần lượt thỏa `Revenue >= 0` và `TotalOrders >= 0`; tháng hợp lệ không có order `Paid` được trả `revenue = 0`, `totalOrders = 0`.
+- Monthly Revenue âm là response Backend vi phạm contract (`InvalidContract`). CMS phải reject toàn bộ response nguyên tử, không clamp số âm về 0, không cập nhật chart/table/KPI từng phần và phải biểu diễn unavailable/invalid khác với tháng thành công có doanh thu 0. AJAX invalid phải giữ last-good year theo `REVENUE-MONTHLY-01`.
+- Refund, reversal và negative adjustment chưa thuộc Revenue contract hiện hành. Mọi mô hình net revenue/refund tương lai cần contract và phê duyệt Leader riêng; quyết định này không thêm route, DTO field hoặc HTTP error code.
+- **Implementation đã xác minh:** Kiosk/POS checkout từ chối và rollback khi payable `<= 0`; Revenue repository cộng `TotalAmount` của order `Paid`; `totalOrders` được lấy từ `Count()`.
+- **PR #86 hardening — MERGED (2026-11-13):** exact HEAD `c341077b922cdba67ebc0ed0eae7ef924dbc90a2` đã merge qua `a971bc0`. Conflict resolution giữ Users repository/UoW isolation và Revenue atomic amount/lock/replay behavior; `POLICY-REV-01` tiếp tục áp dụng. Full CMS/Kiosk E2E và mọi Production constraint vẫn là gate riêng.
+- `CONTRACT/POLICY APPROVED` và exact-head targeted QA PASS không đồng nghĩa Production merge hoặc full CMS/Kiosk E2E PASS. Không có migration/CHECK mới được phê duyệt trong quyết định này; `docs/init.sql` không phải bằng chứng schema đang deploy.
 - `KioskStatusSummaryDto { online, offline, error, openIncidents }` vẫn tồn tại ở mức contract lịch sử, nhưng CMS Kiosk Monitoring đã **OUT OF SCOPE / NOT REQUIRED**; Issue #65 **CLOSED — NOT PLANNED** và không yêu cầu Backend triển khai endpoint tổng hợp.
 
-### 3.8 Auth đã triển khai; Users BE-02 đã duyệt thiết kế; Employees và SalaryPayments còn PLANNED
+### 3.8 Auth và Users PR #85 đã MERGED; Employees và SalaryPayments còn PLANNED
 
 Trạng thái phải tách riêng giữa authentication hiện hữu và các API quản trị chưa triển khai:
 
 - `POST /api/auth/login`: **IMPLEMENTED**; xác thực tài khoản active và trả JWT có role `Admin`, `Manager` hoặc `Staff`.
-- [Issue #66](https://github.com/Unknown4505/Library-System/issues/66) được giao cho `@thien33`. `GET /api/users` và `GET /api/users/{id}` tại exact PR [#68](https://github.com/Unknown4505/Library-System/pull/68) HEAD `829a46b27327d3dceb98c93b521cd4779bb65fbd` là **IMPLEMENTED / TARGETED QA PASS / NOT MERGED**. List hỗ trợ `keyword`, `role`, `isActive`, `page`, `pageSize`; detail trả `404 NOT_FOUND` khi không tồn tại. Cả hai route Admin-only và response allowlist chỉ gồm `userId`, `username`, `fullName`, `role`, `isActive`; không trả `PasswordHash`, token, secret, `Email` hoặc `CreatedAt`. Extreme-page overflow, JWT 401/403 matrix và GET read-only đã targeted QA PASS; API này **chưa có trên `main`**.
-- [x] #66 BE-01 implementation và targeted Backend QA; [x] #66 BE-03 targeted auth/security QA.
-- [ ] #66 BE-01 merge/full CMS E2E — chưa hoàn thành; targeted auth/security PASS không được suy rộng thành full security regression PASS.
-- **Leader decision USER-MGMT-BE02-01 (2026-11-04): APPROVED DESIGN / READY TO IMPLEMENT.** `@thien33` được triển khai trong PR riêng: `POST /api/users`, `PUT /api/users/{id}` chỉ sửa `fullName`/`role`, `PATCH /api/users/{id}/status` để activate/deactivate và `POST /api/users/{id}/reset-password` nhận mật khẩu mới. Chỉ role `Admin` được gọi; `Manager`/`Staff` phải nhận `403`.
+- [Issue #66](https://github.com/Unknown4505/Library-System/issues/66) được giao cho `@thien33`. Users implementation ở PR [#85](https://github.com/Unknown4505/Library-System/pull/85) exact HEAD `49ce68f3c274b0f5092be76016c1652bc988576c` đã **MERGED** vào `main` qua `3503737d52245378cbeafab6c7f3cd1aff179126` ngày 2026-11-12. `GET /api/users` hỗ trợ `keyword`, `role`, `isActive`, `page`, `pageSize`; detail trả `404 NOT_FOUND` khi không tồn tại. Route Admin-only và response allowlist chỉ gồm `userId`, `username`, `fullName`, `role`, `isActive`; không trả `PasswordHash`, token, secret, `Email` hoặc `CreatedAt`. PR #68 chỉ còn là historical targeted-QA evidence và đã CLOSED WITHOUT MERGE; CMS E2E vẫn là gate riêng.
+- [x] #66 BE-01/BE-02 implementation ở PR #85; [x] historical targeted auth/security evidence.
+- [x] #66 Backend merge qua PR #85; [ ] full CMS E2E — chưa hoàn thành; merge Backend không được suy rộng thành full security/CMS regression PASS.
+- **Leader decision USER-MGMT-BE02-01 (2026-11-04): IMPLEMENTED / MERGED VIA PR #85.** `@thien33` triển khai `POST /api/users`, `PUT /api/users/{id}` chỉ sửa `fullName`/`role`, `PATCH /api/users/{id}/status` để activate/deactivate và `POST /api/users/{id}/reset-password` nhận mật khẩu mới. Chỉ role `Admin` được gọi; `Manager`/`Staff` phải nhận `403`.
 - Không triển khai hard-delete hoặc đổi `username`. Không cho Admin tự vô hiệu hóa hoặc vô hiệu hóa Admin active cuối cùng. Username unique không phân biệt hoa/thường và phải xử lý cạnh tranh tạo trùng; password tối thiểu 8 ký tự, có chữ hoa/chữ thường/số, được hash bằng cơ chế hiện hữu và không xuất hiện trong response/log.
-- Không thêm `Email`, `CreatedAt`, `MustChangePassword` hoặc bảng audit/migration mới trong BE-02. CMS phải bỏ/ẩn các mock field không có trong entity. BE-02 chỉ được ghi **IMPLEMENTED** sau khi có code, authorization/validation/concurrency tests và evidence; quyết định duyệt thiết kế không đồng nghĩa E2E đã PASS.
+- Không thêm `Email`, `CreatedAt`, `MustChangePassword` hoặc bảng audit/migration mới trong BE-02. CMS phải bỏ/ẩn các mock field không có trong entity. PR #85 đã merge nhưng không đồng nghĩa CMS E2E PASS.
+- **CMS dependency [#91](https://github.com/Unknown4505/Library-System/issues/91), owner `@lehuukhang`, P0:** baseline `9bfe52d` vẫn dùng mock/empty-state và mô tả sai rằng `/api/users` chưa tồn tại. PR #90 đã merge CMS API integration, nhưng Issue #91 vẫn OPEN và chưa có CMS E2E/acceptance evidence. Backend #66 giữ nguyên **MERGED/CLOSED**; không chuyển Users Backend về PLANNED.
 - `/api/employees`: hồ sơ nhân viên; Admin/Manager theo policy, Staff chỉ được đọc hồ sơ của chính mình khi có identity mapping.
 - `/api/salary-payments`: sổ lương tháng; API/DTO/controller/service đều **PLANNED**.
 

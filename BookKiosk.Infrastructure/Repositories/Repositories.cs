@@ -18,10 +18,61 @@ public class UnitOfWork : IUnitOfWork
     public UnitOfWork(ApplicationDbContext context) => _context = context;
 
     public async Task BeginTransactionAsync() => _transaction = await _context.Database.BeginTransactionAsync();
-    public async Task CommitAsync() { if (_transaction != null) await _transaction.CommitAsync(); }
-    public async Task RollbackAsync() { if (_transaction != null) await _transaction.RollbackAsync(); }
+    public async Task BeginTransactionAsync(System.Data.IsolationLevel isolationLevel) => _transaction = await _context.Database.BeginTransactionAsync(isolationLevel);
+    public async Task CommitAsync()
+    {
+        var transaction = _transaction;
+        _transaction = null;
+        if (transaction != null)
+        {
+            var operationFailed = false;
+            try
+            {
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                operationFailed = true;
+                throw;
+            }
+            finally
+            {
+                try { await transaction.DisposeAsync(); }
+                catch when (operationFailed) { /* Preserve the primary commit failure. */ }
+            }
+        }
+    }
+
+    public async Task RollbackAsync()
+    {
+        var transaction = _transaction;
+        _transaction = null;
+        if (transaction != null)
+        {
+            var operationFailed = false;
+            try
+            {
+                await transaction.RollbackAsync();
+            }
+            catch
+            {
+                operationFailed = true;
+                throw;
+            }
+            finally
+            {
+                try { await transaction.DisposeAsync(); }
+                catch when (operationFailed) { /* Preserve the primary rollback failure. */ }
+            }
+        }
+    }
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
-    public void Dispose() => _transaction?.Dispose();
+    public void Dispose()
+    {
+        var transaction = _transaction;
+        _transaction = null;
+        transaction?.Dispose();
+    }
 }
 
 public class MemberRepository : IMemberRepository
@@ -55,6 +106,66 @@ public class UserRepository : IUserRepository
     public UserRepository(ApplicationDbContext context) => _context = context;
     public async Task<User?> GetByUsernameAsync(string username) => await _context.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
     public async Task<User?> GetByIdAsync(int id) => await _context.Users.FindAsync(id);
+
+    public async Task<(IEnumerable<User> Items, int TotalCount)> GetUsersPagedAsync(
+        int page, int pageSize, string? keyword, UserRole? role, bool? isActive)
+    {
+        var query = _context.Users.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim().ToLower();
+            query = query.Where(u =>
+                (u.Username != null && u.Username.ToLower().Contains(kw)) ||
+                (u.FullName != null && u.FullName.ToLower().Contains(kw)));
+        }
+
+        if (role.HasValue)
+        {
+            query = query.Where(u => u.Role == role.Value);
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(u => u.IsActive == isActive.Value);
+        }
+
+        var totalCount = await query.CountAsync();
+
+        // Fix DEFECT-02: Chống tràn số kiểu int khi page cực lớn (ví dụ: page = int.MaxValue)
+        long skip = (long)Math.Max(0, page - 1) * pageSize;
+        if (skip >= totalCount || totalCount == 0)
+        {
+            return (new List<User>(), totalCount);
+        }
+
+        var items = await query
+            .OrderBy(u => u.UserId)
+            .Skip((int)skip)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (items, totalCount);
+    }
+
+    public async Task AddAsync(User user) => await _context.Users.AddAsync(user);
+
+    public Task UpdateAsync(User user)
+    {
+        _context.Users.Update(user);
+        return Task.CompletedTask;
+    }
+
+    public async Task<bool> ExistsByUsernameAsync(string username)
+    {
+        var normalized = username.Trim().ToLower();
+        return await _context.Users.AnyAsync(u => u.Username.ToLower() == normalized);
+    }
+
+    public async Task<int> CountActiveAdminsAsync()
+    {
+        return await _context.Users.CountAsync(u => u.Role == UserRole.Admin && u.IsActive);
+    }
 }
 
 public class SupplierRepository : ISupplierRepository
@@ -144,7 +255,25 @@ public class ReportRepository : IReportRepository
     public ReportRepository(ApplicationDbContext context) => _context = context;
     public async Task<object> GetRevenueByMonthAsync(int year)
     {
-        var rawData = await _context.Orders.Where(o => o.OrderStatus == OrderStatus.Paid && o.CompletedAt.HasValue && o.CompletedAt.Value.Year == year).GroupBy(o => o.CompletedAt!.Value.Month).Select(g => new { Month = g.Key, Revenue = g.Sum(o => o.TotalAmount), TotalOrders = g.Count() }).ToListAsync();
+        // Inspect each contributing row in the same SQL query as the sums. A separate
+        // precheck could race; a positive monthly SUM can hide a negative Paid order.
+        var rawData = await _context.Orders
+            .Where(o => o.OrderStatus == OrderStatus.Paid && o.CompletedAt.HasValue && o.CompletedAt.Value.Year == year)
+            .GroupBy(o => o.CompletedAt!.Value.Month)
+            .Select(g => new
+            {
+                Month = g.Key,
+                Revenue = g.Sum(o => o.TotalAmount),
+                TotalOrders = g.Count(),
+                InvalidOrders = g.Count(o => o.TotalAmount <= 0)
+            }).ToListAsync();
+
+        if (rawData.Any(m => m.InvalidOrders > 0))
+        {
+            // GlobalExceptionHandlerMiddleware logs this exception and returns the
+            // existing safe 500 INTERNAL_ERROR wrapper, never partial monthly totals.
+            throw new System.Data.DataException($"Revenue integrity violation for year {year}: Paid order amount must be positive.");
+        }
         return Enumerable.Range(1, 12).Select(m => new { Month = m, Revenue = rawData.FirstOrDefault(d => d.Month == m)?.Revenue ?? 0, TotalOrders = rawData.FirstOrDefault(d => d.Month == m)?.TotalOrders ?? 0 }).ToList();
     }
     public async Task<object> GetTopSellingBooksAsync(int top)
@@ -213,6 +342,7 @@ public class InventoryRepository : IInventoryRepository
         }
 
         var totalCount = await query.CountAsync();
+
         var items = await query
             .OrderByDescending(r => r.ImportReceiptId)
             .Skip((page - 1) * pageSize)
@@ -251,6 +381,9 @@ public class OrderRepository : IOrderRepository
     public async Task<bool> TryTransitionOrderStatusAsync(int orderId, OrderStatus fromStatus, OrderStatus toStatus, DateTime? completedAt = null)
     {
         var query = _context.Orders.Where(o => o.OrderId == orderId && o.OrderStatus == fromStatus);
+        // Recheck persisted amount in the same SQL UPDATE as the Paid transition.
+        if (toStatus == OrderStatus.Paid)
+            query = query.Where(o => o.TotalAmount > 0);
         int affected;
         if (completedAt.HasValue)
         {
@@ -262,11 +395,35 @@ public class OrderRepository : IOrderRepository
         }
         return affected > 0;
     }
+    public async Task<bool> TryPayOrderAsync(int orderId, decimal expectedTotalAmount, DateTime completedAt)
+    {
+        if (expectedTotalAmount <= 0) return false;
+        // One SQL UPDATE performs validation and transition; its write lock remains held
+        // through the caller's transaction, so a later amount edit cannot race the ledger.
+        var affected = await _context.Orders
+            .Where(o => o.OrderId == orderId && o.OrderStatus == OrderStatus.Pending &&
+                o.TotalAmount > 0 && o.TotalAmount == expectedTotalAmount)
+            .ExecuteUpdateAsync(s => s.SetProperty(o => o.OrderStatus, OrderStatus.Paid)
+                .SetProperty(o => o.CompletedAt, completedAt));
+        return affected > 0;
+    }
+
     public async Task<Order?> GetPendingOrderByCodeAsync(string orderCode) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode && o.OrderStatus == OrderStatus.Pending);
     public async Task<Order?> GetOrderByCodeAsync(string orderCode) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode);
     public async Task<Order?> GetOrderByIdAsync(int orderId) => await _context.Orders.Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderId == orderId);
     // F01: Đọc trực tiếp từ DB bỏ qua EF tracking cache, dùng sau rollback để xác định trạng thái thật
     public async Task<Order?> GetOrderByCodeNoTrackingAsync(string orderCode) => await _context.Orders.AsNoTracking().Include(o => o.OrderDetails).FirstOrDefaultAsync(o => o.OrderCode == orderCode);
+    public async Task<Order?> GetOrderForPaymentReconciliationAsync(string orderCode)
+    {
+        if (_context.Database.CurrentTransaction == null)
+            throw new InvalidOperationException("Payment reconciliation requires an active transaction.");
+
+        // SQL Server update/range locks are retained until the surrounding transaction ends.
+        // A plain AsNoTracking reread would allow amount changes between validation and INSERT.
+        return await _context.Orders
+            .FromSqlInterpolated($"SELECT * FROM [Orders] WITH (UPDLOCK, HOLDLOCK) WHERE [OrderCode] = {orderCode}")
+            .AsNoTracking().SingleOrDefaultAsync();
+    }
     public async Task<Order?> GetReceiptOrderByIdAsync(int orderId) =>
         await _context.Orders
             .AsNoTracking()
@@ -327,6 +484,7 @@ public class OrderRepository : IOrderRepository
         }
 
         var totalCount = await query.CountAsync();
+
         var items = await query
             .OrderByDescending(o => o.OrderId)
             .Skip((page - 1) * pageSize)
@@ -366,4 +524,3 @@ public class KioskRepository : IKioskRepository
     public async Task AddIncidentAsync(KioskIncident incident) => await _context.KioskIncidents.AddAsync(incident);
     public async Task<KioskIncident?> GetOpenIncidentAsync(int kioskId, string errorCode) => await _context.KioskIncidents.FirstOrDefaultAsync(i => i.KioskId == kioskId && i.ErrorCode == errorCode && i.ResolvedAt == null);
 }
-

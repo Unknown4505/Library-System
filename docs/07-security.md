@@ -50,7 +50,7 @@ Target CMS phân chia 3 role, giữ tương thích số enum: `Admin=1`, `Staff=
 
 **1. Role `Staff` (Thủ thư / Nhân viên thu ngân):**
 Nhân viên là người vận hành hàng ngày, được cấp quyền thao tác trên các luồng nghiệp vụ cơ bản, không có quyền can thiệp vào tài chính cốt lõi hay cấu hình hệ thống.
-- **Quản lý sách:** Được xem, thêm, sửa thông tin sách, cập nhật tồn kho (Nhập hàng).
+- **Quản lý sách:** Được xem sách active. Không được gọi Books Create/Update/Delete/Upload; nhập kho và kiểm kê phải đi qua API nghiệp vụ riêng được cấp quyền.
 - **Xử lý sự cố Kiosk:** Xem danh sách đơn hàng, xử lý các đơn bị lỗi thanh toán (khách chuyển sai tiền), xác nhận thu tiền mặt.
 - **Khách hàng:** Thêm mới và tra cứu thông tin điểm tích lũy của thẻ thành viên (`Members`).
 - **Giới hạn (Bị cấm):** Không được xóa/ẩn sách, không được tạo mới Khuyến mãi (`Promotions`), không được tạo/xóa tài khoản nhân sự, không được xem Dashboard báo cáo doanh thu tổng.
@@ -67,6 +67,17 @@ Admin có toàn quyền (Full Access) đối với toàn bộ hệ thống. Các
 - Theo **APPROVED DESIGN HR-DEC-02**, chỉ được xem phiếu Paid của chính mình khi JWT map đúng `Employees.UserId`; không được xem Draft hoặc lương người khác.
 - Không được xem password hash, secret, API key hoặc dữ liệu lương ngoài phạm vi được cấp.
 - Reports hiện giữ contract **Admin-only**; không tự mở cho Manager chỉ vì enum đã tồn tại.
+
+> **Leader decision BOOKS-RBAC-01 — ADMIN-ONLY (2026-11-13), [Issue #93](https://github.com/Unknown4505/Library-System/issues/93), P0:** Giữ implementation PR #90. Chỉ `Admin` được Create/Update/Delete/Upload ảnh và xem/sửa sách inactive. `Staff`/`Manager` chỉ đọc sách active theo contract công khai; mọi anonymous write bị chặn. Lý do: `UpdateBookDto` có thể thay đổi `SellingPrice`, `CostPrice`, `StockQuantity`, `IsActive`; không cấp toàn bộ PUT cho Staff khi chưa có endpoint giới hạn field và test bảo mật riêng. Quyết định policy không đồng nghĩa authorization QA PASS; vẫn cần HTTP `401/403/2xx` evidence trên exact HEAD.
+
+| Books capability | Admin | Staff | Manager |
+|---|:---:|:---:|:---:|
+| Xem danh sách/chi tiết sách active | Cho phép | Cho phép | Cho phép |
+| Thêm sách | Cho phép | Từ chối | Từ chối |
+| Sửa thông tin/giá sách | Cho phép | Từ chối | Từ chối |
+| Xóa mềm/ẩn sách | Cho phép | Từ chối | Từ chối |
+| Upload ảnh bìa | Cho phép | Từ chối | Từ chối |
+| Xem/sửa sách inactive | Cho phép | Từ chối | Từ chối |
 
 > **Ví dụ thực tế trong file Controller C#:**
 > ```csharp

@@ -20,6 +20,40 @@ try
 
     // 2. Add services to the container (Dependency Injection)
     builder.Services.AddControllers();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IBookBarcodeService, BookKiosk.Application.Services.BookBarcodeService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IBookBarcodeRepository, BookKiosk.Infrastructure.Repositories.BookBarcodeRepository>();
+    builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+    {
+        var fallback = options.InvalidModelStateResponseFactory;
+        options.InvalidModelStateResponseFactory = context =>
+            context.ActionDescriptor is Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor action &&
+            action.ControllerTypeInfo.AsType() == typeof(BookKiosk.API.Controllers.BooksBarcodeController)
+                ? new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(
+                    BookKiosk.Application.DTOs.Common.ApiResponseDto<BookKiosk.Application.DTOs.Books.ChangeBarcodeDto>
+                        .Error("BAD_REQUEST", "Dữ liệu yêu cầu không hợp lệ."))
+                : fallback(context);
+    });
+
+
+    // Users owns its validation wrapper; preserve existing contracts for other controllers.
+    builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+    {
+        var fallback = options.InvalidModelStateResponseFactory;
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            if (context.ActionDescriptor is not Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor action ||
+                action.ControllerTypeInfo.AsType() != typeof(BookKiosk.API.Controllers.UsersController))
+                return fallback(context);
+
+            var errorMessage = context.ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage) ? "Dữ liệu đầu vào không hợp lệ." : e.ErrorMessage)
+                .FirstOrDefault() ?? "Dữ liệu đầu vào không hợp lệ.";
+
+            var response = BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("BAD_REQUEST", errorMessage);
+            return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(response);
+        };
+    });
     
     // Đăng ký DbContext với SQL Server
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -40,6 +74,7 @@ try
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Services.IKioskAdvertisingService, BookKiosk.Application.Services.KioskAdvertisingService>();
     builder.Services.AddScoped<BookKiosk.Application.Services.IAuthService, BookKiosk.Application.Services.AuthService>();
     builder.Services.AddScoped<BookKiosk.Application.Services.ISupplierService, BookKiosk.Application.Services.SupplierService>();
+    builder.Services.AddScoped<BookKiosk.Application.Services.IUserService, BookKiosk.Application.Services.UserService>();
 
     // Đăng ký Unit Of Work & Repositories (Thien33)
     builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IUnitOfWork, BookKiosk.Infrastructure.Repositories.UnitOfWork>();

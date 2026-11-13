@@ -4,6 +4,8 @@ using BookKiosk.CMS.Models.Common;
 using BookKiosk.CMS.Models.Inventory;
 using BookKiosk.CMS.Models.Promotions;
 using BookKiosk.CMS.Models.Members;
+using Microsoft.AspNetCore.Http;
+using BookKiosk.Application.DTOs.Users;
 
 namespace BookKiosk.CMS.Services
 {
@@ -36,6 +38,7 @@ namespace BookKiosk.CMS.Services
         Task<ApiResult<int>> CreateBookAsync(CreateBookDto dto);
         Task<ApiResult<bool>> UpdateBookAsync(int id, UpdateBookDto dto);
         Task<ApiResult<bool>> DeleteBookAsync(int id);
+        Task<ApiResult<string>> UploadBookImageAsync(IFormFile file);
 
         // --- Suppliers (Nhà cung cấp - Phân hệ F) ---
         Task<ApiResult<IEnumerable<SupplierDto>>> GetSuppliersAsync();
@@ -66,5 +69,12 @@ namespace BookKiosk.CMS.Services
         Task<ApiResult<IEnumerable<PointTransactionDto>>> GetPointHistoryAsync(int memberId);
         Task<ApiResult<MemberDto>> CreateMemberAsync(CreateMemberDto dto);
         Task<ApiResult<MemberDto>> UpdateMemberAsync(int id, UpdateMemberDto dto);
+
+        // --- Users (Quản lý tài khoản - Admin only) ---
+        Task<ApiResult<PaginatedResult<UserDto>>> GetUsersAsync(int page = 1, int pageSize = 10, string? keyword = null, string? role = null, bool? isActive = null);
+        Task<ApiResult<UserDto>> CreateUserAsync(CreateUserDto dto);
+        Task<ApiResult<UserDto>> UpdateUserAsync(int id, UpdateUserDto dto);
+        Task<ApiResult<UserDto>> UpdateUserStatusAsync(int id, bool isActive);
+        Task<ApiResult<object>> ResetUserPasswordAsync(int id, string newPassword);
     }
 }

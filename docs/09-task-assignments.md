@@ -76,7 +76,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 4.2 | Logic Filter theo Danh mục, Tác giả | | | @lehuukhang | `[x]` |
 | 4.3 | Layout `BookDetailPage`: Chi tiết + Vị trí kệ | | | @lehuukhang | `[x]` |
 | 4.4 | Kiểm tra Tồn kho trước khi cho thêm vào giỏ | | | @lehuukhang | `[x]` |
-| 4.5 | **[Leader]** Ghép nối: Đổi từ Mock Data Data giả sang gọi API thật (Phần Search & Detail) | @Unknown4505 | | | `[ ]` |
+| 4.5 | **[Leader]** Ghép nối: Đổi từ Mock Data Data giả sang gọi API thật (Phần Search & Detail) | @Unknown4505 | | | `[ ]` — implementation đã có nhưng WPF/real-API E2E chưa nghiệm thu; audit baseline `9bfe52d` xác nhận chỉ public GET detail theo ID lộ sách inactive ([#94](https://github.com/Unknown4505/Library-System/issues/94)), barcode đã được `BookService` chặn và phải giữ regression |
 
 ### MODULE 5: BACKEND API - CHECKOUT & GIỮ KHO
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
@@ -104,15 +104,15 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 7.3 | Logic: Xác thực HMAC Signature bảo mật | | @thien33 | | `[ ]` |
 | 7.4 | Logic: Cập nhật Paid, trừ kho vật lý (StockQuantity)| | @thien33 | | `[x]` |
 | 7.5 | Kiosk `PaymentPage`: Polling API Status mỗi 3s | | | @lehuukhang | `[x]` |
-| 7.6 | **[Leader]** Ghép nối: Viết logic Polling cho FE để tự động chuyển trang khi BE nhận được tiền (SignalR hoặc Timer) | @Unknown4505 | | | `[ ]` |
+| 7.6 | **[Leader]** Ghép nối: Viết logic Polling cho FE để tự động chuyển trang khi BE nhận được tiền (SignalR hoặc Timer) | @Unknown4505 | | | `[x]` — implementation Timer polling 3s, Paid → Receipt, cancel/reconcile và cleanup đã có; SePay Paid/Receipt full-flow E2E vẫn pending |
 
 ### MODULE 8: KIOSK WPF - THIẾT BỊ PHẦN CỨNG
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 8.1 | Kiosk: Gắn UI xử lý dữ liệu từ Camera/Máy quét ([Issue #61](https://github.com/Unknown4505/Library-System/issues/61)) | | | @lehuukhang | `[ ]` — implementation/targeted QA một phần; Issue OPEN, physical camera/WPF visual acceptance chưa PASS |
+| 8.1 | Kiosk: Gắn UI xử lý dữ liệu từ Camera/Máy quét ([Issue #61](https://github.com/Unknown4505/Library-System/issues/61)) | | | @lehuukhang | `[ ]` — camera/scanner UI và mock/runtime isolation đã có implementation; Issue OPEN, physical camera/WPF visual acceptance và real Backend Search E2E chưa PASS |
 | 8.2 | Kiosk: Sinh file PDF Hóa đơn với QuestPDF | | | @lehuukhang | `[ ]` |
 | 8.2.1 | Tích hợp Receipt API vào màn hình hóa đơn, Mock Printer và PDF; dùng ReceiptDto từ Backend ([Issue #29](https://github.com/Unknown4505/Library-System/issues/29), phụ thuộc #28) | <br> | <br> | @lehuukhang | `[ ]` |
-| 8.3 | Kiosk: `MaintenancePage` Báo lỗi thiết bị, khóa Kiosk | | | @lehuukhang | `[ ]` |
+| 8.3 | Kiosk: `MaintenancePage` Báo lỗi thiết bị, khóa Kiosk | | | @lehuukhang | `[ ]` — **OUT OF SCOPE / NOT IMPLEMENTED THIS ITERATION** theo quyết định Leader 08/11/2026; không thuộc phạm vi cần hoàn thiện của dự án lần này |
 | 8.4 | **[Leader]** Khởi tạo Interface phần cứng (`IBarcodeScanner`, `IReceiptPrinter`) và Class Mock | @Unknown4505 | | | `[x]` |
 | 8.4.1 | **[Ghi chú Kiosk]** FE bắt buộc dùng interface `BookKiosk.Kiosk.Services.Hardware.IBarcodeScanner` đã được Leader mock sẵn, KHÔNG tự tạo service quét mã mới. | | | @lehuukhang | `[x]` |
 | 8.4.2 | Tự định nghĩa dữ liệu Mock (Mock Data) cho Bill in ra màn hình để nắm rõ cấu trúc dữ liệu | | | @lehuukhang | `[ ]` |
@@ -122,17 +122,17 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 ### MODULE 9: CMS WEB - QUẢN LÝ SẢN PHẨM
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
-| 9.1 | **[Leader]** Admin API: CRUD Sách, Danh mục, Khu vực | @Unknown4505 | | | `[ ]` |
+| 9.1 | **[Leader]** Admin API: CRUD Sách, Danh mục, Khu vực | @Unknown4505 | | | `[ ]` — BOOKS-RBAC-01 đã chốt Admin-only và implementation merge qua PR #90; [#93](https://github.com/Unknown4505/Library-System/issues/93), [#94](https://github.com/Unknown4505/Library-System/issues/94), [#95](https://github.com/Unknown4505/Library-System/issues/95) vẫn OPEN, HTTP/production acceptance chưa hoàn tất |
 | 9.2 | **[Leader]** Layout Dashboard (SB Admin / Bootstrap) | @Unknown4505 | | | `[x]` |
 | 9.3 | **[Leader]** Trang Quản lý Sách (DataTables / Grid) | @Unknown4505 | | | `[x]` |
-| 9.4 | **[Leader]** Form Thêm/Sửa sách (Upload ảnh) | @Unknown4505 | | | `[x]` |
+| 9.4 | **[Leader]** Form Thêm/Sửa sách (Upload ảnh) | @Unknown4505 | | | `[ ]` — multipart size/extension/MIME/UUID đã merge qua PR #90; [#93](https://github.com/Unknown4505/Library-System/issues/93) còn yêu cầu magic-byte validation và HTTP upload-security evidence |
 | 9.5 | **[Leader]** Cấu hình CORS Policy để Web Admin có thể gọi được Backend API | @Unknown4505 | | | `[x]` |
 
 ### MODULE 10: CMS WEB - TỒN KHO, KM & POS
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
 | 10.1 | Admin API: CRUD Khuyến mãi, Nhập kho | | @thien33 | | `[x]` |
-| 10.2 | Trang Nhập kho (Inventory) | | | @lehuukhang | `[ ]` |
+| 10.2 | Trang Nhập kho (Inventory) | | | @lehuukhang | `[x]` — **IMPLEMENTED / INDEPENDENT TARGETED QA ACCEPTED — PR #77 HEAD `7920663e`**; `FE-INVENTORY-EMPTY-01` và `INV-KPI-UNAVAILABLE-01` đã PASS, Inventory controller/Razor + service đạt 24 PASS / 0 FAIL; 3 HTTP/SQL tests vẫn SKIP do thiếu disposable SQL Server và không được tính là full Backend/SQL E2E PASS; PR merge pending |
 | 10.3 | Trang Quản lý Khuyến mãi | | | @lehuukhang | `[x]` — PR #58 targeted QA PASS; merge pending |
 | 10.4 | Trang POS Bán tại quầy (Áp mã thủ công) | | | @lehuukhang | `[x]` — PR #58 targeted QA PASS; merge pending |
 
@@ -141,13 +141,15 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 |---|---|:---:|:---:|:---:|:---:|
 | 11.1 | API: `GET /api/reports/revenue` (Group by Tháng) | | @thien33 | | `[x]` |
 | 11.2 | API: `GET /api/reports/top-books` | | @thien33 | | `[x]` |
-| 11.3 | CMS: Vẽ Biểu đồ Bar Chart Doanh thu | | | @lehuukhang | `[ ]` — implementation hiện hữu; `REVENUE-MONTHLY-01` strict-validation correction và retest còn required |
+| 11.3 | CMS: Vẽ Biểu đồ Bar Chart Doanh thu | | | @lehuukhang | `[x]` — **IMPLEMENTED / MERGED VIA PR #64**; strict monthly/negative validation, unavailable KPI, recovery, Top Books independence và AJAX rollback đã targeted PASS; runtime E2E pending |
 | 11.4 | CMS: Biểu đồ Pie Chart Trạng thái Kiosk | | | @lehuukhang | `[ ]` — **OUT OF SCOPE / NOT REQUIRED**; Issue [#65](https://github.com/Unknown4505/Library-System/issues/65) CLOSED — NOT PLANNED |
-| 11.5 | **[Leader]** Ghép nối data thống kê giữa BE & FE | @Unknown4505 | | | `[ ]` — Revenue runtime E2E chưa nghiệm thu; không bao gồm CMS Kiosk Monitoring |
+| 11.5 | **[Leader]** Ghép nối data thống kê giữa BE & FE | @Unknown4505 | | | `[x]` — implementation đã merge qua PR #86; real CMS↔Backend↔SQL/Kiosk E2E chưa nghiệm thu; không bao gồm CMS Kiosk Monitoring |
 
-**Leader decision — CMS-DASHBOARD-COUNT-01 (21/10/2026):** Trong phạm vi Dashboard/Report của @lehuukhang ở PR #40, Low Stock KPI phải là tổng số đầu sách tồn thấp từ toàn bộ response Backend; Low Stock Preview mới bị giới hạn tối đa 10 và sắp xếp `AvailableStock ASC, BookId ASC`. KPI/preview/sorting/API-unavailable và `CMS-MANAGER-01` đã vượt targeted QA; PR #40 đã merge vào `main` tại `9a55b09760ad59aa2e7712e8ffbbc9016d235664`. Ca 5 items và link “Xem tất cả” truyền `lowOnly=true` vẫn **RETEST REQUIRED**; source `main` hiện chưa truyền filter nên giữ **IMPLEMENTATION GAP**. Không thay đổi ownership Backend/Frontend; xem [SRS](10-srs-functional-requirements.md) và [test plan](11-end-to-end-test-plan.md).
+**Leader decision — CMS-DASHBOARD-COUNT-01 (updated 13/11/2026):** Low Stock KPI dùng toàn bộ response Backend; preview tối đa 10 và sắp xếp `AvailableStock ASC, BookId ASC`; ngưỡng giữ nguyên `AvailableStock <= 5`. Baseline `9bfe52d` thiếu `lowOnly=true`; PR #90 đã thêm route param nhưng Issue [#92](https://github.com/Unknown4505/Library-System/issues/92) (`@lehuukhang`, P1) vẫn **OPEN / RETEST REQUIRED**. Nút phải đổi nhãn thành **“Xem sách tồn thấp”**. Đây là acceptance bắt buộc, không phải UX tùy chọn.
 
-**PR #64 Reports note — REVENUE-MONTHLY-01 APPROVED (06/11/2026):** Backend Revenue không thiếu: `GET /api/reports/revenue` và `GET /api/reports/top-books` vẫn **IMPLEMENTED**, nên Task 11.1/11.2 giữ `[x]`. Lỗi `REPORT-RISK-01` cũ (`ToDictionary` crash khi duplicate month) đã được sửa và technical targeted QA PASS; cách `GroupBy + Sum` hiện hữu không phải financial contract cuối cùng được duyệt. CMS phải detect/reject duplicate hoặc month ngoài `1..12`, normalize sparse valid data và dùng một dataset cho chart/table/KPI. `REPORT-AJAX-STALE-01` đã runtime QA PASS 19/19 tại HEAD `10aad080`; `DASHBOARD-MONTHLY-CONSISTENCY-01` vẫn cần fix/retest theo contract mới. PR #64 vẫn OPEN/HOLD; không đánh dấu Task 11.3 hoặc 11.5 hoàn thành.
+**PR #64 Reports note — MERGED:** Backend Revenue không thiếu: `GET /api/reports/revenue` và `GET /api/reports/top-books` **IMPLEMENTED**. PR #64 merge commit `3253d64` chứa FE validation/normalization, recovery, Top Books independence và AJAX rollback; Task 11.3 implementation hoàn thành. Real CMS↔Backend↔SQL E2E vẫn phải chạy riêng.
+
+**REVENUE-NEGATIVE-01 + POLICY-REV-01 — APPROVED / MERGED VIA PR #86 (updated 13/11/2026):** Paid Order hợp lệ phải có `TotalAmount > 0`; monthly Revenue/TotalOrders không âm. Leader đã APPROVE snapshot-authoritative mismatch classification: initial snapshot phân loại reconciliation, còn current persisted amount đã khóa guard nhánh Paid. PR #86 exact HEAD `c341077b922cdba67ebc0ed0eae7ef924dbc90a2` đã merge qua `a971bc0`, giữ Users và Revenue/POLICY behavior. Full CMS/Kiosk E2E chưa chạy, không có migration/constraint mới; merge và targeted QA không thay thế E2E.
 
 ### MODULE 12: KIỂM THỬ, BÁO CÁO & ĐÓNG GÓI
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
@@ -177,7 +179,7 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 - **Task 8.2.1 / Issue #29 — @lehuukhang:** **[x] MERGED / TARGETED QA PASS — PR #40** — Receipt UI, Mock Printer và QuestPDF dùng cùng `ReceiptDto`; network/404/409, lifecycle và PDF retry đã được targeted QA. WPF visual/UI E2E vẫn **NOT RUN**.
 - **Task 12.1.1 — @Unknown4505:** E2E trên SQL QA disposable và SePay test mode. Nếu thiếu SQL/SePay/endpoint thì ghi `BLOCKED — ENV`, không mô phỏng rồi tự báo PASS.
 - #19/#20 đã closed/completed và PR #26 đã merge; không mở lại. Chi tiết file ownership, acceptance và draft comment ở `12-workflow-handoff-and-scope.md`.
-- **Handoff cập nhật:** [Issue #60](https://github.com/Unknown4505/Library-System/issues/60) BE-01 và [#66](https://github.com/Unknown4505/Library-System/issues/66) BE-01/BE-03 đã **TARGETED BACKEND QA PASS** tại PR #68 HEAD `829a46b`; PR vẫn OPEN và chưa merge. #60 BE-02 tiếp tục HOLD. #66 BE-02 đã được Leader duyệt policy theo `USER-MGMT-BE02-01`, nhưng vẫn chưa IMPLEMENTED/PASS và phải làm trong PR riêng. [#61](https://github.com/Unknown4505/Library-System/issues/61) giữ FE dependency; [#65](https://github.com/Unknown4505/Library-System/issues/65) **CLOSED — NOT PLANNED**. Employee/Salary/NCC vẫn theo approval/dependency ở docs/12; Leader giữ Domain/EF schema, shared contract và integration QA.
+- **Handoff cập nhật 12/11/2026:** [Issue #60](https://github.com/Unknown4505/Library-System/issues/60) BE-01 của `@thien33` đã **MERGED / INDEPENDENT QA PASS** qua PR #83; BE-02 đã **MERGED / INDEPENDENT TARGETED QA PASS** qua PR #84. PR #68 là evidence lịch sử và đã **CLOSED WITHOUT MERGE**, không phải accepted source. Issue #60 vẫn OPEN do FE/Kiosk và final E2E acceptance chưa hoàn tất. #66 Backend đã merge qua PR #85 exact HEAD `49ce68f3c274b0f5092be76016c1652bc988576c`, merge commit `3503737d52245378cbeafab6c7f3cd1aff179126`; `USER-MGMT-BE02-01` vẫn là quyết định riêng cho Users và CMS E2E còn pending. [#61](https://github.com/Unknown4505/Library-System/issues/61) giữ các acceptance FE/Kiosk còn lại; [#65](https://github.com/Unknown4505/Library-System/issues/65) **CLOSED — NOT PLANNED**.
 - **Salary APPROVED DESIGN (HR-DEC-01/02/03):** PayYear 2000..2100; Admin xem all và pay; Manager/Staff chỉ xem own Paid qua JWT→Employee; Backend enforce công thức NetSalary, Draft/Paid actor-time, transaction/concurrency và immutable Paid. API/UI vẫn `[ ]` PLANNED; migration giữ nguyên và SQL QA vẫn `BLOCKED — ENV`.
 
 ### Handoff Kiosk Advertising & Navigation — flow và Contract V1 đã duyệt (2026-10-21)
@@ -197,31 +199,43 @@ Rule QA: chỉ đánh dấu `[x]` khi toàn bộ scope tương ứng có evidenc
 - [ ] **Final WPF visual/real-API integration:** BLOCKED do Computer Use bị dừng trước khi thu screenshot/timeline; chưa nghiệm thu slideshow thật, Search inactivity 60 giây và stability loop.
 - [ ] **Paid → Receipt/PDF → Search E2E:** BLOCKED do chưa có payment sandbox/real Paid evidence; không dùng targeted mock để đánh dấu E2E PASS.
 
-- **4.5 giữ chưa hoàn thành:** HTTP smoke trên merge không commit `main@fbc15a2` + `Khang@d9de651` đã PASS pagination, keyword, category, detail, barcode hợp lệ/404 và dữ liệu out-of-stock. WPF chưa chạy tương tác; FE-13 còn race pagination và Backend vẫn trả sách inactive qua detail/barcode.
+- **4.5 giữ chưa hoàn thành:** Baseline `9bfe52d` có list lọc `IsActive`; barcode được `BookService.GetBookByBarcodeAsync()` chặn khi inactive; chỉ GET detail theo ID chưa chặn. PR #90 đã thêm controller guard nhưng Issue #94 vẫn OPEN, chưa có targeted HTTP regression/WPF E2E; không mô tả barcode là bug chưa sửa.
 - **5.5 giữ chưa hoàn thành:** Đã chạy bộ test trên SQL Server Express local bằng database cô lập. Constraints, rollback, concurrent last-copy, cancel và promotion+100 điểm PASS; duplicate webhook, 4 validation điểm và OrderCode uniqueness FAIL. Checkout idempotency/cleanup race vẫn BLOCKED bởi Issue #19/#20.
 - **7.3 giữ chưa hoàn thành:** Contract xác thực SePay phải được đối chiếu chính xác với cấu hình/tài liệu gateway và regression theo Issue #20; static code review không phải runtime evidence.
-- **7.6 giữ chưa hoàn thành:** HTTP smoke đã PASS Checkout→Pending→QR→polling→Cancel và đối chiếu reserve 0→1→0; F3/Receipt đều trả 404, chưa có SePay Test Mode/Paid/Receipt E2E.
-- **9.1 giữ chưa hoàn thành:** Leader đã bổ sung Category/Area CRUD dùng shared DTO, wrapper và role Admin; SQL contract tests PASS. Books write endpoints hiện chưa có authorization và validation wrapper toàn cục chưa được nghiệm thu, nên chưa thể đánh dấu hoàn thành.
-- **11.5 giữ chưa hoàn thành:** Revenue/Top Books Backend đã tồn tại; contract `REVENUE-MONTHLY-01` đã duyệt nhưng FE correction/retest và Leader-owned runtime CMS↔BE↔DB vẫn chưa đạt. CMS Kiosk Monitoring đã OUT OF SCOPE nên không còn là dependency hoặc tiêu chí của Task 11.5.
+- **7.6 implementation hoàn thành, E2E pending:** Timer polling 3s đã tự chuyển Paid → Receipt và có cancel/reconcile/cleanup; chưa có SePay Test Mode/Paid/Receipt full-flow E2E.
+- **9.1 giữ chưa hoàn thành:** BOOKS-RBAC-01 đã chốt Admin-only và PR #90 đã merge code bảo vệ Books writes, upload guards, inactive-ID guard, `#if DEBUG` cho `test-error`. #93 còn magic-byte + HTTP RBAC/upload QA; #94 còn active/inactive Admin/Kiosk regression; #95 yêu cầu xóa route hẳn và Release verification.
+- **11.5 implementation hoàn thành, E2E pending:** Revenue/Top Books Backend và CMS integration đã merge; `REVENUE-MONTHLY-01`, `REVENUE-NEGATIVE-01`, `POLICY-REV-01` đã duyệt. Leader-owned runtime CMS↔BE↔DB/Kiosk chưa chạy; CMS Kiosk Monitoring OUT OF SCOPE.
 - **12.1 giữ chưa hoàn thành:** Kế hoạch và kết quả component SQL đã cập nhật tại docs/11-end-to-end-test-plan.md; chưa chạy E2E đầy đủ với Kiosk WPF và SePay Test Mode.
 - **12.2 giữ chưa hoàn thành:** Artifact BFD/DFD 0/1/2 tồn tại trong `diagram/`; BFD và DFD Level 1 cùng bảy nhóm chức năng, DFD Level 2 khớp luồng checkout/payment. DFD Level 1 còn thiếu data store/luồng xác thực `Users` và bộ sơ đồ chưa phân biệt rõ chức năng đã triển khai với phần Planned/BLOCKED.
 - **12.3 giữ trạng thái hoàn thành:** ERD đã được đối chiếu có đúng 17 entity, không thêm bảng ngoài model và có quan hệ nullable `Kiosks.AreaId -> Areas.AreaId` đúng cấu hình `SET NULL`.
 
-### Backend Dependencies — đồng bộ 2026-11-05
+### Backend Dependencies — đồng bộ 2026-11-11
 
 | Feature | BE Owner | Issue | Backend status | FE dependency |
 |---|---|---|---|---|
-| #60 BE-01 Extended Search | `@thien33` | [#60](https://github.com/Unknown4505/Library-System/issues/60) | **[x] QA PASS — PR #68 OPEN / PENDING LEADER MERGE GATE** | Kiosk Search trong [#61](https://github.com/Unknown4505/Library-System/issues/61); full FE/Kiosk E2E chưa PASS |
-| #60 BE-02 Barcode | `@thien33` | [#60](https://github.com/Unknown4505/Library-System/issues/60) | **[ ] HOLD — LEADER DECISION REQUIRED** | Không triển khai/đổi DTO/schema khi còn HOLD |
+| #60 BE-01 Extended Search | `@thien33` | [#60](https://github.com/Unknown4505/Library-System/issues/60) | **[x] MERGED / INDEPENDENT QA PASS — PR #83, merge `eeb5ceed`, 8/8 PASS** | Backend dependency đã có trên `main`; Kiosk Search trong [#61](https://github.com/Unknown4505/Library-System/issues/61) vẫn còn physical camera/WPF/real integration acceptance |
+| #60 BE-02 Controlled Barcode Modification | `@thien33` | [#60](https://github.com/Unknown4505/Library-System/issues/60) | **[x] MERGED / INDEPENDENT TARGETED QA PASS — PR #84, merge `7edf343`** — `BOOK-BARCODE-BE02-01` | Direct cutover qua `POST /api/books/{id}/change-barcode`; Admin-only; giữ BookId; không alias/schema; Backend dependency đã có trên `main`, FE/Kiosk acceptance còn riêng |
 | #65 Monitoring | — | [#65](https://github.com/Unknown4505/Library-System/issues/65) | **OUT OF SCOPE / CLOSED — NOT PLANNED**; không yêu cầu GET list/summary | Không phải FE/BE dependency bắt buộc; phần Monitoring trong PR [#64](https://github.com/Unknown4505/Library-System/pull/64) cần loại/tách khỏi scope chính |
-| #66 BE-01 Users Read | `@thien33` | [#66](https://github.com/Unknown4505/Library-System/issues/66) | **[x] QA PASS — PR #68 OPEN / PENDING LEADER MERGE GATE** | CMS E2E chưa nghiệm thu |
+| #66 BE-01 Users Read | `@thien33` | [#66](https://github.com/Unknown4505/Library-System/issues/66) | **[x] MERGED — PR #85, merge `3503737`**; PR #68 historical QA evidence đã CLOSED WITHOUT MERGE | CMS E2E chưa nghiệm thu; Backend merge không thay thế cross-layer acceptance |
 | #66 BE-03 Auth/Security | `@thien33` | [#66](https://github.com/Unknown4505/Library-System/issues/66) | **[x] TARGETED QA PASS** — Admin auth, JWT 401/403, DTO secrecy, read-only GET, login/inactive-login regression | Không suy rộng thành full security regression PASS |
-| #66 BE-02 Users CRUD | `@thien33` | [#66](https://github.com/Unknown4505/Library-System/issues/66) | **[ ] APPROVED DESIGN — NOT IMPLEMENTED** | PR riêng: Admin-only Create, Update FullName/Role, Activate/Deactivate, Reset Password; giữ nguyên `USER-MGMT-BE02-01` |
-| Revenue Reports | `@thien33` | Existing implementation | **IMPLEMENTED** — giữ Task 11.1/11.2 `[x]` | `REVENUE-MONTHLY-01` APPROVED; FE strict validation + CMS Reports E2E chưa nghiệm thu |
+| #66 BE-02 Users CRUD | `@thien33` | [#66](https://github.com/Unknown4505/Library-System/issues/66) | **[x] IMPLEMENTED / MERGED — PR #85, merge `3503737`** | Admin-only Create, Update FullName/Role, Activate/Deactivate, Reset Password; giữ nguyên `USER-MGMT-BE02-01`; không suy ra CMS E2E PASS |
+| Revenue Reports | `@thien33` | Existing implementation; [#71](https://github.com/Unknown4505/Library-System/issues/71) hardening | **PR #86 MERGED — `a971bc0`; POLICY-REV-01 APPROVED** | FE monthly/negative/unavailable đã merge qua PR #64; Leader full E2E chưa nghiệm thu |
+
+### Open corrective findings — audit baseline `main@9bfe52d`, synchronized after PR #90
+
+| Finding | Owner / priority | Issue | Verified status | Acceptance gate |
+|---|---|---|---|---|
+| CMS Users real API integration | `@lehuukhang` / P0 | [#91](https://github.com/Unknown4505/Library-System/issues/91) | Backend #66 **MERGED/CLOSED**; tại baseline: **OPEN / IMPLEMENTATION REQUIRED** vì CMS dùng mock/empty; implementation sau đó merge qua PR #90 | **ISSUE OPEN / QA + CMS E2E REQUIRED**; không giao lại Backend và không suy ra E2E PASS |
+| Dashboard Low Stock link | `@lehuukhang` / P1 | [#92](https://github.com/Unknown4505/Library-System/issues/92) | Tại baseline: **FIX REQUIRED** vì thiếu `lowOnly=true`; PR #90 đã thêm tham số | **ISSUE OPEN / LABEL FIX + RETEST REQUIRED**; nhãn “Xem sách tồn thấp”, KPI toàn bộ, preview tối đa 10, ngưỡng `AvailableStock <= 5` |
+| Books RBAC + upload hardening | `@thien33` / P0 | [#93](https://github.com/Unknown4505/Library-System/issues/93) | **BOOKS-RBAC-01 APPROVED — Admin-only**; PR #90 có authorization + size/extension/MIME/UUID guards | **OPEN / MAGIC-BYTE + HTTP QA REQUIRED**; Admin 2xx, Staff/Manager 403, anonymous 401 |
+| Inactive GET detail by ID | `@thien33` / P1 | [#94](https://github.com/Unknown4505/Library-System/issues/94) | Baseline leak chỉ ở detail ID; barcode service đã chặn; PR #90 thêm controller guard | **OPEN / TARGETED REGRESSION REQUIRED** cho ID và bảo toàn barcode |
+| Production `test-error` endpoint | `@thien33` / P1 | [#95](https://github.com/Unknown4505/Library-System/issues/95) | Baseline public; PR #90 mới bọc `#if DEBUG` | **OPEN / REMOVE ROUTE + RELEASE HTTP VERIFY REQUIRED**; chuyển middleware check sang automated test |
 
 **Scope boundary:** Issue #61 chỉ bao gồm Kiosk WPF. CMS Reports/User Management trong PR #64 không tự trở thành scope #61 và cần tách hoặc có Leader approval; CMS Kiosk Monitoring đã OUT OF SCOPE / NOT REQUIRED và không được dùng làm Backend blocker. `@lehuukhang` không tự sửa Backend/SQL để unblock FE; `@thien33` chỉ handoff route/DTO/evidence còn hiệu lực qua #60/#66 trước khi claim cross-layer PASS.
 
-**Leader decision — USER-MGMT-BE02-01 (2026-11-04):** Duyệt `@thien33` triển khai BE-02 trong PR riêng, Admin-only: tạo User; sửa `fullName`/`role`; activate/deactivate; reset password. Không đổi username, không hard-delete, không thêm `Email`/`CreatedAt`/migration. Cấm self-deactivate và khóa Admin active cuối cùng; username unique case-insensitive/concurrency-safe; password tối thiểu 8 ký tự có hoa/thường/số, phải hash và không được trả/log. Trạng thái chỉ chuyển sang IMPLEMENTED sau code + targeted authorization/duplicate/concurrency/inactive-login/reset-password tests; hiện tại chưa được đánh dấu DONE.
+**Leader decision — USER-MGMT-BE02-01 (2026-11-04):** Duyệt `@thien33` triển khai BE-02 trong PR riêng, Admin-only: tạo User; sửa `fullName`/`role`; activate/deactivate; reset password. Không đổi username, không hard-delete, không thêm `Email`/`CreatedAt`/migration. Cấm self-deactivate và khóa Admin active cuối cùng; username unique case-insensitive/concurrency-safe; password tối thiểu 8 ký tự có hoa/thường/số, phải hash và không được trả/log. Backend implementation đã merge qua PR #85 và Issue #66 CLOSED; CMS integration/acceptance được theo dõi riêng tại #91, không suy rộng Backend merge thành CMS E2E PASS.
+
+**Leader decision — BOOK-BARCODE-BE02-01 (2026-11-08):** Duyệt `@thien33` triển khai Issue #60 BE-02 trong PR riêng theo **direct cutover có kiểm soát**. Endpoint `POST /api/books/{id}/change-barcode` nhận `newBarcode` và `reason`, chỉ Admin; giữ nguyên `BookId`, không Barcode Alias/PreviousBarcode và không migration/schema. Bắt buộc trim/validate mã `1..50`, uniqueness do application check + DB unique index, chặn khi `ReservedQuantity > 0`, conditional atomic update chống race, safe `400/404/409`, structured audit actor/old/new/reason/time/correlation và `requiresLabelReprint=true`. Order/Payment/Inventory/ProductDiscount tiếp tục tham chiếu BookId; mã cũ không còn resolve sau cutover. Rollback dùng cùng endpoint và vẫn chịu mọi conflict rule. PR #84 đã independent targeted QA PASS và **MERGED** vào `main` ngày 2026-11-11 qua `7edf343f6456091ec326c8646869f6ad5ab8a08b`. Không sửa `UpdateBookDto`, Kiosk/CMS UI, lịch sử giao dịch hoặc historical PR #68 trong scope này; merge Backend không thay thế FE/Kiosk/full E2E.
 
 ---
 

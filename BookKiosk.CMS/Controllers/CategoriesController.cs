@@ -5,7 +5,7 @@ using BookKiosk.CMS.Services;
 
 namespace BookKiosk.CMS.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     [Route("[controller]")]
     [Route("Category")]
     public class CategoriesController : Controller

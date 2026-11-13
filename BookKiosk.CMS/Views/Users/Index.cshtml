@@ -3,236 +3,143 @@
     ViewData["Title"] = "Tài khoản người dùng - BookKiosk CMS";
 }
 
-@if (Model.UseMockApi)
-{
-    <div class="alert alert-warning py-2 mb-4 d-flex align-items-center shadow-sm" role="alert">
-        <i class="fas fa-flask-vial fa-lg me-2 text-warning"></i>
-        <div>
-            <strong>Chế độ Mock:</strong> Hệ thống đang sử dụng dữ liệu mô phỏng tài khoản (Cms:UseMockApi = true). Các tài khoản hiển thị không phản ánh dữ liệu thật.
-        </div>
-    </div>
-}
+<partial name="_Alert" />
 
-<!-- Page Header -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1 class="h3 mb-0 fw-bold text-dark">
-            <i class="fas fa-users-cog me-2 text-primary"></i>Tài khoản người dùng
-        </h1>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb small mb-0">
-                <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index" class="text-decoration-none">Trang chủ</a></li>
-                <li class="breadcrumb-item">Hệ thống</li>
-                <li class="breadcrumb-item active" aria-current="page">Tài khoản người dùng</li>
-            </ol>
-        </nav>
+        <h1 class="h3 mb-1 fw-bold"><i class="fas fa-users-cog me-2 text-primary"></i>Tài khoản người dùng</h1>
+        <div class="text-muted small">Dữ liệu trực tiếp từ Backend <code>/api/users</code></div>
     </div>
-    <div class="text-muted small">
-        <i class="fas fa-sync-alt me-1"></i>
-        Cập nhật: @BookKiosk.CMS.Helpers.DateTimeHelper.FormatVietnamDateTime(DateTime.UtcNow)
-    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal" @(Model.IsBackendAvailable ? null : "disabled")>
+        <i class="fas fa-user-plus me-1"></i>Thêm tài khoản
+    </button>
 </div>
 
+@if (Model.UseMockApi)
+{
+    <div class="alert alert-warning py-2">Cờ mock đang bật, nhưng phân hệ Users vẫn dùng Backend thật để tránh hiển thị tài khoản giả.</div>
+}
 @if (!Model.IsBackendAvailable)
 {
-    <div class="alert alert-secondary py-3 mb-4 d-flex align-items-center border shadow-sm" role="alert">
-        <i class="fas fa-info-circle fa-2x me-3 text-secondary"></i>
-        <div>
-            <div class="fw-bold text-dark">Phân hệ Quản lý Tài khoản người dùng:</div>
-            <div class="small text-muted mt-1">
-                Backend API hiện chưa mở endpoint quản lý tài khoản (<code>/api/users</code> theo <em>Docs 04 §3.8</em> đang ở trạng thái <strong>PLANNED</strong>).
-                Theo nguyên tắc giao diện trung thực, các trường dữ liệu và danh sách tài khoản dưới đây đang để trống chờ Backend kết nối.
-            </div>
-        </div>
+    <div class="alert alert-danger">
+        <strong>Không tải được dữ liệu tài khoản.</strong> @Model.StatusMessage
     </div>
 }
 
-<!-- 4 KPI Cards: Thống kê tài khoản -->
-<div class="row g-3 mb-4" aria-live="polite">
-    <!-- Card 1: Tổng số tài khoản -->
-    <div class="col-xl-3 col-md-6">
-        <div class="card border-start border-primary border-4 shadow-sm h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="text-uppercase fw-bold text-primary small mb-1">Tổng tài khoản</div>
-                    <div class="h4 mb-0 fw-bold text-dark">
-                        @(Model.IsBackendAvailable ? Model.TotalUsers.ToString() : "--")
-                    </div>
-                    <div class="text-muted small mt-1">Người dùng hệ thống CMS</div>
-                </div>
-                <div class="text-primary opacity-50">
-                    <i class="fas fa-users fa-2x"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Card 2: Quản trị viên (Admin) -->
-    <div class="col-xl-3 col-md-6">
-        <div class="card border-start border-danger border-4 shadow-sm h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="text-uppercase fw-bold text-danger small mb-1">Quản trị viên (Admin)</div>
-                    <div class="h4 mb-0 fw-bold text-dark">
-                        @(Model.IsBackendAvailable ? Model.AdminCount.ToString() : "--")
-                    </div>
-                    <div class="text-muted small mt-1">Toàn quyền hệ thống</div>
-                </div>
-                <div class="text-danger opacity-50">
-                    <i class="fas fa-user-shield fa-2x"></i>
+<div class="row g-3 mb-4">
+    @foreach (var card in new[]
+    {
+        ("Tổng tài khoản", Model.TotalUsers, "primary", "fa-users"),
+        ("Admin", Model.AdminCount, "danger", "fa-user-shield"),
+        ("Manager", Model.ManagerCount, "warning", "fa-user-tie"),
+        ("Staff", Model.StaffCount, "info", "fa-user-tag")
+    })
+    {
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-sm border-start border-@card.Item3 border-4 h-100">
+                <div class="card-body d-flex justify-content-between">
+                    <div><div class="small text-uppercase fw-bold text-@card.Item3">@card.Item1</div><div class="h4 mb-0">@(Model.IsBackendAvailable ? card.Item2.ToString() : "--")</div></div>
+                    <i class="fas @card.Item4 fa-2x text-@card.Item3 opacity-50"></i>
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Card 3: Cửa hàng trưởng (Manager) -->
-    <div class="col-xl-3 col-md-6">
-        <div class="card border-start border-warning border-4 shadow-sm h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="text-uppercase fw-bold text-warning small mb-1">Quản lý (Manager)</div>
-                    <div class="h4 mb-0 fw-bold text-dark">
-                        @(Model.IsBackendAvailable ? Model.ManagerCount.ToString() : "--")
-                    </div>
-                    <div class="text-muted small mt-1">Quản lý kho &amp; vận hành</div>
-                </div>
-                <div class="text-warning opacity-50">
-                    <i class="fas fa-user-tie fa-2x"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Card 4: Nhân viên bán hàng (Staff) -->
-    <div class="col-xl-3 col-md-6">
-        <div class="card border-start border-info border-4 shadow-sm h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="text-uppercase fw-bold text-info small mb-1">Nhân viên (Staff)</div>
-                    <div class="h4 mb-0 fw-bold text-dark">
-                        @(Model.IsBackendAvailable ? Model.StaffCount.ToString() : "--")
-                    </div>
-                    <div class="text-muted small mt-1">Bán tại quầy &amp; tra cứu</div>
-                </div>
-                <div class="text-info opacity-50">
-                    <i class="fas fa-user-tag fa-2x"></i>
-                </div>
-            </div>
-        </div>
-    </div>
+    }
 </div>
 
-<!-- Filter & Search Toolbar -->
 <div class="card shadow-sm border-0 mb-4">
-    <div class="card-body py-3">
-        <form method="get" asp-controller="Users" asp-action="Index" class="row g-2 align-items-center justify-content-between">
-            <div class="col-md-8 col-12 d-flex flex-wrap gap-2 align-items-center">
-                <div class="input-group input-group-sm" style="max-width: 320px;">
-                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
-                    <input type="text" name="search" class="form-control border-start-0" placeholder="Tìm theo tên đăng nhập, họ tên, email..." value="@Model.SearchKeyword" />
-                </div>
-                <select name="role" class="form-select form-select-sm" style="width: 170px;" onchange="this.form.submit()">
+    <div class="card-body">
+        <form method="get" asp-action="Index" class="row g-2">
+            <div class="col-md-5"><input name="search" value="@Model.SearchKeyword" class="form-control" placeholder="Tên đăng nhập hoặc họ tên" /></div>
+            <div class="col-md-2">
+                <select name="role" class="form-select">
                     <option value="">Tất cả vai trò</option>
-                    <!option value="Admin" @(Model.SelectedRole == "Admin" ? "selected" : "")>Quản trị viên (Admin)</!option>
-                    <!option value="Manager" @(Model.SelectedRole == "Manager" ? "selected" : "")>Quản lý (Manager)</!option>
-                    <!option value="Staff" @(Model.SelectedRole == "Staff" ? "selected" : "")>Nhân viên (Staff)</!option>
+                    <!option value="Admin" @(Model.SelectedRole == "Admin" ? "selected" : "")>Admin</!option>
+                    <!option value="Manager" @(Model.SelectedRole == "Manager" ? "selected" : "")>Manager</!option>
+                    <!option value="Staff" @(Model.SelectedRole == "Staff" ? "selected" : "")>Staff</!option>
                 </select>
-                <button type="submit" class="btn btn-sm btn-outline-secondary">
-                    <i class="fas fa-filter me-1"></i>Lọc
-                </button>
-                @if (!string.IsNullOrEmpty(Model.SearchKeyword) || !string.IsNullOrEmpty(Model.SelectedRole))
-                {
-                    <a asp-controller="Users" asp-action="Index" class="btn btn-sm btn-link text-decoration-none text-muted">
-                        <i class="fas fa-times me-1"></i>Xóa lọc
-                    </a>
-                }
             </div>
-            <div class="col-md-4 col-12 text-md-end mt-2 mt-md-0">
-                <button type="button" class="btn btn-sm btn-primary" disabled title="Tính năng thêm tài khoản đang chờ Backend API /api/users">
-                    <i class="fas fa-user-plus me-1"></i>Thêm tài khoản
-                </button>
+            <div class="col-md-2">
+                <select name="isActive" class="form-select">
+                    <option value="">Tất cả trạng thái</option>
+                    <!option value="true" @(Model.SelectedStatus == true ? "selected" : "")>Hoạt động</!option>
+                    <!option value="false" @(Model.SelectedStatus == false ? "selected" : "")>Đã khóa</!option>
+                </select>
             </div>
+            <div class="col-md-3 d-flex gap-2"><button class="btn btn-outline-primary" type="submit">Lọc</button><a asp-action="Index" class="btn btn-outline-secondary">Xóa lọc</a></div>
         </form>
     </div>
 </div>
 
-<!-- Table Card: Danh sách tài khoản người dùng -->
-<div class="card shadow-sm border-0 mb-4">
-    <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-        <h6 class="m-0 fw-bold text-dark">
-            <i class="fas fa-id-badge me-2 text-secondary"></i>Danh sách tài khoản người dùng
-        </h6>
-        <span class="badge bg-light text-secondary border small">Quản lý truy cập</span>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr class="small text-uppercase text-secondary">
-                        <th style="width: 15%;">Tên đăng nhập</th>
-                        <th style="width: 25%;">Họ và tên</th>
-                        <th style="width: 25%;">Email</th>
-                        <th style="width: 15%;" class="text-center">Vai trò</th>
-                        <th style="width: 10%;" class="text-center">Trạng thái</th>
-                        <th style="width: 10%;" class="text-end">Hành động</th>
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light"><tr><th>ID</th><th>Tên đăng nhập</th><th>Họ tên</th><th>Vai trò</th><th>Trạng thái</th><th class="text-end">Hành động</th></tr></thead>
+            <tbody>
+            @if (!Model.Users.Items.Any())
+            {
+                <tr><td colspan="6" class="text-center text-muted py-5">Không có tài khoản phù hợp.</td></tr>
+            }
+            else
+            {
+                @foreach (var user in Model.Users.Items)
+                {
+                    <tr>
+                        <td>@user.UserId</td>
+                        <td><code class="fw-bold">@user.Username</code></td>
+                        <td>@user.FullName</td>
+                        <td><span class="badge bg-secondary">@user.Role</span></td>
+                        <td><span class="badge @(user.IsActive ? "bg-success" : "bg-secondary")">@(user.IsActive ? "Hoạt động" : "Đã khóa")</span></td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editUser-@user.UserId" title="Sửa"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#passwordUser-@user.UserId" title="Đặt lại mật khẩu"><i class="fas fa-key"></i></button>
+                            <form asp-action="Status" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@user.UserId" /><input type="hidden" name="isActive" value="@(!user.IsActive)" />
+                                <button class="btn btn-sm @(user.IsActive ? "btn-outline-danger" : "btn-outline-success")" title="@(user.IsActive ? "Vô hiệu hóa" : "Kích hoạt")"><i class="fas @(user.IsActive ? "fa-lock" : "fa-unlock")"></i></button>
+                            </form>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    @if (!Model.Users.Any())
-                    {
-                        <tr>
-                            <td colspan="6" class="text-center text-muted py-5">
-                                <i class="fas fa-users fa-3x mb-3 text-secondary opacity-25"></i>
-                                <div class="fw-semibold">Chưa có dữ liệu tài khoản người dùng</div>
-                                <div class="small text-muted mt-1">Đang chờ Backend API triển khai endpoint CRUD <code>/api/users</code> (theo <em>Docs 04 §3.8</em>).</div>
-                            </td>
-                        </tr>
-                    }
-                    else
-                    {
-                        @foreach (var user in Model.Users)
-                        {
-                            string roleBadge = user.Role switch
-                            {
-                                "Admin" => "bg-danger text-white",
-                                "Manager" => "bg-warning text-dark",
-                                _ => "bg-info text-dark"
-                            };
-
-                            <tr>
-                                <td>
-                                    <code class="fw-bold">@user.Username</code>
-                                </td>
-                                <td>
-                                    <div class="fw-semibold text-dark">@user.FullName</div>
-                                    <div class="small text-muted">Mã: @user.UserId</div>
-                                </td>
-                                <td>
-                                    <span class="small font-monospace">@user.Email</span>
-                                </td>
-                                <td class="text-center">
-                                    <span class="badge @roleBadge px-2 py-1">@user.Role</span>
-                                </td>
-                                <td class="text-center">
-                                    @if (user.IsActive)
-                                    {
-                                        <span class="badge bg-success-subtle text-success border px-2 py-1">Hoạt động</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">Đã khóa</span>
-                                    }
-                                </td>
-                                <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" disabled title="Chức năng chỉnh sửa đang chờ Backend API">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        }
-                    }
-                </tbody>
-            </table>
-        </div>
+                }
+            }
+            </tbody>
+        </table>
     </div>
 </div>
+
+@if (Model.Users.TotalPages > 1)
+{
+    <nav class="mt-3"><ul class="pagination justify-content-center">
+    @for (var p = 1; p <= Model.Users.TotalPages; p++)
+    {
+        <li class="page-item @(p == Model.Users.PageIndex ? "active" : null)"><a class="page-link" asp-action="Index" asp-route-page="@p" asp-route-search="@Model.SearchKeyword" asp-route-role="@Model.SelectedRole" asp-route-isActive="@Model.SelectedStatus">@p</a></li>
+    }
+    </ul></nav>
+}
+
+<div class="modal fade" id="createUserModal" tabindex="-1"><div class="modal-dialog"><form asp-action="Create" method="post" class="modal-content">
+    @Html.AntiForgeryToken()
+    <div class="modal-header"><h5 class="modal-title">Thêm tài khoản</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+        <label class="form-label">Tên đăng nhập</label><input name="Username" class="form-control mb-3" required minlength="3" maxlength="50" pattern="[a-zA-Z0-9_]+" />
+        <label class="form-label">Họ tên</label><input name="FullName" class="form-control mb-3" required minlength="2" maxlength="100" />
+        <label class="form-label">Vai trò</label><select name="Role" class="form-select mb-3"><option>Staff</option><option>Manager</option><option>Admin</option></select>
+        <label class="form-label">Mật khẩu</label><input name="Password" type="password" class="form-control" required minlength="8" autocomplete="new-password" />
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button><button class="btn btn-primary">Tạo tài khoản</button></div>
+</form></div></div>
+
+@foreach (var user in Model.Users.Items)
+{
+    <div class="modal fade" id="editUser-@user.UserId" tabindex="-1"><div class="modal-dialog"><form asp-action="Edit" method="post" class="modal-content">
+        @Html.AntiForgeryToken()<input type="hidden" name="id" value="@user.UserId" />
+        <div class="modal-header"><h5 class="modal-title">Sửa @user.Username</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body"><label class="form-label">Họ tên</label><input name="fullName" value="@user.FullName" class="form-control mb-3" required /><label class="form-label">Vai trò</label><select name="role" class="form-select"><!option value="Staff" @(user.Role.ToString() == "Staff" ? "selected" : "")>Staff</!option><!option value="Manager" @(user.Role.ToString() == "Manager" ? "selected" : "")>Manager</!option><!option value="Admin" @(user.Role.ToString() == "Admin" ? "selected" : "")>Admin</!option></select></div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button><button class="btn btn-primary">Lưu</button></div>
+    </form></div></div>
+    <div class="modal fade" id="passwordUser-@user.UserId" tabindex="-1"><div class="modal-dialog"><form asp-action="ResetPassword" method="post" class="modal-content">
+        @Html.AntiForgeryToken()<input type="hidden" name="id" value="@user.UserId" />
+        <div class="modal-header"><h5 class="modal-title">Đặt lại mật khẩu @user.Username</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body"><label class="form-label">Mật khẩu mới</label><input name="newPassword" type="password" class="form-control mb-3" required minlength="8" autocomplete="new-password" /><label class="form-label">Xác nhận mật khẩu</label><input name="confirmPassword" type="password" class="form-control" required minlength="8" autocomplete="new-password" /></div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button><button class="btn btn-warning">Đặt lại</button></div>
+    </form></div></div>
+}

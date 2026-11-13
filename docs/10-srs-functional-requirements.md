@@ -140,8 +140,14 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
   * Duplicate month hoặc month ngoài range làm toàn bộ response không hợp lệ; CMS không được âm thầm `GroupBy + Sum` hoặc hiển thị totals một phần/chưa tin cậy.
   * Khi dữ liệu Revenue ban đầu invalid/null/malformed, trang phải hiển thị unavailable/invalid thay vì doanh thu 0 hoặc biểu đồ/bảng gây hiểu nhầm; widget độc lập khác vẫn có thể hoạt động.
   * Khi đổi năm qua AJAX thất bại vì authorization, API/network/JSON, malformed hoặc vi phạm monthly contract, CMS phải giữ nguyên toàn bộ dữ liệu của năm thành công gần nhất, rollback dropdown, hiển thị lỗi và chặn response cũ ghi đè response mới.
-  * Empty monthly list thành công khác API failure và được zero-fill; không bổ sung quy tắc cấm doanh thu âm/refund nếu chưa có contract riêng được duyệt.
-  * **Trạng thái:** Contract đã APPROVED; FE strict-validation correction và targeted retest tại PR #64 vẫn **PENDING**, không được xem là đã nghiệm thu.
+  * Empty monthly list thành công khác API failure và được zero-fill; financial invariants không âm tuân theo `REVENUE-NEGATIVE-01` đã được duyệt bên dưới.
+  * **Trạng thái:** Contract đã APPROVED. Lịch sử tại PR #64 HEAD `b161554`: targeted QA FAIL do Dashboard unavailable KPI P2. Sau fix, FE strict monthly normalization, initial unavailable interaction, recovery và AJAX rollback/stale đã **INDEPENDENT TARGETED QA PASS** tại exact HEAD `ea010e34`; real CMS↔Backend↔SQL E2E và Leader final acceptance vẫn PENDING.
+* **2.5.4. REVENUE-NEGATIVE-01 — Nonnegative Revenue Contract (APPROVED 06/11/2026)**
+  * Chỉ order `Paid` hợp lệ với `Order.TotalAmount > 0` được đóng góp vào Revenue; monthly Revenue và TotalOrders không được âm. Tháng hợp lệ không có order `Paid` được có Revenue 0 và TotalOrders 0.
+  * Monthly Revenue hoặc TotalOrders âm là response `InvalidContract`. CMS phải reject nguyên tử, không clamp về 0 và không hiển thị số âm như một financial total hợp lệ.
+  * Initial Dashboard/Reports nhận dữ liệu âm phải hiển thị unavailable/invalid thay vì chart, table, revenue/order KPI mang dáng vẻ authoritative hoặc giá trị 0 gây hiểu nhầm. AJAX invalid phải rollback dropdown và giữ toàn bộ last-good-year state.
+  * Refund, reversal và negative adjustment không thuộc contract đang triển khai; mọi mô hình net revenue/refund tương lai cần quyết định Leader riêng.
+  * **Trạng thái triển khai:** Contract đã APPROVED. Hardening Backend theo [Issue #71](https://github.com/Unknown4505/Library-System/issues/71) đã **IMPLEMENTED / INDEPENDENT QA PASS** tại PR #86 exact HEAD `c341077b922cdba67ebc0ed0eae7ef924dbc90a2`: positive Paid guard, atomic amount equality, reconciliation lock/replay và invalid-source Revenue detection đều PASS. PR vẫn **OPEN / NOT MERGED** nên không được mô tả đã có trên Production. FE PR #64 strict negative rejection và Dashboard unavailable KPI đã **INDEPENDENT TARGETED QA PASS** tại `ea010e34`; mốc **QA FAIL P2** tại `b161554` là lịch sử trước fix. Leader cross-layer E2E vẫn **PENDING**.
 
 ---
 
