@@ -405,11 +405,12 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 
 ### 3.6 Admin Catalog CRUD (contract nghiệm thu Task 9.1)
 
-- Tất cả endpoint ghi dữ liệu yêu cầu JWT; `Admin` được tạo/sửa/vô hiệu hóa, `Staff` chỉ có quyền được cấp trong `docs/07-security.md`.
+- Theo **BOOKS-RBAC-01 — ADMIN-ONLY**, tất cả Books write endpoint phải yêu cầu JWT role `Admin`; `Staff`/`Manager` chỉ đọc sách active và anonymous write luôn bị chặn. Nhập kho/kiểm kê dùng API nghiệp vụ riêng, không cấp Books PUT cho Staff. Quyết định này giữ implementation PR #90 nhưng authorization chỉ được nghiệm thu sau HTTP `401/403/2xx` evidence theo [#93](https://github.com/Unknown4505/Library-System/issues/93).
 - Categories: `POST /api/categories`, `PUT /api/categories/{id}`, `DELETE /api/categories/{id}` dùng `CreateCategoryDto`/`UpdateCategoryDto` (`name` bắt buộc, tối đa 255 ký tự).
 - Areas: `POST /api/areas`, `PUT /api/areas/{id}`, `DELETE /api/areas/{id}` dùng `CreateAreaDto`/`UpdateAreaDto` (`name` bắt buộc, tối đa 255; `mapCoordinates` tối đa 500 ký tự).
 - Xóa/vô hiệu hóa phải tôn trọng FK: Category đang được Book tham chiếu không được hard-delete; Area bị xóa áp dụng quan hệ `SET NULL` theo schema. Ưu tiên deactivate nếu entity có `IsActive`.
-- Categories/Areas/Books write endpoints dùng JWT role `Admin` và response wrapper thống nhất. Books create/update/delete/upload-image từ chối non-Admin; upload chỉ nhận JPG/PNG/WEBP tối đa 5 MB và trả URL trong `ApiResponseDto<string>`. Public/Kiosk detail và barcode lookup trả 404 cho sách inactive, trong khi Admin CMS vẫn đọc được để chỉnh sửa/kích hoạt lại. Task 9.1 đã hoàn tất implementation; runtime E2E là gate riêng.
+- **Baseline audit `main@9bfe52d`:** list `GetPagedAsync()` lọc `IsActive`; `BookService.GetBookByBarcodeAsync()` cũng chặn `null`/inactive dù repository barcode không lọc; chỉ public GET detail theo ID chưa chặn. Vì vậy barcode là regression cần bảo toàn, không phải bug chưa sửa. Theo dõi detail ID tại [#94](https://github.com/Unknown4505/Library-System/issues/94).
+- **Current implementation after PR #90:** Books write endpoints có Admin authorization; upload giới hạn JPG/PNG/WEBP tối đa 5 MB và dùng tên UUID; detail ID có inactive guard; `test-error` được bọc `#if DEBUG`. Upload vẫn phải xác minh magic bytes/chữ ký nội dung thay vì chỉ tin extension và client `ContentType` trước khi #93 PASS. Theo #95, phải xóa hẳn route `test-error` khỏi application source và chuyển exception-middleware check sang automated test; `#if DEBUG` không bảo vệ khi deploy nhầm Debug build. [#93](https://github.com/Unknown4505/Library-System/issues/93), [#94](https://github.com/Unknown4505/Library-System/issues/94), [#95](https://github.com/Unknown4505/Library-System/issues/95) vẫn OPEN và chưa có HTTP/Release QA evidence. Task 9.1 chưa được đánh dấu acceptance PASS.
 
 #### 3.6.1 Cảnh báo tồn kho thấp cho CMS Dashboard
 
@@ -456,6 +457,7 @@ Trạng thái phải tách riêng giữa authentication hiện hữu và các AP
 - **Leader decision USER-MGMT-BE02-01 (2026-11-04): IMPLEMENTED / MERGED VIA PR #85.** `@thien33` triển khai `POST /api/users`, `PUT /api/users/{id}` chỉ sửa `fullName`/`role`, `PATCH /api/users/{id}/status` để activate/deactivate và `POST /api/users/{id}/reset-password` nhận mật khẩu mới. Chỉ role `Admin` được gọi; `Manager`/`Staff` phải nhận `403`.
 - Không triển khai hard-delete hoặc đổi `username`. Không cho Admin tự vô hiệu hóa hoặc vô hiệu hóa Admin active cuối cùng. Username unique không phân biệt hoa/thường và phải xử lý cạnh tranh tạo trùng; password tối thiểu 8 ký tự, có chữ hoa/chữ thường/số, được hash bằng cơ chế hiện hữu và không xuất hiện trong response/log.
 - Không thêm `Email`, `CreatedAt`, `MustChangePassword` hoặc bảng audit/migration mới trong BE-02. CMS phải bỏ/ẩn các mock field không có trong entity. PR #85 đã merge nhưng không đồng nghĩa CMS E2E PASS.
+- **CMS dependency [#91](https://github.com/Unknown4505/Library-System/issues/91), owner `@lehuukhang`, P0:** baseline `9bfe52d` vẫn dùng mock/empty-state và mô tả sai rằng `/api/users` chưa tồn tại. PR #90 đã merge CMS API integration, nhưng Issue #91 vẫn OPEN và chưa có CMS E2E/acceptance evidence. Backend #66 giữ nguyên **MERGED/CLOSED**; không chuyển Users Backend về PLANNED.
 - `/api/employees`: hồ sơ nhân viên; Admin/Manager theo policy, Staff chỉ được đọc hồ sơ của chính mình khi có identity mapping.
 - `/api/salary-payments`: sổ lương tháng; API/DTO/controller/service đều **PLANNED**.
 

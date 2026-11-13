@@ -258,8 +258,8 @@ Acceptance bắt buộc:
 - Preview không vượt quá 10 mục và ưu tiên `AvailableStock` thấp nhất theo thứ tự tăng dần.
 - Mỗi đầu sách chỉ được tính một lần trong KPI và preview.
 - Empty response hợp lệ được hiển thị là KPI 0; lỗi tải dữ liệu phải là trạng thái không khả dụng, không kết luận KPI 0.
-- Dashboard phải dẫn tới `/Inventory/Stock?lowOnly=true` để xem danh sách cảnh báo đầy đủ. PR HEAD hiện có route `/Inventory/Stock` nhưng link Dashboard chưa truyền bộ lọc; cần targeted retest sau khi sửa link.
-- Chỉ chuyển từng ca sang PASS sau khi chạy targeted tests trên SHA chứa fix và lưu evidence; ca `CMS-LOWSTOCK-05` và link điều hướng vẫn `RETEST REQUIRED`.
+- Dashboard phải dẫn tới `/Inventory/Stock?lowOnly=true` để xem danh sách cảnh báo đầy đủ và nút phải có nhãn **“Xem sách tồn thấp”**; đây là acceptance bắt buộc, không phải UX tùy chọn. Baseline `main@9bfe52d` thiếu tham số; PR #90 đã thêm `asp-route-lowOnly="true"`, nhưng Issue [#92](https://github.com/Unknown4505/Library-System/issues/92) (`@lehuukhang`, P1) vẫn OPEN.
+- Chỉ chuyển từng ca sang PASS sau khi chạy targeted tests trên SHA chứa fix và lưu evidence; ca `CMS-LOWSTOCK-05` và link điều hướng giữ **RETEST REQUIRED**. Không đổi ngưỡng `AvailableStock <= 5`, KPI phải đếm toàn bộ response và preview vẫn tối đa 10.
 
 ## 9. ProductDiscount V7.1 — targeted matrix
 
