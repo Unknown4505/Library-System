@@ -1,5 +1,7 @@
 using BookKiosk.Application.DTOs.Books;
+using BookKiosk.Application.DTOs.Common;
 using BookKiosk.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BookKiosk.API.Controllers;
@@ -32,6 +34,11 @@ public class BooksController : ControllerBase
         var response = await _bookService.GetBookByIdAsync(id);
         if (!response.Success)
             return NotFound(response);
+
+        // Kiosk/public không được mở trực tiếp sách đã ngừng kinh doanh.
+        // Admin CMS vẫn cần đọc bản ghi inactive để chỉnh sửa/kích hoạt lại.
+        if (response.Data is { IsActive: false } && !User.IsInRole("Admin"))
+            return NotFound(ApiResponseDto<object>.Error("NOT_FOUND", "Không tìm thấy sách hoặc sách đã ngừng kinh doanh."));
             
         return Ok(response);
     }
@@ -42,15 +49,19 @@ public class BooksController : ControllerBase
         var response = await _bookService.GetBookByBarcodeAsync(barcode);
         if (!response.Success)
             return NotFound(response);
+
+        if (response.Data is { IsActive: false } && !User.IsInRole("Admin"))
+            return NotFound(ApiResponseDto<object>.Error("NOT_FOUND", "Không tìm thấy sách hoặc sách đã ngừng kinh doanh."));
             
         return Ok(response);
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateBook([FromBody] CreateBookDto dto)
     {
         if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+            return BadRequest(ValidationError());
 
         var response = await _bookService.CreateBookAsync(dto);
         if (!response.Success)
@@ -60,10 +71,11 @@ public class BooksController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateBook(int id, [FromBody] UpdateBookDto dto)
     {
         if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+            return BadRequest(ValidationError());
 
         var response = await _bookService.UpdateBookAsync(id, dto);
         if (!response.Success)
@@ -73,6 +85,7 @@ public class BooksController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteBook(int id)
     {
         var response = await _bookService.DeleteBookAsync(id);
@@ -83,16 +96,27 @@ public class BooksController : ControllerBase
     }
 
     [HttpPost("upload-image")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UploadImage(Microsoft.AspNetCore.Http.IFormFile file)
     {
         if (file == null || file.Length == 0)
-            return BadRequest(new { Success = false, Message = "File không hợp lệ." });
+            return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", "File ảnh không hợp lệ."));
+
+        const long maxBytes = 5 * 1024 * 1024;
+        if (file.Length > maxBytes)
+            return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", "Ảnh bìa không được vượt quá 5 MB."));
+
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" };
+        var allowedContentTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "image/jpeg", "image/png", "image/webp" };
+        if (!allowedExtensions.Contains(extension) || !allowedContentTypes.Contains(file.ContentType))
+            return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", "Chỉ chấp nhận ảnh JPG, PNG hoặc WEBP."));
 
         var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "books");
         if (!Directory.Exists(uploadsFolder))
             Directory.CreateDirectory(uploadsFolder);
 
-        var uniqueFileName = Guid.NewGuid().ToString() + "_" + file.FileName;
+        var uniqueFileName = $"{Guid.NewGuid():N}{extension}";
         var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
         using (var stream = new FileStream(filePath, FileMode.Create))
@@ -101,14 +125,29 @@ public class BooksController : ControllerBase
         }
 
         var fileUrl = $"/uploads/books/{uniqueFileName}";
-        return Ok(new { Success = true, Url = fileUrl });
+        return Ok(ApiResponseDto<string>.Ok(fileUrl, "Tải ảnh bìa thành công."));
     }
 
+#if DEBUG
     // [TEST LỖI] - Chỉ dùng để test Global Exception Handler
     [HttpGet("test-error")]
+    [ApiExplorerSettings(IgnoreApi = true)]
     public IActionResult TestError()
     {
         // Cố tình quăng lỗi để xem khiên bảo vệ có bắt được không
         throw new DivideByZeroException("Cố tình chia cho 0 để test khiên bảo vệ Server!");
+    }
+#endif
+
+    private ApiResponseDto<object> ValidationError()
+    {
+        var message = string.Join("; ", ModelState.Values
+            .SelectMany(value => value.Errors)
+            .Select(error => error.ErrorMessage)
+            .Where(error => !string.IsNullOrWhiteSpace(error)));
+
+        return ApiResponseDto<object>.Error(
+            "VALIDATION_ERROR",
+            string.IsNullOrWhiteSpace(message) ? "Dữ liệu sách không hợp lệ." : message);
     }
 }

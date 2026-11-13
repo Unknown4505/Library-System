@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BookKiosk.CMS.Models.Auth;
@@ -7,6 +8,7 @@ using BookKiosk.CMS.Models.Common;
 using BookKiosk.CMS.Models.Inventory;
 using BookKiosk.CMS.Models.Promotions;
 using BookKiosk.CMS.Models.Members;
+using BookKiosk.Application.DTOs.Users;
 
 namespace BookKiosk.CMS.Services
 {
@@ -102,6 +104,45 @@ namespace BookKiosk.CMS.Services
                 return ApiResult<TResponse>.Fail("Không thể kết nối đến máy chủ API. Vui lòng thử lại sau.");
             }
         }
+
+        #endregion
+
+        #region Users (Quản lý tài khoản)
+
+        public async Task<ApiResult<PaginatedResult<UserDto>>> GetUsersAsync(
+            int page = 1,
+            int pageSize = 10,
+            string? keyword = null,
+            string? role = null,
+            bool? isActive = null)
+        {
+            var queryParams = new List<string>
+            {
+                $"page={page}",
+                $"pageSize={pageSize}"
+            };
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+                queryParams.Add($"keyword={Uri.EscapeDataString(keyword.Trim())}");
+            if (!string.IsNullOrWhiteSpace(role))
+                queryParams.Add($"role={Uri.EscapeDataString(role.Trim())}");
+            if (isActive.HasValue)
+                queryParams.Add($"isActive={isActive.Value.ToString().ToLowerInvariant()}");
+
+            return await GetAsync<PaginatedResult<UserDto>>($"/api/users?{string.Join("&", queryParams)}");
+        }
+
+        public Task<ApiResult<UserDto>> CreateUserAsync(CreateUserDto dto) =>
+            PostAsync<CreateUserDto, UserDto>("/api/users", dto);
+
+        public Task<ApiResult<UserDto>> UpdateUserAsync(int id, UpdateUserDto dto) =>
+            PutAsync<UpdateUserDto, UserDto>($"/api/users/{id}", dto);
+
+        public Task<ApiResult<UserDto>> UpdateUserStatusAsync(int id, bool isActive) =>
+            PatchAsync<UpdateUserStatusDto, UserDto>($"/api/users/{id}/status", new UpdateUserStatusDto { IsActive = isActive });
+
+        public Task<ApiResult<object>> ResetUserPasswordAsync(int id, string newPassword) =>
+            PostAsync<ResetPasswordDto, object>($"/api/users/{id}/reset-password", new ResetPasswordDto { NewPassword = newPassword });
 
         #endregion
 
@@ -269,6 +310,26 @@ namespace BookKiosk.CMS.Services
         public async Task<ApiResult<bool>> DeleteBookAsync(int id)
         {
             return await DeleteAsync<bool>($"/api/books/{id}");
+        }
+
+        public async Task<ApiResult<string>> UploadBookImageAsync(IFormFile file)
+        {
+            try
+            {
+                await using var stream = file.OpenReadStream();
+                using var content = new MultipartFormDataContent();
+                using var fileContent = new StreamContent(stream);
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+                content.Add(fileContent, "file", Path.GetFileName(file.FileName));
+
+                var response = await _httpClient.PostAsync("/api/books/upload-image", content);
+                return await HandleResponseAsync<string>(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi kết nối khi tải ảnh bìa {FileName}", file.FileName);
+                return ApiResult<string>.Fail("Không thể tải ảnh bìa lên máy chủ API.");
+            }
         }
 
         #endregion

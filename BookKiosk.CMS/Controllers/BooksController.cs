@@ -7,7 +7,7 @@ using BookKiosk.CMS.ViewModels.Catalog;
 
 namespace BookKiosk.CMS.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public class BooksController : Controller
     {
         private readonly ICmsApiClient _apiClient;
@@ -67,7 +67,7 @@ namespace BookKiosk.CMS.Controllers
         }
 
         /// <summary>
-        /// Màn hình thêm mới sách (Admin & Staff đều có quyền)
+        /// Màn hình thêm mới sách (Admin-only)
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> Create()
@@ -91,6 +91,12 @@ namespace BookKiosk.CMS.Controllers
         public async Task<IActionResult> Create(BookFormViewModel vm)
         {
             if (!ModelState.IsValid)
+            {
+                await PopulateDropdownsAsync(vm);
+                return View(vm);
+            }
+
+            if (!await UploadImageIfProvidedAsync(vm))
             {
                 await PopulateDropdownsAsync(vm);
                 return View(vm);
@@ -124,7 +130,7 @@ namespace BookKiosk.CMS.Controllers
         }
 
         /// <summary>
-        /// Màn hình chỉnh sửa sách (Admin & Staff đều có quyền)
+        /// Màn hình chỉnh sửa sách (Admin-only)
         /// Lưu ý nghiệp vụ: StockQuantity & ReservedQuantity là CHỈ ĐỌC
         /// </summary>
         [HttpGet]
@@ -168,6 +174,13 @@ namespace BookKiosk.CMS.Controllers
         public async Task<IActionResult> Edit(int id, BookFormViewModel vm)
         {
             if (!ModelState.IsValid)
+            {
+                vm.IsEditMode = true;
+                await PopulateDropdownsAsync(vm);
+                return View(vm);
+            }
+
+            if (!await UploadImageIfProvidedAsync(vm))
             {
                 vm.IsEditMode = true;
                 await PopulateDropdownsAsync(vm);
@@ -248,6 +261,22 @@ namespace BookKiosk.CMS.Controllers
                     Selected = a.AreaId == vm.AreaId
                 }).ToList();
             }
+        }
+
+        private async Task<bool> UploadImageIfProvidedAsync(BookFormViewModel vm)
+        {
+            if (vm.ImageFile == null || vm.ImageFile.Length == 0)
+                return true;
+
+            var uploadResult = await _apiClient.UploadBookImageAsync(vm.ImageFile);
+            if (uploadResult.Success && !string.IsNullOrWhiteSpace(uploadResult.Data))
+            {
+                vm.ImageUrl = uploadResult.Data;
+                return true;
+            }
+
+            ModelState.AddModelError(nameof(vm.ImageFile), uploadResult.Message ?? "Không thể tải ảnh bìa lên máy chủ.");
+            return false;
         }
 
         #endregion

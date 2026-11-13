@@ -265,7 +265,7 @@
         <h6 class="m-0 fw-bold text-dark">
             <i class="fas fa-triangle-exclamation text-warning me-2"></i>Cảnh báo Tồn kho Sắp hết
         </h6>
-        <a asp-controller="Inventory" asp-action="Stock" class="btn btn-sm btn-outline-primary">
+        <a asp-controller="Inventory" asp-action="Stock" asp-route-lowOnly="true" class="btn btn-sm btn-outline-primary">
             <i class="fas fa-warehouse me-1"></i>Xem tất cả kho hàng
         </a>
     </div>
