@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace BookKiosk.CMS.ViewModels.Catalog
@@ -30,6 +31,9 @@ namespace BookKiosk.CMS.ViewModels.Catalog
         [MaxLength(500, ErrorMessage = "Đường dẫn hình ảnh tối đa 500 ký tự")]
         [Display(Name = "Hình ảnh bìa sách (URL)")]
         public string? ImageUrl { get; set; }
+
+        [Display(Name = "Tải ảnh bìa từ máy")]
+        public IFormFile? ImageFile { get; set; }
 
         [Range(0, double.MaxValue, ErrorMessage = "Giá nhập phải lớn hơn hoặc bằng 0")]
         [Display(Name = "Giá nhập (VNĐ)")]
