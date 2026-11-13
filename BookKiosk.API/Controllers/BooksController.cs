@@ -128,17 +128,6 @@ public class BooksController : ControllerBase
         return Ok(ApiResponseDto<string>.Ok(fileUrl, "Tải ảnh bìa thành công."));
     }
 
-#if DEBUG
-    // [TEST LỖI] - Chỉ dùng để test Global Exception Handler
-    [HttpGet("test-error")]
-    [ApiExplorerSettings(IgnoreApi = true)]
-    public IActionResult TestError()
-    {
-        // Cố tình quăng lỗi để xem khiên bảo vệ có bắt được không
-        throw new DivideByZeroException("Cố tình chia cho 0 để test khiên bảo vệ Server!");
-    }
-#endif
-
     private ApiResponseDto<object> ValidationError()
     {
         var message = string.Join("; ", ModelState.Values
