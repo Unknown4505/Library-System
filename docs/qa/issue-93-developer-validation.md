@@ -1,41 +1,52 @@
-# Issue #93 — Books upload content validation and HTTP security QA
+# PR #99 / Issue #93 — focused Leader QA remediation
 
-Branch: `thien1`. Baseline: `main@f241864f20ef5f0b2ec270ad1d697302eb63f118`.
+Date: 2026-11-13. Branch: thien1. Integrated main baseline: f241864f20ef5f0b2ec270ad1d697302eb63f118.
 
-Existing Admin-only attributes are retained. The upload endpoint now verifies the extension/MIME pair, JPEG/PNG/WebP signature and container terminator/length, and actual decode before creating a file. Both declared length and bytes read are bounded to 5 MiB. Image dimensions are inspected before pixel decode, with a 16-million-pixel cap. The server publishes a re-encoded static cover, auto-oriented before removing profiles/metadata; animated input becomes its first frame. Output must also fit within 5 MiB.
+This follow-up addresses VAL-BOOKS-READ-01, UPLOAD-RESOURCE-01 and UPLOAD-NAME-01 from the Leader review of caf218db428f20c51adc7f899f14bb524fb87f75. PR #97/thien2 and PR #98/thien3 are unchanged. The working Admin-only attributes, content signature/decode/re-encode pipeline, actual-byte/output 5 MiB limits, 16M pixels, metadata stripping/auto-orientation, static first frame, UUID storage and cleanup are preserved.
 
-The forced allowlisted decoder prevents switching to other ImageMagick formats/delegates. Magick.NET-Q8-AnyCPU 15.1.0 packages the codec runtime; no external ImageMagick installation or license key is required. Dependency/license notices: https://github.com/dlemstra/Magick.NET. Runtime testing was on Windows; Linux deployment was not exercised.
+## P1 — restore baseline automatic validation
 
-Uploads still use multipart field `file`, return `ApiResponseDto<string>` with `/uploads/books/{UUID}.{extension}`, and keep JPG/JPEG/PNG/WebP support. Files are written under IWebHostEnvironment.WebRootPath using CreateNew after validation; interrupted writes remove the newly created file. Rejected content never creates a cover file. Requests rejected by authorization never change SQL or upload files.
+The Books-wide InvalidModelStateResponseFactory added in the first revision is removed. MVC automatic validation for invalid public GET query types and malformed/null Books POST/PUT again produces 400 application/problem+json; charset=utf-8 with type/title/status/errors. No global MVC factory is added. Deliberate controller/service business responses keep their ApiResponseDto contract (for example, duplicate create remains BAD_REQUEST). Existing Users and Barcode BAD_REQUEST wrappers and Orders/Kiosk Checkout ProblemDetails remain unchanged.
 
-An HTTP test exposed that malformed/null Books JSON was still handled by MVC's default ProblemDetails response. A Books-only ApiBehaviorOptions wrapper now returns safe VALIDATION_ERROR ApiResponseDto; the existing Users/Barcode fallback chain is retained.
+The exact seven-case matrix covers page/pageSize/categoryId invalid GET, malformed Books create, malformed Users, malformed Barcode change, and malformed Counter Checkout. Additional cases verify null Books POST/PUT, malformed PUT, malformed/null Kiosk Checkout, and business-vs-framework validation.
 
-| HTTP case | Expected and verified |
+## P2 — enforce limits before/at binding and bound decoder work
+
+| Resource | Concrete limit |
 |---|---|
-| POST / PUT / DELETE / upload, missing JWT | 401, SQL/files unchanged |
-| Same four writes, invalid JWT | 401, SQL/files unchanged |
-| Same four writes, Staff / Manager JWT | 403, SQL/files unchanged |
-| Admin create / update / delete / upload | 201 / 200 / 200 / 200 |
-| Public list / active ID / active barcode | 200 |
-| Invalid / malformed / null create JSON | 400 ApiResponseDto |
-| Delete nonexistent book | 404 |
-| Controlled barcode change to occupied barcode | 409 CONFLICT wrapper; SQL unchanged |
-| Valid JPG / JPEG / PNG / WebP with traversal filename | 200; UUID basename, decodable stored file and public image URL |
-| Empty / >5 MiB / script / magic-only junk / truncated / spoofed extension or MIME / invalid RIFF / appended script | 400 BAD_REQUEST wrapper; zero files |
-| >16 million pixels / forged reported length | Rejected; zero files |
+| Total upload request | 5 MiB + 64 KiB multipart framing allowance (5,308,416 bytes) |
+| Per multipart section | Same 5 MiB + 64 KiB envelope; file validator still enforces exactly 5 MiB |
+| Multipart buffering | 64 KiB memory threshold; bounded request caps subsequent temporary buffering |
+| Part headers | 8 KiB; at most 16 headers |
+| Form values | At most 8; each at most 8 KiB; keys at most 128 characters |
+| Concurrent upload requests per API process | 2; queue 0; excess gets safe 429 JSON and Retry-After: 1 |
+| ImageMagick pixel cache | At most 256 MiB process-wide; native single memory request at most 128 MiB |
+| ImageMagick profiles / threads / image list | At most 1 MiB profile, 2 threads, 32 list entries |
+| ImageMagick disk pixel cache | Disabled (Disk = 0) |
 
-Validation (2026-11-13): seven targeted scenarios passed; final full Release suite 219/219 PASS, 0 failed, 0 skipped. Final incremental Debug/Release solution builds: 0 errors, 24 existing warnings each. Existing AutoMapper/PKCS dependency advisories are outside this focused issue and remain visible in build logs. No schema, Auth/Users behavior or global role policy change.
+The named endpoint concurrency limiter executes after authorization and before MVC model binding, holding its permit through the response. Other endpoints are not rate limited. Native limits are initialized once and do not raise a stricter existing policy. They bound ImageMagick resources, not the entire process RSS. No package/schema/global role change is made in this remediation.
 
-Tests use the real Production API pipeline, signed JWTs and a generated disposable SQL database. Startup seeding is redirected to an isolated InMemory database, never the application SQL database. SQL fixture verifies database removal; host verifies temporary image-directory cleanup. Two aborted decoder experiments were separately cleaned up before final acceptance checks; neither discarded decoder dependency is in the final project.
+Real Kestrel tests verify an oversized multipart request is rejected before file/SQL mutation. MVC reports this body-size failure as safe 400 ProblemDetails; the test uses Expect: 100-continue to receive the early refusal without a client broken-pipe race. A valid upload immediately afterwards works. A deterministic test holds two tiny multipart requests before binding completes using existing MVC diagnostic events, verifies the third receives 429 while public GET works, then releases both and verifies two unique files. No load/destructive test is used.
 
-Reproduce (set BOOKKIOSK_QA_SQL_MASTER to an approved disposable SQL Server master connection):
+## P3 — filename policy A
+
+Reject original filenames containing slash, backslash, colon, consecutive dots or control characters. Valid original basenames still get replaced by a UUID. Prior acceptance of ../../name.jpg did not demonstrate a storage traversal exploit; this change tightens the negative-input contract requested by Leader. Tests retain ordinary JPG/JPEG/PNG/WebP positives and now explicitly reject path-like names.
+
+## Validation and limitations
+
+Clean solution Debug/Release builds: 0 errors, 111 existing warnings each, including existing AutoMapper/PKCS advisories. Targeted Debug: 24/24 PASS. Full Release developer suite: 236/236 PASS, 0 failed, 0 skipped. Test evidence includes the seven-case status/media-type/JSON matrix, JWT 401/403/Admin, SQL/file snapshots, real Kestrel multipart/concurrency, animation first-frame preservation and a valid WebP container at 5 MiB minus 2 bytes (RIFF word alignment, legal JUNK padding) that is decoded and re-encoded.
+
+Pre-cancelled request and a temporary file obstructing upload-directory creation are tested safely; error JSON does not expose the server path, no cover is left, and the next upload recovers. These are not proof of a true mid-write interruption or real ACL denial. True mid-write interruption, real ACL denial, specially corrupted ICC/EXIF and physical CMS/Kiosk/WPF E2E remain NOT RUN. No production injection seam, new test project, harness or factory is added. Existing BooksApiTestHost is unchanged.
+
+All SQL tests opt into a fresh generated disposable database, never the application database. Their fixture verifies database drop; HTTP hosts verify temporary-folder removal. Exact new HEAD, post-commit test results, combined integration snapshot with unchanged #97/#98 and final zero-leftover checks are recorded in the PR handoff/evidence manifest. Developer evidence does not replace Leader independent acceptance; keep #93 and #99 open pending independent retest. The Leader-only D:/BookKiosk_Tests suite is not available on this machine and was excluded as instructed by the user.
+
+Reproduce with BOOKKIOSK_QA_SQL_MASTER pointing to an approved disposable SQL Server master connection:
 
 ```powershell
+dotnet clean BookKiosk.slnx -c Debug
 dotnet build BookKiosk.slnx -c Debug
-dotnet build BookKiosk.slnx -c Release
 dotnet test BookKiosk.Tests -c Debug --filter FullyQualifiedName~BooksUploadSecurityTests
-dotnet test BookKiosk.Tests -c Release --filter FullyQualifiedName~BooksUploadSecurityTests
+dotnet clean BookKiosk.slnx -c Release
+dotnet build BookKiosk.slnx -c Release
 dotnet test BookKiosk.Tests -c Release
 ```
-
-Exact commit SHA and post-commit targeted results are in the PR. This is developer HTTP/JWT/SQL/filesystem evidence; independent Leader security acceptance and physical CMS/Kiosk E2E remain separate. Keep #93 open for independent review.

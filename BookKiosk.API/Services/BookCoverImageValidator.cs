@@ -8,10 +8,26 @@ public static class BookCoverImageValidator
 {
     public const int MaxBytes = 5 * 1024 * 1024;
     public const long MaxPixels = 16_000_000;
+    public const long MaxRequestBytes = MaxBytes + 64 * 1024;
+    public const int MaxConcurrentUploads = 2;
+
+    static BookCoverImageValidator()
+    {
+        // Process-wide ImageMagick ceilings; never relax a stricter deployment policy.
+        ResourceLimits.Memory = Math.Min(ResourceLimits.Memory, 256UL * 1024 * 1024);
+        ResourceLimits.MaxMemoryRequest = Math.Min(ResourceLimits.MaxMemoryRequest, 128UL * 1024 * 1024);
+        ResourceLimits.MaxProfileSize = Math.Min(ResourceLimits.MaxProfileSize, 1024UL * 1024);
+        ResourceLimits.Disk = 0; // No pixel-cache spill onto the server disk.
+        ResourceLimits.Thread = Math.Min(ResourceLimits.Thread, 2UL);
+        ResourceLimits.ListLength = Math.Min(ResourceLimits.ListLength, 32UL);
+    }
 
     public static async Task<byte[]?> NormalizeAsync(IFormFile file, CancellationToken cancellationToken)
     {
         if (file.Length <= 0 || file.Length > MaxBytes) return null;
+        // The original basename is never used for storage; reject path-like names as input policy too.
+        if (string.IsNullOrWhiteSpace(file.FileName) || file.FileName.IndexOfAny(['/', '\\', ':']) >= 0 ||
+            file.FileName.Contains("..", StringComparison.Ordinal) || file.FileName.Any(char.IsControl)) return null;
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         var expected = extension switch
         {

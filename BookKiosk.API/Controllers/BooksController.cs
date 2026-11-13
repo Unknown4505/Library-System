@@ -100,6 +100,11 @@ public class BooksController : ControllerBase
 
     [HttpPost("upload-image")]
     [Authorize(Roles = "Admin")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("book-cover-upload")]
+    [RequestSizeLimit(Services.BookCoverImageValidator.MaxRequestBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = Services.BookCoverImageValidator.MaxRequestBytes,
+        MemoryBufferThreshold = 64 * 1024, MultipartHeadersLengthLimit = 8 * 1024,
+        MultipartHeadersCountLimit = 16, ValueCountLimit = 8, ValueLengthLimit = 8 * 1024, KeyLengthLimit = 128)]
     public async Task<IActionResult> UploadImage(Microsoft.AspNetCore.Http.IFormFile file)
     {
         var image = file == null ? null : await Services.BookCoverImageValidator.NormalizeAsync(file, HttpContext.RequestAborted);

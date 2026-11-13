@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Serilog;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
@@ -20,6 +21,23 @@ try
 
     // 2. Add services to the container (Dependency Injection)
     builder.Services.AddControllers();
+    // Admit at most two cover uploads before MVC buffers multipart bodies. No queue.
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.AddConcurrencyLimiter("book-cover-upload", limiter =>
+        {
+            limiter.PermitLimit = BookKiosk.API.Services.BookCoverImageValidator.MaxConcurrentUploads;
+            limiter.QueueLimit = 0;
+        });
+        options.OnRejected = async (context, cancellationToken) =>
+        {
+            context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            context.HttpContext.Response.Headers.RetryAfter = "1";
+            await context.HttpContext.Response.WriteAsJsonAsync(
+                BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("TOO_MANY_REQUESTS", "Hệ thống đang xử lý ảnh bìa. Vui lòng thử lại."),
+                cancellationToken: cancellationToken);
+        };
+    });
     builder.Services.AddScoped<BookKiosk.Application.Services.IBookBarcodeService, BookKiosk.Application.Services.BookBarcodeService>();
     builder.Services.AddScoped<BookKiosk.Application.Services.IBookBarcodeRepository, BookKiosk.Infrastructure.Repositories.BookBarcodeRepository>();
     builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
@@ -55,18 +73,6 @@ try
         };
     });
     
-    // Books auto-validation must use the same wrapper as its controller actions.
-    builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
-    {
-        var fallback = options.InvalidModelStateResponseFactory;
-        options.InvalidModelStateResponseFactory = context =>
-            context.ActionDescriptor is Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor action &&
-            action.ControllerTypeInfo.AsType() == typeof(BookKiosk.API.Controllers.BooksController)
-                ? new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(
-                    BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("VALIDATION_ERROR", "Dữ liệu sách không hợp lệ."))
-                : fallback(context);
-    });
-
     // Đăng ký DbContext với SQL Server
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -221,6 +227,7 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseRateLimiter();
     app.MapControllers();
 
     app.Run();
