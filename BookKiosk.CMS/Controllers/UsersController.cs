@@ -89,6 +89,9 @@ public class UsersController : Controller
     {
         if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
             ModelState.AddModelError(nameof(newPassword), "Mật khẩu mới phải có tối thiểu 8 ký tự.");
+        else if (!System.Text.RegularExpressions.Regex.IsMatch(newPassword, @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$"))
+            ModelState.AddModelError(nameof(newPassword), "Mật khẩu mới phải bao gồm ít nhất một chữ hoa, một chữ thường và một chữ số.");
+
         if (!string.Equals(newPassword, confirmPassword, StringComparison.Ordinal))
             ModelState.AddModelError(nameof(confirmPassword), "Mật khẩu xác nhận không khớp.");
         if (!ModelState.IsValid)
