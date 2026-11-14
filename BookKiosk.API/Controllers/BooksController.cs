@@ -12,9 +12,12 @@ public class BooksController : ControllerBase
 {
     private readonly IBookService _bookService;
 
-    public BooksController(IBookService bookService)
+    private readonly IWebHostEnvironment _environment;
+
+    public BooksController(IBookService bookService, IWebHostEnvironment environment)
     {
         _bookService = bookService;
+        _environment = environment;
     }
 
     [HttpGet]
@@ -97,31 +100,33 @@ public class BooksController : ControllerBase
 
     [HttpPost("upload-image")]
     [Authorize(Roles = "Admin")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("book-cover-upload")]
+    [RequestSizeLimit(Services.BookCoverImageValidator.MaxRequestBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = Services.BookCoverImageValidator.MaxRequestBytes,
+        MemoryBufferThreshold = 64 * 1024, MultipartHeadersLengthLimit = 8 * 1024,
+        MultipartHeadersCountLimit = 16, ValueCountLimit = 8, ValueLengthLimit = 8 * 1024, KeyLengthLimit = 128)]
     public async Task<IActionResult> UploadImage(Microsoft.AspNetCore.Http.IFormFile file)
     {
-        if (file == null || file.Length == 0)
-            return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", "File ảnh không hợp lệ."));
+        var image = file == null ? null : await Services.BookCoverImageValidator.NormalizeAsync(file, HttpContext.RequestAborted);
+        if (image is null)
+            return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", "Ảnh bìa phải là JPG, PNG hoặc WEBP hợp lệ, tối đa 5 MB và 16 triệu điểm ảnh."));
 
-        const long maxBytes = 5 * 1024 * 1024;
-        if (file.Length > maxBytes)
-            return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", "Ảnh bìa không được vượt quá 5 MB."));
-
-        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" };
-        var allowedContentTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "image/jpeg", "image/png", "image/webp" };
-        if (!allowedExtensions.Contains(extension) || !allowedContentTypes.Contains(file.ContentType))
-            return BadRequest(ApiResponseDto<object>.Error("BAD_REQUEST", "Chỉ chấp nhận ảnh JPG, PNG hoặc WEBP."));
-
-        var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "books");
-        if (!Directory.Exists(uploadsFolder))
-            Directory.CreateDirectory(uploadsFolder);
-
+        var extension = Path.GetExtension(file!.FileName).ToLowerInvariant();
+        var uploadsFolder = Path.Combine(_environment.WebRootPath ?? Path.Combine(_environment.ContentRootPath, "wwwroot"), "uploads", "books");
+        Directory.CreateDirectory(uploadsFolder);
         var uniqueFileName = $"{Guid.NewGuid():N}{extension}";
         var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
+        var created = false;
+        try
         {
-            await file.CopyToAsync(stream);
+            await using var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            created = true;
+            await stream.WriteAsync(image, HttpContext.RequestAborted);
+        }
+        catch
+        {
+            if (created) System.IO.File.Delete(filePath);
+            throw;
         }
 
         var fileUrl = $"/uploads/books/{uniqueFileName}";
