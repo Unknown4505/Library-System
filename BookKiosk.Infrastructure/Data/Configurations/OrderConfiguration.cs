@@ -19,6 +19,12 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.Property(o => o.PointsUsedAmountAtTime)
             .HasPrecision(18, 2);
+        builder.Property(o => o.EmployeeCodeAtTime).HasMaxLength(50).IsUnicode(false);
+        builder.Property(o => o.EmployeeNameAtTime).HasMaxLength(255);
+        builder.HasIndex(o => o.EmployeeShiftAssignmentId);
+        builder.HasIndex(o => o.KioskId);
+        builder.HasOne(o => o.EmployeeShiftAssignment).WithMany(a => a.Orders).HasForeignKey(o => o.EmployeeShiftAssignmentId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(o => o.Kiosk).WithMany().HasForeignKey(o => o.KioskId).OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(o => o.CreatedByUser)
             .WithMany()

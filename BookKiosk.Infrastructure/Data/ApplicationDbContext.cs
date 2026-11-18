@@ -17,6 +17,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<PointTransaction> PointTransactions { get; set; } = null!;
     public DbSet<Employee> Employees { get; set; } = null!;
     public DbSet<SalaryPayment> SalaryPayments { get; set; } = null!;
+    public DbSet<WorkShift> WorkShifts { get; set; } = null!;
+    public DbSet<EmployeeShiftAssignment> EmployeeShiftAssignments { get; set; } = null!;
     
     // Inventory
     public DbSet<Supplier> Suppliers { get; set; } = null!;

@@ -1,5 +1,7 @@
 # Kế hoạch kiểm thử End-to-End — BookKiosk
 
+> **Mini HR QA:** Migration mới đã scaffold; SQL runtime NOT VERIFIED. HR-DB-01..08 cần QA disposable; HR-POS-01..07, HR-KIOSK-01..10 và SAL-01..13 là acceptance PLANNED / NOT RUN. [Ma trận Mini HR](13-mini-hr-shift-salary-pos-kiosk-design.md).
+
 ## 1. Phạm vi và nguyên tắc
 
 Tài liệu này là kế hoạch thực thi Task 12.1. Việc có test plan không đồng nghĩa đã runtime-test. Chỉ chuyển một ca sang PASS khi có log API, đối chiếu SQL Server và bằng chứng UI tương ứng.

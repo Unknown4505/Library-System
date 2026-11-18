@@ -1,5 +1,7 @@
 # Database Schema & Data Dictionary — BookKiosk
 
+> **Mini HR schema (2026-11-18):** Migration additive `AddMiniHrShiftsAndOrderEmployeeSnapshots` đã scaffold cho ca, lương giờ và snapshot Order. [Thiết kế Mini HR](13-mini-hr-shift-salary-pos-kiosk-design.md). SQL QA runtime **NOT VERIFIED**.
+
 <!-- AI_REVIEW_INSTRUCTION
 Nếu bạn là AI agent đọc file này:
 - Phân tích toàn bộ nội dung docs trong folder này

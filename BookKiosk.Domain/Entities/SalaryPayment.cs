@@ -9,6 +9,9 @@ public class SalaryPayment : BaseEntity
     public int PayMonth { get; set; }
     public int PayYear { get; set; }
     public decimal BaseSalarySnapshot { get; set; }
+    public EmploymentType EmploymentTypeSnapshot { get; set; } = EmploymentType.FullTime;
+    public decimal? WorkedHoursSnapshot { get; set; }
+    public decimal? HourlyRateSnapshot { get; set; }
     public decimal AllowanceAmount { get; set; }
     public decimal DeductionAmount { get; set; }
     public decimal NetSalary { get; set; }

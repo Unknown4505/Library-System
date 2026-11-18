@@ -1,5 +1,7 @@
 # Tiến độ Dự án & Phân công công việc — BookKiosk
 
+> **Mini HR handoff:** Leader đã scaffold Domain/EF schema và migration; SQL runtime chưa xác minh. API/UI vẫn `[ ]` PLANNED. Thiện phụ trách Backend Employee/Shift/Salary và POS/Kiosk identity; Khang phụ trách ba màn hình CMS, POS selection và WPF receipt hiển thị, không có Kiosk chọn nhân viên. [Issue drafts và dependency](13-mini-hr-shift-salary-pos-kiosk-design.md).
+
 Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và phân công công việc chi tiết cho từng thành viên theo từng Module.
 
 ## 1. Bảng tiến độ 15 Tuần
