@@ -61,14 +61,14 @@ public sealed class BooksApiTestHost : WebApplicationFactory<BackendApi::BookKio
             });
         });
     }
-    public HttpClient Client(string? role = null)
+    public HttpClient Client(string? role = null, string? actorId = "33")
     {
         var client = CreateClient(new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
         ready = true;
         if (role == "Invalid") client.DefaultRequestHeaders.Authorization = new("Bearer", "invalid.jwt.signature");
         else if (role != null)
         {
-            var token = new JwtSecurityToken("BooksQA", "BooksQA", new[] { new Claim(ClaimTypes.NameIdentifier,"33"), new Claim(ClaimTypes.Role,role) },
+            var token = new JwtSecurityToken("BooksQA", "BooksQA", (actorId == null ? new[] { new Claim(ClaimTypes.Role,role) } : new[] { new Claim(ClaimTypes.NameIdentifier,actorId), new Claim(ClaimTypes.Role,role) }),
                 expires: DateTime.UtcNow.AddMinutes(5), signingCredentials: new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)), SecurityAlgorithms.HmacSha256));
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", new JwtSecurityTokenHandler().WriteToken(token));
         }

@@ -73,6 +73,18 @@ try
         };
     });
     
+    builder.Services.AddScoped<BookKiosk.Application.Services.IAccountService, BookKiosk.Application.Services.AccountService>();
+    builder.Services.AddScoped<BookKiosk.Application.Interfaces.Repositories.IAccountRepository, BookKiosk.Infrastructure.Repositories.AccountRepository>();
+    builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+    {
+        var fallback = options.InvalidModelStateResponseFactory;
+        options.InvalidModelStateResponseFactory = context =>
+            context.ActionDescriptor is Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor action &&
+            action.ControllerTypeInfo.AsType() == typeof(BookKiosk.API.Controllers.AccountController)
+                ? new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(
+                    BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("BAD_REQUEST", "Dữ liệu đổi mật khẩu không hợp lệ."))
+                : fallback(context);
+    });
     // Đăng ký DbContext với SQL Server
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
