@@ -19,12 +19,16 @@ public class SalaryPaymentConfiguration : IEntityTypeConfiguration<SalaryPayment
             tableBuilder.HasCheckConstraint(
                 "CK_SalaryPayments_Status",
                 "[Status] IN (1, 2)");
+            tableBuilder.HasCheckConstraint("CK_SalaryPayments_EmploymentTypeSnapshot", "[EmploymentTypeSnapshot] IN (1, 2)");
+            tableBuilder.HasCheckConstraint("CK_SalaryPayments_HourlySnapshot", "[WorkedHoursSnapshot] IS NULL OR [WorkedHoursSnapshot] >= 0 AND [HourlyRateSnapshot] IS NOT NULL AND [HourlyRateSnapshot] >= 0");
         });
 
         builder.HasKey(s => s.SalaryPaymentId);
         builder.HasIndex(s => new { s.EmployeeId, s.PayYear, s.PayMonth }).IsUnique();
 
         builder.Property(s => s.BaseSalarySnapshot).HasColumnType("decimal(18,0)");
+        builder.Property(s => s.WorkedHoursSnapshot).HasColumnType("decimal(7,2)");
+        builder.Property(s => s.HourlyRateSnapshot).HasColumnType("decimal(18,0)");
         builder.Property(s => s.AllowanceAmount).HasColumnType("decimal(18,0)");
         builder.Property(s => s.DeductionAmount).HasColumnType("decimal(18,0)");
         builder.Property(s => s.NetSalary).HasColumnType("decimal(18,0)");

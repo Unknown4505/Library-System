@@ -13,6 +13,8 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             tableBuilder.HasCheckConstraint(
                 "CK_Employees_CurrentBaseSalary",
                 "[CurrentBaseSalary] IS NULL OR [CurrentBaseSalary] >= 0");
+            tableBuilder.HasCheckConstraint("CK_Employees_EmploymentType", "[EmploymentType] IN (1, 2)");
+            tableBuilder.HasCheckConstraint("CK_Employees_HourlyRate", "[HourlyRate] IS NULL OR [HourlyRate] >= 0");
         });
 
         builder.HasKey(e => e.EmployeeId);
@@ -28,6 +30,7 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(e => e.Email).HasMaxLength(255).IsUnicode(false);
         builder.Property(e => e.Position).HasMaxLength(100).IsRequired();
         builder.Property(e => e.CurrentBaseSalary).HasColumnType("decimal(18,0)");
+        builder.Property(e => e.HourlyRate).HasColumnType("decimal(18,0)");
 
         builder.HasIndex(e => e.UserId)
             .IsUnique()
