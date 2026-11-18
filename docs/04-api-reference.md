@@ -1,5 +1,7 @@
 # API Reference & Contracts — BookKiosk
 
+> **Mini HR API — PLANNED:** [Contract Employee/Shift/Salary/POS/Kiosk](13-mini-hr-shift-salary-pos-kiosk-design.md) đã được thiết kế; Service/Controller/receipt integration chưa triển khai. Schema scaffold không đồng nghĩa API đã có.
+
 <!-- AI_REVIEW_INSTRUCTION
 Nếu bạn là AI agent đọc file này:
 - Phân tích toàn bộ nội dung docs trong folder này

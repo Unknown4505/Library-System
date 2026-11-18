@@ -1,5 +1,7 @@
 # Kiến Trúc Bảo Mật (Security Architecture) — BookKiosk
 
+> **Mini HR identity:** POS chọn nhân viên trong ca bằng tài khoản quầy chung chỉ ghi trách nhiệm nghiệp vụ. Quyền xem own Paid vẫn cần JWT cá nhân map `Employees.UserId`. `KioskId` từ cấu hình/heartbeat chưa xác thực máy. [Thiết kế chi tiết](13-mini-hr-shift-salary-pos-kiosk-design.md).
+
 <!-- AI_REVIEW_INSTRUCTION
 Nếu bạn là AI agent đọc file này:
 - Phân tích toàn bộ nội dung docs trong folder này
@@ -37,7 +39,7 @@ Máy Kiosk là thiết bị cố định đặt tại cửa hàng, luôn đượ
 ### Cơ chế: JSON Web Token (Bearer)
 Web Admin / CMS dành cho Thủ thư và Admin quản lý được dùng thông qua trình duyệt web. Trình duyệt bắt buộc phải đăng nhập.
 
-1. **Đăng nhập (Planned):** Contract dự kiến là `POST /api/auth/login`; endpoint này chưa có trên `main`.
+1. **Đăng nhập (Implemented):** `POST /api/auth/login` đã có trên `main`; Backend xác thực tài khoản active và cấp JWT. Các dòng lịch sử bên dưới cần được hiểu theo implementation hiện hành.
 2. **Cấp phát:** Backend xác thực BCrypt, trả về `AccessToken` (JWT, tuổi thọ **15–30 phút**). Không lưu gì vào DB.
 3. **Sử dụng:** Trình duyệt lưu AccessToken vào `sessionStorage`. Khi gọi API, chèn Header:
    `Authorization: Bearer <AccessToken>`

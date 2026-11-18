@@ -179,6 +179,9 @@ namespace BookKiosk.Infrastructure.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(50)");
 
+                    b.Property<int>("EmploymentType")
+                        .HasColumnType("int");
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -186,6 +189,9 @@ namespace BookKiosk.Infrastructure.Migrations
 
                     b.Property<DateTime?>("HireDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("HourlyRate")
+                        .HasColumnType("decimal(18,0)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -218,6 +224,62 @@ namespace BookKiosk.Infrastructure.Migrations
                     b.ToTable("Employees", null, t =>
                         {
                             t.HasCheckConstraint("CK_Employees_CurrentBaseSalary", "[CurrentBaseSalary] IS NULL OR [CurrentBaseSalary] >= 0");
+
+                            t.HasCheckConstraint("CK_Employees_EmploymentType", "[EmploymentType] IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_Employees_HourlyRate", "[HourlyRate] IS NULL OR [HourlyRate] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("BookKiosk.Domain.Entities.EmployeeShiftAssignment", b =>
+                {
+                    b.Property<int>("AssignmentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AssignmentId"));
+
+                    b.Property<int?>("AssignedKioskId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("WorkShiftId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("WorkedHours")
+                        .HasColumnType("decimal(7,2)");
+
+                    b.HasKey("AssignmentId");
+
+                    b.HasIndex("AssignedKioskId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("WorkShiftId", "AssignedKioskId")
+                        .IsUnique()
+                        .HasFilter("[AssignedKioskId] IS NOT NULL AND [IsActive] = 1");
+
+                    b.HasIndex("WorkShiftId", "EmployeeId")
+                        .IsUnique();
+
+                    b.ToTable("EmployeeShiftAssignments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_EmployeeShiftAssignments_WorkedHours", "[WorkedHours] IS NULL OR ([WorkedHours] >= 0 AND [WorkedHours] <= 744)");
                         });
                 });
 
@@ -403,6 +465,21 @@ namespace BookKiosk.Infrastructure.Migrations
                     b.Property<decimal>("DiscountAmount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("EmployeeCodeAtTime")
+                        .HasMaxLength(50)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("EmployeeNameAtTime")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int?>("EmployeeShiftAssignmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("KioskId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("MemberId")
                         .HasColumnType("int");
 
@@ -450,6 +527,10 @@ namespace BookKiosk.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("OrderId");
+
+                    b.HasIndex("EmployeeShiftAssignmentId");
+
+                    b.HasIndex("KioskId");
 
                     b.HasIndex("MemberId");
 
@@ -670,6 +751,12 @@ namespace BookKiosk.Infrastructure.Migrations
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
+                    b.Property<int>("EmploymentTypeSnapshot")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("HourlyRateSnapshot")
+                        .HasColumnType("decimal(18,0)");
+
                     b.Property<decimal>("NetSalary")
                         .HasColumnType("decimal(18,0)");
 
@@ -695,6 +782,9 @@ namespace BookKiosk.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal?>("WorkedHoursSnapshot")
+                        .HasColumnType("decimal(7,2)");
+
                     b.HasKey("SalaryPaymentId");
 
                     b.HasIndex("PaidByUserId");
@@ -705,6 +795,10 @@ namespace BookKiosk.Infrastructure.Migrations
                     b.ToTable("SalaryPayments", null, t =>
                         {
                             t.HasCheckConstraint("CK_SalaryPayments_Amounts", "[BaseSalarySnapshot] >= 0 AND [AllowanceAmount] >= 0 AND [DeductionAmount] >= 0 AND [NetSalary] >= 0");
+
+                            t.HasCheckConstraint("CK_SalaryPayments_EmploymentTypeSnapshot", "[EmploymentTypeSnapshot] IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_SalaryPayments_HourlySnapshot", "[WorkedHoursSnapshot] IS NULL OR [WorkedHoursSnapshot] >= 0 AND [HourlyRateSnapshot] IS NOT NULL AND [HourlyRateSnapshot] >= 0");
 
                             t.HasCheckConstraint("CK_SalaryPayments_PayMonth", "[PayMonth] >= 1 AND [PayMonth] <= 12");
 
@@ -791,6 +885,55 @@ namespace BookKiosk.Infrastructure.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("BookKiosk.Domain.Entities.WorkShift", b =>
+                {
+                    b.Property<int>("WorkShiftId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkShiftId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<TimeOnly>("EndTime")
+                        .HasColumnType("time");
+
+                    b.Property<DateTime?>("FinalizedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("FinalizedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ShiftName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly>("WorkDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("WorkShiftId");
+
+                    b.HasIndex("FinalizedByUserId");
+
+                    b.HasIndex("WorkDate", "Status");
+
+                    b.ToTable("WorkShifts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WorkShifts_Status", "[Status] IN (1, 2, 3)");
+                        });
+                });
+
             modelBuilder.Entity("BookKiosk.Domain.Entities.Book", b =>
                 {
                     b.HasOne("BookKiosk.Domain.Entities.Area", "Area")
@@ -817,6 +960,32 @@ namespace BookKiosk.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BookKiosk.Domain.Entities.EmployeeShiftAssignment", b =>
+                {
+                    b.HasOne("BookKiosk.Domain.Entities.Kiosk", "AssignedKiosk")
+                        .WithMany()
+                        .HasForeignKey("AssignedKioskId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("BookKiosk.Domain.Entities.Employee", "Employee")
+                        .WithMany("ShiftAssignments")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BookKiosk.Domain.Entities.WorkShift", "WorkShift")
+                        .WithMany("Assignments")
+                        .HasForeignKey("WorkShiftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AssignedKiosk");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("WorkShift");
                 });
 
             modelBuilder.Entity("BookKiosk.Domain.Entities.ImportReceipt", b =>
@@ -880,6 +1049,16 @@ namespace BookKiosk.Infrastructure.Migrations
 
             modelBuilder.Entity("BookKiosk.Domain.Entities.Order", b =>
                 {
+                    b.HasOne("BookKiosk.Domain.Entities.EmployeeShiftAssignment", "EmployeeShiftAssignment")
+                        .WithMany("Orders")
+                        .HasForeignKey("EmployeeShiftAssignmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("BookKiosk.Domain.Entities.Kiosk", "Kiosk")
+                        .WithMany()
+                        .HasForeignKey("KioskId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("BookKiosk.Domain.Entities.Member", "Member")
                         .WithMany("Orders")
                         .HasForeignKey("MemberId")
@@ -896,6 +1075,10 @@ namespace BookKiosk.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("CreatedByUser");
+
+                    b.Navigation("EmployeeShiftAssignment");
+
+                    b.Navigation("Kiosk");
 
                     b.Navigation("Member");
 
@@ -998,6 +1181,16 @@ namespace BookKiosk.Infrastructure.Migrations
                     b.Navigation("PaidByUser");
                 });
 
+            modelBuilder.Entity("BookKiosk.Domain.Entities.WorkShift", b =>
+                {
+                    b.HasOne("BookKiosk.Domain.Entities.User", "FinalizedByUser")
+                        .WithMany()
+                        .HasForeignKey("FinalizedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("FinalizedByUser");
+                });
+
             modelBuilder.Entity("BookKiosk.Domain.Entities.Area", b =>
                 {
                     b.Navigation("Books");
@@ -1011,6 +1204,13 @@ namespace BookKiosk.Infrastructure.Migrations
             modelBuilder.Entity("BookKiosk.Domain.Entities.Employee", b =>
                 {
                     b.Navigation("SalaryPayments");
+
+                    b.Navigation("ShiftAssignments");
+                });
+
+            modelBuilder.Entity("BookKiosk.Domain.Entities.EmployeeShiftAssignment", b =>
+                {
+                    b.Navigation("Orders");
                 });
 
             modelBuilder.Entity("BookKiosk.Domain.Entities.ImportReceipt", b =>
@@ -1047,6 +1247,11 @@ namespace BookKiosk.Infrastructure.Migrations
             modelBuilder.Entity("BookKiosk.Domain.Entities.Supplier", b =>
                 {
                     b.Navigation("ImportReceipts");
+                });
+
+            modelBuilder.Entity("BookKiosk.Domain.Entities.WorkShift", b =>
+                {
+                    b.Navigation("Assignments");
                 });
 #pragma warning restore 612, 618
         }

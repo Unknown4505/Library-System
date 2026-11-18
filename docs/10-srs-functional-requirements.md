@@ -1,5 +1,7 @@
 # Đặc tả Yêu cầu Chức năng (Functional Requirements) - Cấp độ 1, 2, 3
 
+> **LEADER-HR-01:** Một ca nhiều nhân viên, Admin chốt giờ, Full-time lương tháng, Part-time theo giờ ca chốt. POS chọn người trong ca; Kiosk tự resolve người phụ trách máy; hai receipt dùng snapshot mã/tên Order. Auth/Users đã có; Employee/Shift/Salary API/UI chưa có. [Thiết kế Mini HR](13-mini-hr-shift-salary-pos-kiosk-design.md).
+
 Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân cấp, chi tiết đến các chức năng cụ thể cùng Đầu vào (Input) và Đầu ra (Output) dựa trên nghiệp vụ của hệ thống BookKiosk.
 
 ---
@@ -192,7 +194,7 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
 
 - Lưu hồ sơ `Employees` độc lập với `Members`; một Employee có tối đa một tài khoản User và User có tối đa một Employee.
 - Giữ `Admin=1`, `Staff=2`, thêm `Manager=3`; vô hiệu hóa thay vì xóa lịch sử.
-- Auth/User/Employee API và CMS chưa được triển khai trong scaffold này.
+- Auth/User API và CMS Users đã được triển khai sau scaffold lịch sử; Employee/Shift/Salary API và CMS HR vẫn chưa triển khai.
 
 ### 4.2 Sổ lương cơ bản — PLANNED
 

@@ -13,6 +13,10 @@ public class Order : BaseEntity
     public PaymentMethod PaymentMethod { get; set; }
     
     public int? UserId { get; set; }
+    public int? EmployeeShiftAssignmentId { get; set; }
+    public int? KioskId { get; set; }
+    public string? EmployeeCodeAtTime { get; set; }
+    public string? EmployeeNameAtTime { get; set; }
     public int? MemberId { get; set; }
     public int? PromotionId { get; set; }
     public string? PromotionNameAtTime { get; set; }
@@ -26,6 +30,8 @@ public class Order : BaseEntity
     public DateTime? CompletedAt { get; set; }
 
     public User? CreatedByUser { get; set; }
+    public EmployeeShiftAssignment? EmployeeShiftAssignment { get; set; }
+    public Kiosk? Kiosk { get; set; }
     public Member? Member { get; set; }
     public Promotion? Promotion { get; set; }
 

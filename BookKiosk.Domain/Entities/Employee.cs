@@ -1,3 +1,5 @@
+using BookKiosk.Domain.Enums;
+
 namespace BookKiosk.Domain.Entities;
 
 public class Employee : BaseEntity
@@ -11,8 +13,11 @@ public class Employee : BaseEntity
     public string Position { get; set; } = string.Empty;
     public DateTime? HireDate { get; set; }
     public decimal? CurrentBaseSalary { get; set; }
+    public EmploymentType EmploymentType { get; set; } = EmploymentType.FullTime;
+    public decimal? HourlyRate { get; set; }
     public bool IsActive { get; set; } = true;
 
     public User? User { get; set; }
     public ICollection<SalaryPayment> SalaryPayments { get; set; } = new List<SalaryPayment>();
+    public ICollection<EmployeeShiftAssignment> ShiftAssignments { get; set; } = new List<EmployeeShiftAssignment>();
 }
