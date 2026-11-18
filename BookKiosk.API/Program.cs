@@ -73,6 +73,20 @@ try
         };
     });
     
+    // Supplier validation owns a safe wrapper; do not change other API contracts.
+    builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+    {
+        var fallback = options.InvalidModelStateResponseFactory;
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            if (context.ActionDescriptor is not Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor action ||
+                action.ControllerTypeInfo.AsType() != typeof(BookKiosk.API.Controllers.SuppliersController))
+                return fallback(context);
+            return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(
+                BookKiosk.Application.DTOs.Common.ApiResponseDto<object>.Error("BAD_REQUEST",
+                    "Dữ liệu nhà cung cấp không hợp lệ. Kiểm tra tên, số điện thoại, email và độ dài các trường."));
+        };
+    });
     // Đăng ký DbContext với SQL Server
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
