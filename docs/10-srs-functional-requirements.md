@@ -15,7 +15,7 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
   * **Output:** Danh sách sách khớp từ khóa, hiển thị trạng thái "Còn hàng" (Available > 0) hoặc "Hết hàng".
 * **1.1.3. Xem vị trí kệ sách**
   * **Input:** Lựa chọn Xem vị trí của một cuốn sách cụ thể.
-  * **Output:** Bản đồ/Sơ đồ cửa hàng có highlight vị trí kệ chứa sách đó.
+  * **Output:** Hiển thị tên khu vực/kệ sách (`AreaName`, ví dụ "Kệ B2 — Tầng 2") để khách đối chiếu bảng chỉ dẫn; không yêu cầu sơ đồ tọa độ.
 
 ### 1.2. Giỏ hàng và Checkout (Self-Checkout)
 * **1.2.1. Thêm sản phẩm qua quét mã vạch**
@@ -94,6 +94,12 @@ Tài liệu này đặc tả các yêu cầu phần mềm theo cấu trúc phân
 * **2.1.2. Lập Phiếu nhập kho**
   * **Input:** Phiếu nhập gồm (Nhà cung cấp, danh sách sách nhập, số lượng mỗi loại, giá nhập).
   * **Output:** Phiếu nhập được lưu lại, tự động tăng số lượng `StockQuantity` thực tế.
+* **2.1.3. Quản lý Nhà cung cấp**
+  * **Input:** Tên nhà cung cấp, người đại diện/liên hệ tùy chọn (`ContactName`, tối đa 100 ký tự), số điện thoại, email, địa chỉ và trạng thái.
+  * **Output:** Dữ liệu nhà cung cấp được persist; `ContactName` null/trắng hợp lệ và vẫn nhất quán sau refresh/mở lại form Edit.
+* **2.1.4. Quản lý Khu vực/Kệ sách**
+  * **Input:** Tên khu vực/kệ sách, tối đa 255 ký tự.
+  * **Output:** CRUD theo tên và giữ quan hệ Books → Areas. CMS không nhập/hiển thị `MapCoordinates`; cột legacy trong database chưa bị drop.
 
 ### 2.2. Bán hàng tại quầy (POS)
 * **2.2.1. Tạo đơn hàng POS**

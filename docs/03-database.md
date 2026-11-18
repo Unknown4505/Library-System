@@ -47,7 +47,9 @@ Nếu bạn là AI agent đọc file này:
 |---|---|---|---|
 | `AreaId` | `int` | `int` | PK |
 | `Name` | `string` | `nvarchar(255)` | Bắt buộc (VD: "Kệ A1", "Tầng 2") |
-| `MapCoordinates` | `string?` | `varchar(500)` | Tọa độ trên UI map (JSON X, Y) |
+| `MapCoordinates` | `string?` | `varchar(500)` | Cột legacy được giữ để tương thích; CMS không còn đọc/ghi và chưa phê duyệt drop |
+
+> **LEADER-AREA-01 — IMPLEMENTED:** nghiệp vụ quản trị khu vực/kệ chỉ dùng `AreaId` và `Name`. Dữ liệu `MapCoordinates` cũ được bảo toàn khi CMS sửa tên; không còn yêu cầu sơ đồ chỉ đường mới.
 
 **Bảng `Books`**
 | Cột | Kiểu C# | Kiểu SQL | Ràng buộc / Ghi chú |
@@ -77,10 +79,13 @@ Nếu bạn là AI agent đọc file này:
 |---|---|---|---|
 | `SupplierId` | `int` | `int` | PK |
 | `Name` | `string` | `nvarchar(255)` | Bắt buộc |
+| `ContactName` | `string?` | `nvarchar(100)` | Nullable; tên người đại diện/liên hệ, tối đa 100 ký tự |
 | `PhoneNumber` | `string?` | `varchar(20)` | Nullable |
 | `Email` | `string?` | `varchar(255)` | Nullable |
 | `Address` | `string?` | `nvarchar(500)` | Nullable |
 | `IsActive` | `bool` | `bit` | Mặc định `true` |
+
+> **SUPPLIER-CONTACT-01 — IMPLEMENTED:** migration additive `AddSupplierContactName` thêm cột nullable, không thay đổi hoặc xóa dữ liệu Supplier hiện hữu.
 
 **Bảng `ImportReceipts`** (Phiếu nhập hàng — ghi nhận từng lần nhập hàng từ nhà cung cấp)
 | Cột | Kiểu C# | Kiểu SQL | Ràng buộc / Ghi chú |

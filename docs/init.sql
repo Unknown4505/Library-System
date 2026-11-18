@@ -232,6 +232,7 @@ BEGIN
     CREATE TABLE [dbo].[Suppliers] (
         [SupplierId]  INT            NOT NULL IDENTITY(1,1),
         [Name]        NVARCHAR(255)  NOT NULL,
+        [ContactName] NVARCHAR(100)  NULL,
         [PhoneNumber] VARCHAR(20)    NULL,
         [Email]       VARCHAR(255)   NULL,
         [Address]     NVARCHAR(500)  NULL,

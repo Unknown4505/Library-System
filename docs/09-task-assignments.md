@@ -128,6 +128,8 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 9.4 | **[Leader]** Form Thêm/Sửa sách (Upload ảnh) | @Unknown4505 | | | `[ ]` — multipart size/extension/MIME/UUID đã merge qua PR #90; [#93](https://github.com/Unknown4505/Library-System/issues/93) còn yêu cầu magic-byte validation và HTTP upload-security evidence |
 | 9.5 | **[Leader]** Cấu hình CORS Policy để Web Admin có thể gọi được Backend API | @Unknown4505 | | | `[x]` |
 
+**LEADER-AREA-01 — IMPLEMENTED / TARGETED QA PASS:** CMS Area chỉ quản lý `AreaId` và `Name`; đã bỏ toàn bộ field/cột/search/JavaScript `MapCoordinates`. Backend giữ contract/cột legacy và PUT bỏ qua `MapCoordinates` khi client không gửi để không làm mất dữ liệu cũ. Bộ test ngoài repository `D:\BookKiosk_Tests` đạt 4/4 PASS trong đó có preservation test; CRUD tên, duplicate/FK behavior, hiển thị `AreaName` và full CMS/Kiosk E2E vẫn cần nghiệm thu runtime riêng.
+
 ### MODULE 10: CMS WEB - TỒN KHO, KM & POS
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
 |---|---|:---:|:---:|:---:|:---:|
@@ -135,6 +137,8 @@ Tài liệu này quy định tiến độ thực hiện dự án (15 tuần) và
 | 10.2 | Trang Nhập kho (Inventory) | | | @lehuukhang | `[x]` — **IMPLEMENTED / INDEPENDENT TARGETED QA ACCEPTED — PR #77 HEAD `7920663e`**; `FE-INVENTORY-EMPTY-01` và `INV-KPI-UNAVAILABLE-01` đã PASS, Inventory controller/Razor + service đạt 24 PASS / 0 FAIL; 3 HTTP/SQL tests vẫn SKIP do thiếu disposable SQL Server và không được tính là full Backend/SQL E2E PASS; PR merge pending |
 | 10.3 | Trang Quản lý Khuyến mãi | | | @lehuukhang | `[x]` — PR #58 targeted QA PASS; merge pending |
 | 10.4 | Trang POS Bán tại quầy (Áp mã thủ công) | | | @lehuukhang | `[x]` — PR #58 targeted QA PASS; merge pending |
+
+**SUPPLIER-CONTACT-01 — IMPLEMENTED / TARGETED QA PASS:** Supplier entity, EF configuration, service mapping và migration additive đã bổ sung `ContactName` nullable `nvarchar(100)`. Targeted persistence/GET/update/null/validation tests nằm trong bộ test ngoài repository `D:\BookKiosk_Tests` và tổng suite đạt 4/4 PASS. CMS form/list/edit contract hiện hữu tiếp tục dùng field này; full CMS↔API↔SQL E2E vẫn pending.
 
 ### MODULE 11: THỐNG KÊ DOANH THU
 | # | Công việc | Leader | BE (@thien33) | FE (@lehuukhang) | Trạng thái |
