@@ -35,6 +35,7 @@ public class SupplierService : ISupplierService
         {
             SupplierId = s.SupplierId,
             Name = s.Name,
+            ContactName = s.ContactName,
             PhoneNumber = s.PhoneNumber,
             Email = s.Email,
             Address = s.Address,
@@ -52,6 +53,7 @@ public class SupplierService : ISupplierService
         {
             SupplierId = s.SupplierId,
             Name = s.Name,
+            ContactName = s.ContactName,
             PhoneNumber = s.PhoneNumber,
             Email = s.Email,
             Address = s.Address,
@@ -71,6 +73,7 @@ public class SupplierService : ISupplierService
         var supplier = new Supplier
         {
             Name = dto.Name.Trim(),
+            ContactName = NormalizeContactName(dto.ContactName),
             PhoneNumber = phone.Trim(),
             Email = dto.Email?.Trim(),
             Address = dto.Address?.Trim(),
@@ -84,7 +87,7 @@ public class SupplierService : ISupplierService
         {
             SupplierId = supplier.SupplierId,
             Name = supplier.Name,
-            ContactName = dto.ContactName,
+            ContactName = supplier.ContactName,
             PhoneNumber = supplier.PhoneNumber,
             Email = supplier.Email,
             Address = supplier.Address,
@@ -106,6 +109,7 @@ public class SupplierService : ISupplierService
             throw new ArgumentException("Số điện thoại không được để trống.");
 
         supplier.Name = dto.Name.Trim();
+        supplier.ContactName = NormalizeContactName(dto.ContactName);
         supplier.PhoneNumber = phone.Trim();
         supplier.Email = dto.Email?.Trim();
         supplier.Address = dto.Address?.Trim();
@@ -118,7 +122,7 @@ public class SupplierService : ISupplierService
         {
             SupplierId = supplier.SupplierId,
             Name = supplier.Name,
-            ContactName = dto.ContactName,
+            ContactName = supplier.ContactName,
             PhoneNumber = supplier.PhoneNumber,
             Email = supplier.Email,
             Address = supplier.Address,
@@ -145,5 +149,17 @@ public class SupplierService : ISupplierService
         await _supplierRepository.DeleteAsync(supplier);
         await _unitOfWork.SaveChangesAsync();
         return true;
+    }
+
+    private static string? NormalizeContactName(string? contactName)
+    {
+        if (string.IsNullOrWhiteSpace(contactName))
+            return null;
+
+        var normalized = contactName.Trim();
+        if (normalized.Length > 100)
+            throw new ArgumentException("Tên người liên hệ tối đa 100 ký tự.");
+
+        return normalized;
     }
 }

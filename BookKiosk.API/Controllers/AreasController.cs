@@ -70,7 +70,12 @@ public class AreasController : ControllerBase
             return Conflict(ApiResponseDto<object>.Error("DUPLICATE_NAME", "Tên khu vực đã tồn tại."));
 
         area.Name = name;
-        area.MapCoordinates = request.MapCoordinates?.Trim();
+        if (request.MapCoordinates is not null)
+        {
+            area.MapCoordinates = string.IsNullOrWhiteSpace(request.MapCoordinates)
+                ? null
+                : request.MapCoordinates.Trim();
+        }
         await _context.SaveChangesAsync();
         return Ok(ApiResponseDto<AreaDto>.Ok(ToDto(area), "Cập nhật khu vực thành công."));
     }

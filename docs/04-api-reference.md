@@ -145,7 +145,7 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 
 #### Lấy danh sách Khu vực kệ
 - **Endpoint:** `GET /api/areas`
-- **Response (Success - 200 OK):** Mảng các object chứa `areaId`, `name`, `mapCoordinates` (Tọa độ trên UI map).
+- **Response (Success - 200 OK):** Backend vẫn trả `areaId`, `name`, `mapCoordinates` để tương thích contract legacy. Theo **LEADER-AREA-01**, CMS chỉ sử dụng `areaId` và `name`; không còn nhập, tìm kiếm hoặc hiển thị tọa độ.
 
 ---
 
@@ -407,7 +407,7 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 
 - Theo **BOOKS-RBAC-01 — ADMIN-ONLY**, tất cả Books write endpoint phải yêu cầu JWT role `Admin`; `Staff`/`Manager` chỉ đọc sách active và anonymous write luôn bị chặn. Nhập kho/kiểm kê dùng API nghiệp vụ riêng, không cấp Books PUT cho Staff. Quyết định này giữ implementation PR #90 nhưng authorization chỉ được nghiệm thu sau HTTP `401/403/2xx` evidence theo [#93](https://github.com/Unknown4505/Library-System/issues/93).
 - Categories: `POST /api/categories`, `PUT /api/categories/{id}`, `DELETE /api/categories/{id}` dùng `CreateCategoryDto`/`UpdateCategoryDto` (`name` bắt buộc, tối đa 255 ký tự).
-- Areas: `POST /api/areas`, `PUT /api/areas/{id}`, `DELETE /api/areas/{id}` dùng `CreateAreaDto`/`UpdateAreaDto` (`name` bắt buộc, tối đa 255; `mapCoordinates` tối đa 500 ký tự).
+- Areas: `POST /api/areas`, `PUT /api/areas/{id}`, `DELETE /api/areas/{id}` dùng `CreateAreaDto`/`UpdateAreaDto` (`name` bắt buộc, tối đa 255). Backend vẫn nhận `mapCoordinates` tối đa 500 ký tự cho client legacy; khi property không được gửi, PUT chỉ sửa tên và bảo toàn tọa độ cũ. CMS không còn gửi property này.
 - Xóa/vô hiệu hóa phải tôn trọng FK: Category đang được Book tham chiếu không được hard-delete; Area bị xóa áp dụng quan hệ `SET NULL` theo schema. Ưu tiên deactivate nếu entity có `IsActive`.
 - **Baseline audit `main@9bfe52d`:** list `GetPagedAsync()` lọc `IsActive`; `BookService.GetBookByBarcodeAsync()` cũng chặn `null`/inactive dù repository barcode không lọc; chỉ public GET detail theo ID chưa chặn. Vì vậy barcode là regression cần bảo toàn, không phải bug chưa sửa. Theo dõi detail ID tại [#94](https://github.com/Unknown4505/Library-System/issues/94).
 - **Current implementation after PR #90:** Books write endpoints có Admin authorization; upload giới hạn JPG/PNG/WEBP tối đa 5 MB và dùng tên UUID; detail ID có inactive guard; `test-error` được bọc `#if DEBUG`. Upload vẫn phải xác minh magic bytes/chữ ký nội dung thay vì chỉ tin extension và client `ContentType` trước khi #93 PASS. Theo #95, phải xóa hẳn route `test-error` khỏi application source và chuyển exception-middleware check sang automated test; `#if DEBUG` không bảo vệ khi deploy nhầm Debug build. [#93](https://github.com/Unknown4505/Library-System/issues/93), [#94](https://github.com/Unknown4505/Library-System/issues/94), [#95](https://github.com/Unknown4505/Library-System/issues/95) vẫn OPEN và chưa có HTTP/Release QA evidence. Task 9.1 chưa được đánh dấu acceptance PASS.
@@ -420,6 +420,13 @@ HTTP status và `code` là hai lớp khác nhau: HTTP status mô tả kết qu�
 - CMS dùng toàn bộ response để tính **Low Stock KPI**. Việc sắp xếp `AvailableStock` tăng dần và lấy tối đa 10 mục chỉ là presentation rule cho **Low Stock Preview**, không phải ý nghĩa hoặc giới hạn của KPI.
 - API lỗi hoặc không trả được dữ liệu không mang nghĩa tổng cảnh báo bằng 0; CMS phải biểu diễn trạng thái dữ liệu không khả dụng riêng với empty response hợp lệ.
 - Chi tiết business requirement và acceptance cases được đồng bộ tại [SRS](10-srs-functional-requirements.md) và [E2E Test Plan](11-end-to-end-test-plan.md).
+
+#### 3.6.2 Supplier ContactName persistence — IMPLEMENTED
+
+- Các endpoint Supplier hiện hữu (`GET /api/suppliers`, `GET /api/suppliers/{id}`, `POST /api/suppliers`, `PUT /api/suppliers/{id}`) dùng thêm field nullable `contactName`.
+- `contactName` được trim trước khi lưu; chuỗi null/trắng được lưu `NULL`; tối đa 100 ký tự, vượt giới hạn trả validation `400` theo contract `[ApiController]`.
+- Response Create/Update và các GET map từ entity đã persist, không phản chiếu tạm giá trị request. Supplier cũ có `contactName = null` vẫn hợp lệ.
+- Trạng thái: source + migration **IMPLEMENTED**; targeted regression ngoài repository tại `D:\BookKiosk_Tests\BookKiosk.Tests\Backend\Validation\SupplierAreaRegressionTests.cs` **4/4 PASS**. Full CMS/SQL E2E không được suy ra từ targeted evidence này.
 
 ### 3.7 Reports (contract typed response)
 
