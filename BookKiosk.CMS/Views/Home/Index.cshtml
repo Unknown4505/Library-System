@@ -3,6 +3,11 @@
     ViewData["Title"] = "Dashboard - BookKiosk CMS";
 }
 
+@section Styles {
+    <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+}
+
+<div class="dashboard-page">
 @if (Model.UseMockApi)
 {
     <div class="alert alert-warning py-2 mb-4 d-flex align-items-center shadow-sm" role="alert">
@@ -14,7 +19,7 @@
 }
 
 <!-- Page Header -->
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
     <div>
         <h1 class="h3 mb-0 fw-bold text-dark">
             <i class="fas fa-tachometer-alt me-2 text-primary"></i>Dashboard
@@ -34,9 +39,9 @@
 <!-- KPI Cards -->
 <div class="row g-3 mb-4" aria-live="polite">
     <!-- Card 1: Tổng doanh thu năm -->
-    <div class="col-xl col-md-6">
+    <div class="col-xl-4 col-md-6">
         <div class="card border-start border-primary border-4 shadow-sm h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
+            <div class="card-body d-flex flex-wrap gap-3 justify-content-between align-items-center">
                 <div>
                     <div class="text-uppercase fw-bold text-primary small mb-1">
                         Tổng doanh thu năm (<span id="kpiAnnualRevenueYearLabel">@Model.SelectedYear</span>)
@@ -68,9 +73,9 @@
     </div>
 
     <!-- Card 2: Tổng đơn năm -->
-    <div class="col-xl col-md-6">
+    <div class="col-xl-4 col-md-6">
         <div class="card border-start border-success border-4 shadow-sm h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
+            <div class="card-body d-flex flex-wrap gap-3 justify-content-between align-items-center">
                 <div>
                     <div class="text-uppercase fw-bold text-success small mb-1">
                         Tổng đơn năm (<span id="kpiAnnualOrdersYearLabel">@Model.SelectedYear</span>)
@@ -101,59 +106,23 @@
         </div>
     </div>
 
-    <!-- Card 3: Doanh thu hôm nay (Chưa hỗ trợ - Backend chưa có endpoint tổng hợp) -->
-    <div class="col-xl col-md-6">
-        <div class="card border-start border-secondary border-4 shadow-sm h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="text-uppercase fw-bold text-secondary small mb-1">Doanh thu hôm nay</div>
-                    <div class="h4 mb-0 fw-bold text-secondary">
-                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 fs-6">Chưa hỗ trợ</span>
-                    </div>
-                    <div class="text-muted small mt-1">Chờ API tổng hợp từ Backend</div>
-                </div>
-                <div class="text-secondary opacity-50">
-                    <i class="fas fa-calendar-day fa-2x"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Card 4: Tỷ lệ thành công (Chưa hỗ trợ - Backend chưa có endpoint tổng hợp) -->
-    <div class="col-xl col-md-6">
-        <div class="card border-start border-info border-4 shadow-sm h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="text-uppercase fw-bold text-info small mb-1">Tỷ lệ thành công</div>
-                    <div class="h4 mb-0 fw-bold text-secondary">
-                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 fs-6">Chưa hỗ trợ</span>
-                    </div>
-                    <div class="text-muted small mt-1">Chờ API tổng hợp từ Backend</div>
-                </div>
-                <div class="text-info opacity-50">
-                    <i class="fas fa-chart-pie fa-2x"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Card 5: Sách sắp hết kho -->
-    <div class="col-xl col-md-6">
+    <!-- Card 3: Sách sắp hết kho -->
+    <div class="col-xl-4 col-md-6">
         <div class="card border-start border-warning border-4 shadow-sm h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
+            <div class="card-body d-flex flex-wrap gap-3 justify-content-between align-items-center">
                 <div>
                     <div class="text-uppercase fw-bold text-warning small mb-1">Sách sắp hết kho</div>
                     <div class="h4 mb-0 fw-bold text-dark" id="kpiLowStock">
                         @if (Model.IsLowStockUnavailable)
                         {
-                            <span class="badge bg-warning-subtle text-warning border px-2 py-1 fs-6">Chưa có dữ liệu</span>
+                            <span class="badge bg-warning-subtle text-warning border px-2 py-1 fs-6">Không khả dụng</span>
                         }
                         else
                         {
                             @Model.TotalLowStockCount
                         }
                     </div>
-                    <div class="text-muted small mt-1">Mặt hàng cần nhập thêm kho</div>
+                    <div class="text-muted small mt-1">Tổng số đầu sách có tồn khả dụng ≤ 5</div>
                 </div>
                 <div class="text-warning opacity-50">
                     <i class="fas fa-exclamation-triangle fa-2x"></i>
@@ -166,17 +135,17 @@
 <!-- Row 1: Biểu đồ doanh thu 12 tháng + Top Sách Bán Chạy -->
 <div class="row g-4 mb-4">
     <!-- Col Left: Biểu đồ cột doanh thu 12 tháng -->
-    <div class="col-xl-8 col-lg-7">
+    <div class="col-xl-7">
         <partial name="_RevenueBarChart" model="Model" />
     </div>
 
     <!-- Col Right: Top Sách Bán Chạy -->
-    <div class="col-xl-4 col-lg-5">
+    <div class="col-xl-5">
         <div class="card shadow-sm border-0 h-100">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
-                <h6 class="m-0 fw-bold text-dark">
+            <div class="card-header bg-white py-3 d-flex flex-wrap gap-3 justify-content-between align-items-center border-bottom">
+                <h2 class="h6 m-0 fw-bold text-dark">
                     <i class="fas fa-trophy text-warning me-2"></i><span id="topBooksCardTitle">Top 10 Sách Bán Chạy</span>
-                </h6>
+                </h2>
                 <div class="d-flex align-items-center gap-2">
                     <select id="topBooksSelect" class="form-select form-select-sm" style="width: 100px;" aria-label="Chọn số lượng top sách">
                         <option value="5">Top 5</option>
@@ -215,7 +184,7 @@
                                 _ => "bg-light text-secondary border"
                             };
 
-                            <div class="list-group-item d-flex align-items-center px-3 py-2 border-bottom">
+                            <div class="list-group-item dashboard-top-book px-3 py-2 border-bottom">
                                 <!-- Rank Badge -->
                                 <span class="badge rounded-pill @badgeClass me-3" style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem;">
                                     @rank
@@ -237,7 +206,7 @@
                                 }
 
                                 <!-- Details -->
-                                <div class="flex-grow-1 min-w-0 me-2">
+                                <div class="dashboard-book-details">
                                     <div class="text-truncate fw-semibold small text-dark" title="@book.Title">
                                         @book.Title
                                     </div>
@@ -247,7 +216,7 @@
                                 </div>
 
                                 <!-- Revenue -->
-                                <div class="text-end text-nowrap">
+                                <div class="dashboard-book-revenue">
                                     <div class="small fw-bold text-success">@book.TotalRevenue.ToString("N0") đ</div>
                                 </div>
                             </div>
@@ -261,10 +230,10 @@
 
 <!-- Row 2: Cảnh báo Tồn kho Sắp hết (≤ 10 mục) -->
 <div class="card shadow-sm border-0 mb-4">
-    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
-        <h6 class="m-0 fw-bold text-dark">
+    <div class="card-header bg-white py-3 d-flex flex-wrap gap-3 justify-content-between align-items-center border-bottom">
+        <h2 class="h6 m-0 fw-bold text-dark">
             <i class="fas fa-triangle-exclamation text-warning me-2"></i>Cảnh báo Tồn kho Sắp hết
-        </h6>
+        </h2>
         <a asp-controller="Inventory" asp-action="Stock" asp-route-lowOnly="true" class="btn btn-sm btn-outline-primary">
             <i class="fas fa-warehouse me-1"></i>Xem sách tồn thấp
         </a>
@@ -286,15 +255,17 @@
         }
         else
         {
-            <div class="table-responsive">
+            <p class="small text-muted px-3 pt-3 mb-2">Đang hiển thị @Model.LowStockItems.Count / @Model.TotalLowStockCount đầu sách có tồn khả dụng ≤ 5.</p>
+            <div class="table-responsive" tabindex="0" aria-label="Sách tồn thấp">
                 <table class="table table-hover align-middle mb-0">
+                    <caption class="visually-hidden">Xem trước tối đa 10 đầu sách tồn thấp</caption>
                     <thead class="table-light">
                         <tr class="small text-uppercase text-secondary">
-                            <th style="width: 15%;">Mã vạch</th>
-                            <th style="width: 35%;">Tựa sách / Tác giả</th>
-                            <th style="width: 15%;">Thể loại</th>
-                            <th style="width: 15%;" class="text-center">Tồn khả dụng</th>
-                            <th style="width: 20%;" class="text-end">Hành động</th>
+                            <th scope="col" style="width: 15%;">Mã vạch</th>
+                            <th scope="col" style="width: 35%;">Tựa sách / Tác giả</th>
+                            <th scope="col" style="width: 15%;">Thể loại</th>
+                            <th scope="col" style="width: 15%;" class="text-center">Tồn khả dụng</th>
+                            <th scope="col" style="width: 20%;" class="text-end">Hành động</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -335,6 +306,8 @@
             </div>
         }
     </div>
+</div>
+
 </div>
 
 @section Scripts {
