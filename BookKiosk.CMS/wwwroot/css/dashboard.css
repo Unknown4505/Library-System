@@ -1,0 +1,25 @@
+.dashboard-page { min-width: 0; }
+.dashboard-page .card { min-width: 0; }
+.dashboard-page .card-header > * { min-width: 0; }
+.dashboard-page .card-body > div { min-width: 0; }
+.dashboard-page .card-body.d-flex { gap: 1rem; }
+.dashboard-page .h4 { overflow-wrap: anywhere; }
+.dashboard-page .table-responsive:focus-visible { outline: 2px solid var(--bs-primary); outline-offset: 2px; }
+.dashboard-page .table { min-width: 480px; }
+.dashboard-page .dashboard-top-book {
+    display: grid;
+    grid-template-columns: 24px 36px minmax(0, 1fr);
+    align-items: center;
+    column-gap: .75rem;
+}
+.dashboard-page .dashboard-top-book > .badge,
+.dashboard-page .dashboard-top-book > img,
+.dashboard-page .dashboard-top-book > .rounded { margin-right: 0 !important; }
+.dashboard-page .dashboard-book-details { min-width: 0; }
+.dashboard-page .dashboard-book-details .text-truncate { white-space: normal; overflow-wrap: anywhere; }
+.dashboard-page .dashboard-book-revenue { grid-column: 3; overflow-wrap: anywhere; }
+@media (max-width: 575.98px) {
+    .dashboard-page .card-header { padding: 1rem; }
+    .dashboard-page .card-header .d-flex { flex-wrap: wrap; }
+    .dashboard-page .card-body.d-flex > .opacity-50 { display: none; }
+}

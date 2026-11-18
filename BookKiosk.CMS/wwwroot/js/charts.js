@@ -86,7 +86,7 @@ function initTopBooksWidget() {
             res.data.forEach((book, index) => {
                 const rank = index + 1;
                 const itemDiv = document.createElement("div");
-                itemDiv.className = "list-group-item d-flex align-items-center px-3 py-2 border-bottom";
+                itemDiv.className = "list-group-item dashboard-top-book px-3 py-2 border-bottom";
 
                 // Rank badge
                 const badge = document.createElement("span");
@@ -140,7 +140,7 @@ function initTopBooksWidget() {
 
                 // Details
                 const detailsDiv = document.createElement("div");
-                detailsDiv.className = "flex-grow-1 min-w-0 me-2";
+                detailsDiv.className = "dashboard-book-details";
 
                 const titleDiv = document.createElement("div");
                 titleDiv.className = "text-truncate fw-semibold small text-dark";
@@ -165,7 +165,7 @@ function initTopBooksWidget() {
 
                 // Revenue
                 const revDiv = document.createElement("div");
-                revDiv.className = "text-end text-nowrap";
+                revDiv.className = "dashboard-book-revenue";
                 const revVal = document.createElement("div");
                 revVal.className = "small fw-bold text-success";
                 revVal.textContent = formatVnd(book.totalRevenue);

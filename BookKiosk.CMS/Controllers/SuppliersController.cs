@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BookKiosk.CMS.Models.Inventory;
 using BookKiosk.CMS.Services;
+using BookKiosk.CMS.Models.Common;
+using BookKiosk.CMS.ViewModels.Inventory;
 
 namespace BookKiosk.CMS.Controllers
 {
@@ -26,28 +28,20 @@ namespace BookKiosk.CMS.Controllers
         [HttpGet("Index")]
         public async Task<IActionResult> Index()
         {
-            var result = await _apiClient.GetSuppliersAsync();
-            if (!result.Success)
-            {
-                TempData["Error"] = result.Message ?? "Không thể tải danh sách nhà cung cấp.";
-                return View(new List<SupplierDto>());
-            }
-
-            return View(result.Data ?? new List<SupplierDto>());
+            return View(await LoadListAsync(new SupplierListViewModel()));
         }
 
         /// <summary>
         /// Tạo mới nhà cung cấp
         /// </summary>
         [HttpPost("Create")]
+        [Authorize(Roles = "Admin,Manager")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(CreateSupplierDto dto)
         {
             if (!ModelState.IsValid)
             {
-                var errors = string.Join("; ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
-                TempData["Error"] = $"Dữ liệu không hợp lệ: {errors}";
-                return RedirectToAction(nameof(Index));
+                return await RedisplayAsync(dto);
             }
 
             var result = await _apiClient.CreateSupplierAsync(dto);
@@ -57,7 +51,8 @@ namespace BookKiosk.CMS.Controllers
             }
             else
             {
-                TempData["Error"] = result.Message ?? "Thêm nhà cung cấp thất bại.";
+                AddApiErrors(result);
+                return await RedisplayAsync(dto);
             }
 
             return RedirectToAction(nameof(Index));
@@ -67,14 +62,14 @@ namespace BookKiosk.CMS.Controllers
         /// Cập nhật thông tin nhà cung cấp
         /// </summary>
         [HttpPost("Edit/{id:int}")]
+        [Authorize(Roles = "Admin,Manager")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, UpdateSupplierDto dto)
         {
+            if (id <= 0) return NotFound();
             if (!ModelState.IsValid)
             {
-                var errors = string.Join("; ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
-                TempData["Error"] = $"Dữ liệu không hợp lệ: {errors}";
-                return RedirectToAction(nameof(Index));
+                return await RedisplayAsync(dto, id);
             }
 
             var result = await _apiClient.UpdateSupplierAsync(id, dto);
@@ -84,7 +79,8 @@ namespace BookKiosk.CMS.Controllers
             }
             else
             {
-                TempData["Error"] = result.Message ?? "Cập nhật nhà cung cấp thất bại.";
+                AddApiErrors(result);
+                return await RedisplayAsync(dto, id);
             }
 
             return RedirectToAction(nameof(Index));
@@ -94,6 +90,7 @@ namespace BookKiosk.CMS.Controllers
         /// Vô hiệu hóa nhà cung cấp (Soft delete)
         /// </summary>
         [HttpPost("Delete/{id:int}")]
+        [Authorize(Roles = "Admin,Manager")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
         {
@@ -108,6 +105,27 @@ namespace BookKiosk.CMS.Controllers
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+        private async Task<SupplierListViewModel> LoadListAsync(SupplierListViewModel model)
+        {
+            var result = await _apiClient.GetSuppliersAsync();
+            if (result.Success) model.Suppliers = result.Data ?? new List<SupplierDto>();
+            else model.LoadError = "Không thể tải danh sách nhà cung cấp. Dữ liệu bạn đang nhập vẫn được giữ lại.";
+            return model;
+        }
+
+        private async Task<IActionResult> RedisplayAsync(CreateSupplierDto dto) =>
+            View("Index", await LoadListAsync(new SupplierListViewModel { ActiveForm = "create", CreateForm = dto }));
+
+        private async Task<IActionResult> RedisplayAsync(UpdateSupplierDto dto, int id) =>
+            View("Index", await LoadListAsync(new SupplierListViewModel { ActiveForm = "edit", EditForm = dto, EditId = id }));
+
+        private void AddApiErrors(ApiResult<SupplierDto> result)
+        {
+            foreach (var field in result.FieldErrors)
+                foreach (var error in field.Value) ModelState.AddModelError(field.Key, error);
+            ModelState.AddModelError(string.Empty, result.Message ?? "Không thể lưu nhà cung cấp. Vui lòng thử lại.");
         }
     }
 }
