@@ -1,33 +1,31 @@
-@* Partial View: _Alert.cshtml *@
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show d-flex align-items-center mb-4 shadow-sm" role="alert">
-        <i class="fas fa-check-circle fs-4 me-3 text-success"></i>
-        <div>
-            <strong>Thành công!</strong> @TempData["Success"]
-        </div>
-        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
+@{
+    // Layout owns flash rendering. Normal reads retain one-shot TempData semantics.
+    var messages = new List<(string Type, string Title, string Text)>();
+    foreach (var (key, type, title) in new[] {
+        ("Success", "success", "Thành công!"),
+        ("Error", "danger", "Lỗi!"),
+        ("Warning", "warning", "Cảnh báo!") })
+    {
+        if (TempData[key] is string text && !string.IsNullOrWhiteSpace(text))
+            messages.Add((type, title, text));
+    }
+    var toastMessage = TempData["ToastMessage"] as string;
+    var toastType = TempData["ToastType"] as string;
+    if (!string.IsNullOrWhiteSpace(toastMessage))
+    {
+        var type = toastType switch { "success" => "success", "error" or "danger" => "danger", "warning" => "warning", _ => "info" };
+        var title = type switch { "success" => "Thành công!", "danger" => "Lỗi!", "warning" => "Cảnh báo!", _ => "Thông báo" };
+        if (!messages.Any(m => m.Type == type && m.Text == toastMessage))
+            messages.Add((type, title, toastMessage));
+    }
 }
-
-@if (TempData["Error"] != null)
+@foreach (var message in messages)
 {
-    <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center mb-4 shadow-sm" role="alert">
-        <i class="fas fa-exclamation-circle fs-4 me-3 text-danger"></i>
-        <div>
-            <strong>Lỗi!</strong> @TempData["Error"]
-        </div>
-        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-}
-
-@if (TempData["Warning"] != null)
-{
-    <div class="alert alert-warning alert-dismissible fade show d-flex align-items-center mb-4 shadow-sm" role="alert">
-        <i class="fas fa-exclamation-triangle fs-4 me-3 text-warning"></i>
-        <div>
-            <strong>Cảnh báo!</strong> @TempData["Warning"]
-        </div>
-        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+    var icon = message.Type switch { "success" => "fa-check-circle", "danger" => "fa-exclamation-circle", "warning" => "fa-exclamation-triangle", _ => "fa-info-circle" };
+    <div class="alert alert-@message.Type alert-dismissible fade show d-flex align-items-center mb-4 shadow-sm"
+         role="alert" data-flash-alert="@message.Type">
+        <i class="fas @icon fs-4 me-3 text-@message.Type" aria-hidden="true"></i>
+        <div><strong>@message.Title</strong> @message.Text</div>
+        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Đóng thông báo"></button>
     </div>
 }

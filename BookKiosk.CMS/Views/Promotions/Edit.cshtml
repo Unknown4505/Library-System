@@ -23,8 +23,6 @@
     </div>
 
     <!-- Alert nếu có lỗi tổng quát -->
-    <partial name="_Alert" />
-    <partial name="_Toast" />
 
     <form asp-action="Edit" asp-route-id="@Model.PromotionId" method="post" id="promotionForm">
         @Html.AntiForgeryToken()
