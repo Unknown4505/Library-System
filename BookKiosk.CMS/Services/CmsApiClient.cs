@@ -338,17 +338,110 @@ namespace BookKiosk.CMS.Services
 
         public async Task<ApiResult<IEnumerable<SupplierDto>>> GetSuppliersAsync()
         {
-            return await GetAsync<IEnumerable<SupplierDto>>("/api/suppliers");
+            return await SendSupplierAsync<IEnumerable<SupplierDto>>(HttpMethod.Get, "/api/suppliers");
         }
 
         public async Task<ApiResult<SupplierDto>> CreateSupplierAsync(CreateSupplierDto dto)
         {
-            return await PostAsync<CreateSupplierDto, SupplierDto>("/api/suppliers", dto);
+            return await SendSupplierAsync<SupplierDto>(HttpMethod.Post, "/api/suppliers", dto);
         }
 
         public async Task<ApiResult<SupplierDto>> UpdateSupplierAsync(int id, UpdateSupplierDto dto)
         {
-            return await PutAsync<UpdateSupplierDto, SupplierDto>($"/api/suppliers/{id}", dto);
+            return await SendSupplierAsync<SupplierDto>(HttpMethod.Put, $"/api/suppliers/{id}", dto);
+        }
+
+        // Keep Supplier response handling isolated from the other CMS features.
+        private async Task<ApiResult<T>> SendSupplierAsync<T>(HttpMethod method, string endpoint, object? body = null)
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(method, endpoint);
+                if (body != null)
+                    request.Content = JsonContent.Create(body, body.GetType(), options: _jsonOptions);
+
+                using var response = await _httpClient.SendAsync(request);
+                var status = (int)response.StatusCode;
+                var failure = ApiResult<T>.Fail(status switch
+                {
+                    400 => "Dữ liệu nhà cung cấp không hợp lệ. Vui lòng kiểm tra các trường đã nhập.",
+                    401 => "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+                    403 => "Bạn không có quyền thực hiện thao tác với nhà cung cấp.",
+                    404 => "Không tìm thấy nhà cung cấp hoặc API nhà cung cấp chưa sẵn sàng.",
+                    409 => "Dữ liệu nhà cung cấp bị xung đột. Vui lòng kiểm tra lại.",
+                    >= 500 => "Máy chủ API đang gặp sự cố. Vui lòng thử lại sau.",
+                    _ => "Không thể xử lý phản hồi từ API nhà cung cấp. Vui lòng thử lại sau."
+                }, status);
+
+                // Error pages and exception details must not become user-facing messages.
+                if (!response.IsSuccessStatusCode && status != 400)
+                    return failure;
+
+                try
+                {
+                    using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                    var root = document.RootElement;
+                    if (root.ValueKind != JsonValueKind.Object)
+                        return response.IsSuccessStatusCode ? ApiResult<T>.Fail("API nhà cung cấp trả về dữ liệu không hợp lệ.", 502) : failure;
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        if (root.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.True &&
+                            root.TryGetProperty("data", out var data) && data.ValueKind != JsonValueKind.Null)
+                        {
+                            var value = data.Deserialize<T>(_jsonOptions);
+                            if (value != null)
+                            {
+                                var result = ApiResult<T>.Ok(value);
+                                result.StatusCode = status;
+                                return result;
+                            }
+                        }
+                        // A 2xx response without the agreed success wrapper is not proof of a saved Supplier.
+                        return ApiResult<T>.Fail("API chưa xác nhận thao tác nhà cung cấp thành công. Vui lòng tải lại danh sách để kiểm tra trước khi thử lại.", 502);
+                    }
+
+                    if (root.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.String)
+                        failure.Code = code.GetString() == "BAD_REQUEST" ? "BAD_REQUEST" : null;
+
+                    // Current automatic MVC validation uses an errors dictionary. Never echo arbitrary server text.
+                    if (root.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Object)
+                    {
+                        foreach (var error in errors.EnumerateObject())
+                        {
+                            var field = error.Name.Split('.').Last().ToLowerInvariant();
+                            var mapped = field switch
+                            {
+                                "name" => ("Name", "Tên nhà cung cấp là bắt buộc và tối đa 255 ký tự."),
+                                "contactname" => ("ContactName", "Người đại diện tối đa 100 ký tự."),
+                                "phone" or "phonenumber" => ("PhoneNumber", "Số điện thoại là bắt buộc, tối đa 20 ký tự và phải đúng quy định Backend."),
+                                "email" => ("Email", "Email phải đúng định dạng và tối đa 100 ký tự; có thể để trống."),
+                                "address" => ("Address", "Địa chỉ tối đa 500 ký tự."),
+                                _ => ("", "")
+                            };
+                            if (mapped.Item1.Length > 0)
+                                failure.FieldErrors[mapped.Item1] = new[] { mapped.Item2 };
+                        }
+                    }
+                    return failure;
+                }
+                catch (JsonException)
+                {
+                    return response.IsSuccessStatusCode
+                        ? ApiResult<T>.Fail("API nhà cung cấp trả về dữ liệu không hợp lệ.", 502)
+                        : failure;
+                }
+            }
+            catch (OperationCanceledException ex)
+            {
+                _logger.LogWarning(ex, "Supplier API timed out: {Method} {Endpoint}", method, endpoint);
+                return ApiResult<T>.Fail("API nhà cung cấp phản hồi quá lâu. Vui lòng kiểm tra danh sách trước khi gửi lại.", 504);
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogWarning(ex, "Supplier API unavailable: {Method} {Endpoint}", method, endpoint);
+                return ApiResult<T>.Fail("Không thể kết nối đến API nhà cung cấp. Vui lòng kiểm tra kết nối và thử lại.", 503);
+            }
         }
 
         public async Task<ApiResult<bool>> DeleteSupplierAsync(int id)

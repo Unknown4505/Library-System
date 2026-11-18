@@ -7,6 +7,13 @@ namespace BookKiosk.CMS.Models.Common
         public T? Data { get; set; }
         public List<string>? Errors { get; set; }
 
+        // Populated by the Supplier adapter only; never sent as API request data.
+        [System.Text.Json.Serialization.JsonIgnore]
+        public Dictionary<string, string[]> FieldErrors { get; set; } = new();
+
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string? Code { get; set; }
+
         public int StatusCode { get; set; } = 200;
         public bool IsEndpointUnavailable { get; set; }
 
