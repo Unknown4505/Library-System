@@ -19,7 +19,6 @@
 </div>
 
 <!-- Alert Thông báo -->
-<partial name="_Alert" />
 
 <!-- KPI Cards -->
 <div class="row g-3 mb-4">
@@ -149,9 +148,9 @@
     <div class="card-body p-0">
         @if (Model.IsUnavailable)
         {
-            <div class="alert alert-warning py-4 text-center m-4">
+            <div class="py-4 text-center m-4">
                 <i class="fas fa-exclamation-triangle fa-2x mb-2 d-block text-warning opacity-75"></i>
-                <div class="fw-semibold">@(Model.ErrorMessage ?? "Không thể tải dữ liệu tồn kho từ máy chủ. Vui lòng thử lại sau.")</div>
+                <div class="fw-semibold">Dữ liệu tồn kho chưa khả dụng.</div>
             </div>
         }
         else if (Model.StockItems == null || !Model.StockItems.Any())

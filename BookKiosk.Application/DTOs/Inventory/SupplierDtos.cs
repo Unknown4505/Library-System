@@ -1,3 +1,4 @@
+using BookKiosk.Application.Validation;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
@@ -31,7 +32,7 @@ public class CreateSupplierDto
     [MaxLength(100, ErrorMessage = "Tên người liên hệ tối đa 100 ký tự")]
     public string? ContactName { get; set; }
 
-    [Required(ErrorMessage = "Số điện thoại không được để trống")]
+    [SupplierPhone]
     [MaxLength(20, ErrorMessage = "Số điện thoại tối đa 20 ký tự")]
     public string PhoneNumber { get; set; } = string.Empty;
 
@@ -42,7 +43,7 @@ public class CreateSupplierDto
         set => PhoneNumber = value ?? string.Empty;
     }
 
-    [MaxLength(100, ErrorMessage = "Email tối đa 100 ký tự")]
+    [SupplierEmail]
     public string? Email { get; set; }
 
     [MaxLength(500, ErrorMessage = "Địa chỉ tối đa 500 ký tự")]
@@ -60,7 +61,7 @@ public class UpdateSupplierDto
     [MaxLength(100, ErrorMessage = "Tên người liên hệ tối đa 100 ký tự")]
     public string? ContactName { get; set; }
 
-    [Required(ErrorMessage = "Số điện thoại không được để trống")]
+    [SupplierPhone]
     [MaxLength(20, ErrorMessage = "Số điện thoại tối đa 20 ký tự")]
     public string PhoneNumber { get; set; } = string.Empty;
 
@@ -71,7 +72,7 @@ public class UpdateSupplierDto
         set => PhoneNumber = value ?? string.Empty;
     }
 
-    [MaxLength(100, ErrorMessage = "Email tối đa 100 ký tự")]
+    [SupplierEmail]
     public string? Email { get; set; }
 
     [MaxLength(500, ErrorMessage = "Địa chỉ tối đa 500 ký tự")]

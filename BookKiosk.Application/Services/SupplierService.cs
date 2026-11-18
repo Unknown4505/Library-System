@@ -1,3 +1,4 @@
+using BookKiosk.Application.Validation;
 using BookKiosk.Application.DTOs.Inventory;
 using BookKiosk.Application.Interfaces.Repositories;
 using BookKiosk.Domain.Entities;
@@ -66,16 +67,15 @@ public class SupplierService : ISupplierService
         if (string.IsNullOrWhiteSpace(dto.Name))
             throw new ArgumentException("Tên nhà cung cấp không được để trống.");
 
-        var phone = !string.IsNullOrWhiteSpace(dto.PhoneNumber) ? dto.PhoneNumber : dto.Phone;
-        if (string.IsNullOrWhiteSpace(phone))
-            throw new ArgumentException("Số điện thoại không được để trống.");
+        var phone = SupplierContactPolicy.NormalizePhone(dto.PhoneNumber);
+        var email = SupplierContactPolicy.NormalizeEmail(dto.Email);
 
         var supplier = new Supplier
         {
             Name = dto.Name.Trim(),
             ContactName = NormalizeContactName(dto.ContactName),
             PhoneNumber = phone.Trim(),
-            Email = dto.Email?.Trim(),
+            Email = email,
             Address = dto.Address?.Trim(),
             IsActive = dto.IsActive
         };
@@ -104,14 +104,13 @@ public class SupplierService : ISupplierService
         if (string.IsNullOrWhiteSpace(dto.Name))
             throw new ArgumentException("Tên nhà cung cấp không được để trống.");
 
-        var phone = !string.IsNullOrWhiteSpace(dto.PhoneNumber) ? dto.PhoneNumber : dto.Phone;
-        if (string.IsNullOrWhiteSpace(phone))
-            throw new ArgumentException("Số điện thoại không được để trống.");
+        var phone = SupplierContactPolicy.NormalizePhone(dto.PhoneNumber);
+        var email = SupplierContactPolicy.NormalizeEmail(dto.Email);
 
         supplier.Name = dto.Name.Trim();
         supplier.ContactName = NormalizeContactName(dto.ContactName);
         supplier.PhoneNumber = phone.Trim();
-        supplier.Email = dto.Email?.Trim();
+        supplier.Email = email;
         supplier.Address = dto.Address?.Trim();
         supplier.IsActive = dto.IsActive;
 
